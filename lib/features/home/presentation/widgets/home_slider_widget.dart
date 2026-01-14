@@ -154,7 +154,7 @@ class HomeSliderWidget extends StatelessWidget {
               final src = img.startsWith('http') ? img : img;
               imgWidget = CachedNetworkImage(
                 imageUrl: src,
-                fit: BoxFit.cover,
+                fit: BoxFit.fill,
                 width: double.infinity,
                 height: double.infinity,
                 placeholder: (context, url) => _buildShimmerPlaceholder(),
