@@ -9,6 +9,7 @@ environment:
   sdk: ^3.9.0
 
 dependencies:
+  animated_text_kit: ^4.3.0
   auto_size_text: ^3.0.0
   bloc: ^9.1.0
   cached_network_image: ^3.4.1
@@ -75,4 +76,4 @@ flutter:
 flutter_launcher_icons:
   android: true
   ios: true
-  image_path: "assets/icons/app_Eka+.png"
+  image_path: "assets/icons/icon_app.png"
