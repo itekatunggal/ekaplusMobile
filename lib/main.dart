@@ -104,7 +104,10 @@ class _EkaplusAppState extends State<EkaplusApp> {
                 _retryTimer?.cancel();
 
                 if (!_isDialogShowing) {
-                  _showNoInternetDialog(navigatorContext, context.read<ConnectionCubit>());
+                  _showNoInternetDialog(
+                    navigatorContext,
+                    context.read<ConnectionCubit>(),
+                  );
                 }
               } else if (state.status == ConnectionStatus.online) {
                 // Connection restored - close dialog and cancel timer
@@ -143,7 +146,10 @@ class _EkaplusAppState extends State<EkaplusApp> {
     );
   }
 
-  void _showNoInternetDialog(BuildContext navigatorContext, ConnectionCubit cubit) {
+  void _showNoInternetDialog(
+    BuildContext navigatorContext,
+    ConnectionCubit cubit,
+  ) {
     _isDialogShowing = true;
     NoInternetDialog.show(navigatorContext).then((action) {
       if (!mounted) return;
@@ -156,7 +162,8 @@ class _EkaplusAppState extends State<EkaplusApp> {
           // After check, if still offline, show dialog again
           Future.delayed(const Duration(milliseconds: 500), () {
             if (!mounted) return;
-            if (cubit.state.status == ConnectionStatus.offline && !_isDialogShowing) {
+            if (cubit.state.status == ConnectionStatus.offline &&
+                !_isDialogShowing) {
               _showNoInternetDialog(navigatorContext, cubit);
             }
           });
@@ -166,7 +173,8 @@ class _EkaplusAppState extends State<EkaplusApp> {
         _retryTimer?.cancel();
         _retryTimer = Timer(const Duration(seconds: 5), () {
           if (!mounted) return;
-          if (cubit.state.status == ConnectionStatus.offline && !_isDialogShowing) {
+          if (cubit.state.status == ConnectionStatus.offline &&
+              !_isDialogShowing) {
             _showNoInternetDialog(navigatorContext, cubit);
           }
         });
