@@ -2,13 +2,14 @@
 import 'dart:async';
 
 import 'package:bloc/bloc.dart';
+import 'package:ekaplus_ekatunggal/core/config/api_config.dart';
 import 'package:http/http.dart' as http;
 part 'connection_status_state.dart';
 
 class ConnectionCubit extends Cubit<ConnectionStateCubit> {
   int errorCount = 0;
   ConnectionCubit()
-      : super(const ConnectionStateCubit(status: ConnectionStatus.online));
+    : super(const ConnectionStateCubit(status: ConnectionStatus.online));
 
   // Fungsi untuk memulai pemantauan status koneksi
   Future<void> startMonitoringConnection() async {
@@ -32,9 +33,7 @@ class ConnectionCubit extends Cubit<ConnectionStateCubit> {
   // Fungsi untuk memeriksa koneksi internet dengan melakukan request ke API
   Future<bool> _checkInternetConnection() async {
     try {
-      final response = await http.get(
-        Uri.parse('https://api-ekatalog.ekatunggal.com'),
-      );
+      final response = await http.get(Uri.parse(ApiConfig.baseUrl));
       return response.statusCode == 404;
     } catch (e) {
       return false;
