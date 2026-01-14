@@ -586,6 +586,7 @@ class AuthLocalDataSourceImpl implements AuthRemoteDataSource {
     }
 
     final updatedUser = UserModel.fromApiJson(body['data']);
+
     await saveLoginUser(updatedUser);
     return updatedUser;
   }
