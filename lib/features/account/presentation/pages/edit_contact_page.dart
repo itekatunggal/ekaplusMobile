@@ -337,8 +337,8 @@ class _EditContactPageState extends State<EditContactPage> {
                         onPressed: isLoading ? null : _handleSubmit,
                         style: ElevatedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 14),
-                          backgroundColor: AppColors.primaryColor,
-                          disabledBackgroundColor: AppColors.primaryColor
+                          backgroundColor: AppColors.secondaryColor,
+                          disabledBackgroundColor: AppColors.secondaryColor
                               .withOpacity(0.5),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(8),
@@ -360,7 +360,7 @@ class _EditContactPageState extends State<EditContactPage> {
                                 style: TextStyle(
                                   fontFamily: AppFonts.primaryFont,
                                   fontWeight: FontWeight.w700,
-                                  color: AppColors.whiteColor,
+                                  color: AppColors.blackColor,
                                 ),
                               ),
                       ),
