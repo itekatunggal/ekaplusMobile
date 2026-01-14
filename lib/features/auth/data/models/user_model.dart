@@ -179,6 +179,7 @@ class UserModel extends User {
     };
   }
 
+  @override
   UserModel copyWith({
     int? id,
     String? firstName,

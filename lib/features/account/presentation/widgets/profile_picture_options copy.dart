@@ -1,5 +1,4 @@
-// lib/features/account/presentation/widgets/profile_picture_options_sheet.dart
-// ignore_for_file: use_build_context_synchronously
+// ignore_for_file: file_names
 
 import 'package:ekaplus_ekatunggal/constant.dart';
 import 'package:ekaplus_ekatunggal/features/auth/domain/entities/user.dart';

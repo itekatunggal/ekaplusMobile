@@ -1,3 +1,5 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'package:ekaplus_ekatunggal/features/banner/presentation/cubit/banner_cubit.dart';
 import 'package:ekaplus_ekatunggal/features/branch/presentation/cubit/branch_cubit.dart';
 import 'package:ekaplus_ekatunggal/features/member/presentation/cubit/member_registration_cubit.dart';
@@ -18,7 +20,6 @@ import 'core/utils/global_navigator_key.dart';
 import 'features/auth/presentation/bloc/auth_bloc.dart';
 import 'features/auth/presentation/bloc/otp_timer/otp_timer_bloc.dart';
 import 'features/auth/presentation/cubit/auth_session_cubit.dart';
-import 'features/auth/presentation/cubit/auth_session_state.dart';
 
 import 'features/category/presentation/bloc/category_bloc.dart';
 import 'features/product/presentation/bloc/product_bloc.dart';

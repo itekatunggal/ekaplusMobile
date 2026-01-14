@@ -1,5 +1,7 @@
 // lib/features/product/presentation/pages/product_detail_page.dart
 
+// ignore_for_file: unused_element, unused_element_parameter
+
 import 'dart:async';
 import 'dart:io' as io;
 import 'package:ekaplus_ekatunggal/constant.dart';
@@ -26,7 +28,7 @@ class _ProductDetailConstants {
   static const double thumbnailMargin = 10.0;
   static const int autoSlideDurationSeconds = 4;
   static const Duration animationDuration = Duration(milliseconds: 400);
-  static const Duration imageTransitionDuration = Duration(milliseconds: 300);
+  // static const Duration imageTransitionDuration = Duration(milliseconds: 300);
   static const double floatingButtonSize = 40.0;
 }
 
