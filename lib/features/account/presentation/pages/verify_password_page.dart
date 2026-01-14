@@ -162,20 +162,20 @@ class _VerifyPasswordPageState extends State<VerifyPasswordPage> {
                         : null,
                   ),
                   const SizedBox(height: 16),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: GestureDetector(
-                      onTap: () => context.pushNamed('forgot-password-phone'),
-                      child: Text(
-                        'Lupa Password?',
-                        style: TextStyle(
-                          fontFamily: AppFonts.primaryFont,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.primaryColor,
-                        ),
-                      ),
-                    ),
-                  ),
+                  // Align(
+                  //   alignment: Alignment.centerRight,
+                  //   child: GestureDetector(
+                  //     onTap: () => context.pushNamed('forgot-password-phone'),
+                  //     child: Text(
+                  //       'Lupa Password?',
+                  //       style: TextStyle(
+                  //         fontFamily: AppFonts.primaryFont,
+                  //         fontWeight: FontWeight.w600,
+                  //         color: AppColors.primaryColor,
+                  //       ),
+                  //     ),
+                  //   ),
+                  // ),
                   const Spacer(),
                   ElevatedButton(
                     onPressed: _isVerifying ? null : _handleNext,

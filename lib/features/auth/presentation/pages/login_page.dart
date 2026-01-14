@@ -285,32 +285,31 @@ class _LoginPageState extends State<LoginPage> {
 
                         const SizedBox(height: 12),
 
-                        // Forgot Password
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: TextButton(
-                            onPressed: () =>
-                                context.pushNamed('forgot-password-phone'),
-                            style: TextButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 4,
-                              ),
-                              minimumSize: Size.zero,
-                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                            ),
-                            child: Text(
-                              'Lupa Password?',
-                              style: TextStyle(
-                                fontFamily: AppFonts.primaryFont,
-                                fontSize: isIOS ? 14 : 12,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.primaryColor,
-                              ),
-                            ),
-                          ),
-                        ),
-
+                        // // Forgot Password
+                        // Align(
+                        //   alignment: Alignment.centerRight,
+                        //   child: TextButton(
+                        //     onPressed: () =>
+                        //         context.pushNamed('forgot-password-phone'),
+                        //     style: TextButton.styleFrom(
+                        //       padding: const EdgeInsets.symmetric(
+                        //         horizontal: 8,
+                        //         vertical: 4,
+                        //       ),
+                        //       minimumSize: Size.zero,
+                        //       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        //     ),
+                        //     child: Text(
+                        //       'Lupa Password?',
+                        //       style: TextStyle(
+                        //         fontFamily: AppFonts.primaryFont,
+                        //         fontSize: isIOS ? 14 : 12,
+                        //         fontWeight: FontWeight.w600,
+                        //         color: AppColors.primaryColor,
+                        //       ),
+                        //     ),
+                        //   ),
+                        // ),
                         SizedBox(height: isSmallScreen ? 20 : 24),
 
                         // Login Button
