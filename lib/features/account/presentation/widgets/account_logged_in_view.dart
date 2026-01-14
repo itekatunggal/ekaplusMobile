@@ -888,15 +888,22 @@ class _AccountLoggedInViewState extends State<AccountLoggedInView> {
             textSize: itemTextSize,
             title: 'Ganti Password',
             onTap: () {
-              context.pushNamed(
-                'verify-password',
-                extra: {
-                  'userId': currentUser.phone,
-                  'title': 'Ganti Password',
-                  'subtitle': 'Masukkan password untuk verifikasi',
-                  'nextRoute': 'change-password',
-                },
-              );
+              if (currentUser.password != "") {
+                context.pushNamed(
+                  'verify-password',
+                  extra: {
+                    'userId': currentUser.phone,
+                    'title': 'Ganti Password',
+                    'subtitle': 'Masukkan password untuk verifikasi',
+                    'nextRoute': 'change-password',
+                  },
+                );
+              } else {
+                context.pushNamed(
+                  'change-password',
+                  extra: {'verifyOldPassword': "old"},
+                );
+              }
             },
           ),
 

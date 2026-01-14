@@ -4,6 +4,7 @@ import 'package:ekaplus_ekatunggal/core/shared_widgets/app_bar.dart';
 import 'package:ekaplus_ekatunggal/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:ekaplus_ekatunggal/features/auth/presentation/bloc/auth_event.dart';
 import 'package:ekaplus_ekatunggal/features/auth/presentation/bloc/auth_state.dart';
+import 'package:ekaplus_ekatunggal/features/auth/presentation/cubit/auth_session_cubit.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -50,6 +51,7 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
       body: BlocListener<AuthBloc, AuthState>(
         listener: (context, state) {
           if (state is PasswordChangeSuccess) {
+            context.read<AuthSessionCubit>().checkSession();
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
                 content: Text('Password berhasil diubah'),
