@@ -175,22 +175,47 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     );
   }
 
+  // Future<void> _onLoginWithGoogle(
+  //   LoginWithGoogleEvent event,
+  //   Emitter<AuthState> emit,
+  // ) async {
+  //   emit(AuthLoading());
+  //   try {
+  //     final idToken = await googleAuthService.loginAndGetIdToken();
+
+  //     final result = await loginWithGoogle(idToken);
+
+  //     result.fold(
+  //       (f) => emit(LoginWithGoogleError(f.message ?? 'Login Google gagal')),
+  //       (user) => emit(LoginWithGoogleSuccess(user)),
+  //     );
+  //   } catch (e) {
+  //     emit(LoginWithGoogleError(e.toString()));
+  //   }
+  // }
+
   Future<void> _onLoginWithGoogle(
     LoginWithGoogleEvent event,
     Emitter<AuthState> emit,
   ) async {
     emit(AuthLoading());
+
     try {
       final idToken = await googleAuthService.loginAndGetIdToken();
 
       final result = await loginWithGoogle(idToken);
 
       result.fold(
-        (f) => emit(LoginWithGoogleError(f.message ?? 'Login Google gagal')),
-        (user) => emit(LoginWithGoogleSuccess(user)),
+        (f) {
+          emit(LoginWithGoogleError(f.message ?? 'Login Google gagal'));
+        },
+        (user) {
+          emit(LoginWithGoogleSuccess(user));
+        },
       );
     } catch (e) {
-      emit(LoginWithGoogleError(e.toString()));
+      await googleAuthService.logout();
+      emit(LoginWithGoogleError('Login Google dibatalkan'));
     }
   }
 
