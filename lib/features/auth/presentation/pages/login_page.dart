@@ -166,6 +166,7 @@ class _LoginPageState extends State<LoginPage> {
           if (!mounted) return;
 
           if (state is LoginError) {
+            _isNavigating = false;
             setState(() {
               if (state.message.contains('tidak ditemukan') ||
                   state.message.toLowerCase().contains('user')) {
@@ -202,6 +203,7 @@ class _LoginPageState extends State<LoginPage> {
               if (mounted) context.go('/');
             });
           } else if (state is LoginWithGoogleError) {
+            _isNavigating = false;
             _showErrorSnackbar(state.message);
           }
         },
@@ -629,9 +631,10 @@ class _LoginPageState extends State<LoginPage> {
           width: double.infinity,
           height: 48,
           child: OutlinedButton(
-            onPressed: (isLoading || _isNavigating)
+            onPressed: isLoading
                 ? null
                 : () => context.read<AuthBloc>().add(LoginWithGoogleEvent()),
+
             style: OutlinedButton.styleFrom(
               backgroundColor: Colors.white,
               foregroundColor: const Color(0xFF1F2937),
