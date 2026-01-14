@@ -1,0 +1,350 @@
+// lib/features/member/presentation/utils/member_registration_form_state.dart
+
+import 'dart:io';
+
+import 'package:ekaplus_ekatunggal/features/branch/domain/entities/branch.dart';
+import 'package:flutter/material.dart';
+import '../../data/models/province_model.dart';
+import '../../data/models/regency_model.dart';
+import '../../data/models/district_model.dart';
+import '../../data/models/village_model.dart';
+
+/// Class untuk mengelola semua form controllers dan state untuk Member Registration
+class MemberRegistrationFormState {
+  // === IDENTITY SECTION (Read-only from User data) ===
+  // Controllers untuk data identitas yang sudah ada
+  final TextEditingController namaController;
+  final TextEditingController phoneController;
+  final TextEditingController emailController;
+  final TextEditingController birthPlaceController;
+  final TextEditingController dateOfBirthController;
+
+  // === COMPANY INFO SECTION ===
+  final TextEditingController companyNameController;
+  final TextEditingController nikController;
+  final TextEditingController npwpController;
+
+  // === ADDRESS SECTION ===
+  final TextEditingController addressController;
+  final TextEditingController rtController;
+  final TextEditingController rwController;
+  final TextEditingController postalCodeController;
+
+  // === SUPPORTING DATA SECTION ===
+  final TextEditingController contactPersonController;
+  final TextEditingController factoryAddressController;
+  final TextEditingController emailCompanyController;
+  final TextEditingController faxController;
+
+  // === COMPANY TYPE & BRANCH ===
+  String? companyType; // 'Perorangan' or 'Badan'
+  String? companySuffix; // BP, IBU, PT, CV, TOKO, UD
+  Branch? selectedBranch;
+
+  // === CASCADING ADDRESS DROPDOWNS ===
+  ProvinceModel? selectedProvince;
+  RegencyModel? selectedRegency;
+  DistrictModel? selectedDistrict;
+  VillageModel? selectedVillage;
+
+  // === LISTS FOR DROPDOWNS ===
+  List<Branch> branches = [];
+  List<ProvinceModel> provinces = [];
+  List<RegencyModel> regencies = [];
+  List<DistrictModel> districts = [];
+  List<VillageModel> villages = [];
+
+  // === UPLOAD DOCUMENTS ===
+  File? ktpFile;
+  File? npwpFile;
+  String? companyDocFilePath; // SIUP/TDP/NIB
+
+  MemberRegistrationFormState({
+    // Identity
+    required this.namaController,
+    required this.phoneController,
+    required this.emailController,
+    required this.birthPlaceController,
+    required this.dateOfBirthController,
+    // Company Info
+    required this.companyNameController,
+    required this.nikController,
+    required this.npwpController,
+    // Address
+    required this.addressController,
+    required this.rtController,
+    required this.rwController,
+    required this.postalCodeController,
+    // Supporting Data
+    required this.contactPersonController,
+    required this.factoryAddressController,
+    required this.emailCompanyController,
+    required this.faxController,
+  });
+
+  /// Factory constructor untuk membuat instance baru dengan controllers kosong
+  factory MemberRegistrationFormState.empty() {
+    return MemberRegistrationFormState(
+      // Identity
+      namaController: TextEditingController(),
+      phoneController: TextEditingController(),
+      emailController: TextEditingController(),
+      birthPlaceController: TextEditingController(),
+      dateOfBirthController: TextEditingController(),
+      // Company Info
+      companyNameController: TextEditingController(),
+      nikController: TextEditingController(),
+      npwpController: TextEditingController(),
+      // Address
+      addressController: TextEditingController(),
+      rtController: TextEditingController(),
+      rwController: TextEditingController(),
+      postalCodeController: TextEditingController(),
+      // Supporting Data
+      contactPersonController: TextEditingController(),
+      factoryAddressController: TextEditingController(),
+      emailCompanyController: TextEditingController(),
+      faxController: TextEditingController(),
+    );
+  }
+
+  /// Factory constructor untuk membuat instance dengan data user yang sudah ada
+  factory MemberRegistrationFormState.fromUserData({
+    required String nama,
+    required String phone,
+    required String email,
+    required String birthPlace,
+    required String dateOfBirth,
+  }) {
+    return MemberRegistrationFormState(
+      // Identity (pre-filled)
+      namaController: TextEditingController(text: nama),
+      phoneController: TextEditingController(text: phone),
+      emailController: TextEditingController(text: email),
+      birthPlaceController: TextEditingController(text: birthPlace),
+      dateOfBirthController: TextEditingController(text: dateOfBirth),
+      // Company Info (empty)
+      companyNameController: TextEditingController(),
+      nikController: TextEditingController(),
+      npwpController: TextEditingController(),
+      // Address (empty)
+      addressController: TextEditingController(),
+      rtController: TextEditingController(),
+      rwController: TextEditingController(),
+      postalCodeController: TextEditingController(),
+      // Supporting Data (empty)
+      contactPersonController: TextEditingController(),
+      factoryAddressController: TextEditingController(),
+      emailCompanyController: TextEditingController(),
+      faxController: TextEditingController(),
+    );
+  }
+
+  /// Dispose all controllers
+  void dispose() {
+    // Identity
+    namaController.dispose();
+    phoneController.dispose();
+    emailController.dispose();
+    birthPlaceController.dispose();
+    dateOfBirthController.dispose();
+    // Company Info
+    companyNameController.dispose();
+    nikController.dispose();
+    npwpController.dispose();
+    // Address
+    addressController.dispose();
+    rtController.dispose();
+    rwController.dispose();
+    postalCodeController.dispose();
+    // Supporting Data
+    contactPersonController.dispose();
+    factoryAddressController.dispose();
+    emailCompanyController.dispose();
+    faxController.dispose();
+  }
+
+  /// Reset dropdown selections ketika ada perubahan pada parent
+  void resetRegency() {
+    selectedRegency = null;
+    regencies = [];
+    resetDistrict();
+  }
+
+  void resetDistrict() {
+    selectedDistrict = null;
+    districts = [];
+    resetVillage();
+  }
+
+  void resetVillage() {
+    selectedVillage = null;
+    villages = [];
+  }
+
+  /// Format company name: UPPERCASE + TRIM + add suffix based on user selection
+  String getFormattedCompanyName() {
+    String name = companyNameController.text.trim().toUpperCase();
+
+    if (name.isEmpty) return '';
+
+    // If user selected suffix, add it to the end
+    if (companySuffix != null && companySuffix!.isNotEmpty) {
+      return '$name $companySuffix';
+    }
+
+    return name;
+  }
+
+  /// Validate form before submission
+  Map<String, String?> validate() {
+    Map<String, String?> errors = {};
+
+    // Company Type
+    if (companyType == null || companyType!.isEmpty) {
+      errors['companyType'] = 'Pilih jenis perusahaan';
+    }
+
+    // Company Name
+    if (companyNameController.text.trim().isEmpty) {
+      errors['companyName'] = 'Nama perusahaan tidak boleh kosong';
+    }
+
+    // NIK
+    if (nikController.text.trim().isEmpty) {
+      errors['nik'] = 'NIK tidak boleh kosong';
+    } else if (nikController.text.trim().length != 16) {
+      errors['nik'] = 'NIK harus 16 digit';
+    }
+
+    // NPWP (Opsional untuk Perorangan, tapi jika diisi harus valid)
+    if (npwpController.text.trim().isNotEmpty) {
+      if (npwpController.text.trim().length != 15) {
+        errors['npwp'] = 'NPWP harus 15 digit';
+      }
+    }
+
+    // Branch
+    if (selectedBranch == null) {
+      errors['branch'] = 'Pilih cabang';
+    }
+
+    // Address
+    if (addressController.text.trim().isEmpty) {
+      errors['address'] = 'Alamat tidak boleh kosong';
+    }
+
+    // Province, Regency, District, Village
+    if (selectedProvince == null) {
+      errors['province'] = 'Pilih provinsi';
+    }
+    if (selectedRegency == null) {
+      errors['regency'] = 'Pilih kota/kabupaten';
+    }
+    if (selectedDistrict == null) {
+      errors['district'] = 'Pilih kecamatan';
+    }
+    if (selectedVillage == null) {
+      errors['village'] = 'Pilih kelurahan/desa';
+    }
+
+    // RT/RW
+    if (rtController.text.trim().isEmpty) {
+      errors['rt'] = 'RT tidak boleh kosong';
+    }
+    if (rwController.text.trim().isEmpty) {
+      errors['rw'] = 'RW tidak boleh kosong';
+    }
+
+    // Postal Code
+    if (postalCodeController.text.trim().isEmpty) {
+      errors['postalCode'] = 'Kode pos tidak boleh kosong';
+    } else if (postalCodeController.text.trim().length != 5) {
+      errors['postalCode'] = 'Kode pos harus 5 digit';
+    }
+
+    // // Contact Person
+    // if (contactPersonController.text.trim().isEmpty) {
+    //   errors['contactPerson'] = 'Contact person tidak boleh kosong';
+    // }
+
+    // // Email Company
+    // if (emailCompanyController.text.trim().isEmpty) {
+    //   errors['emailCompany'] = 'Email perusahaan tidak boleh kosong';
+    // } else if (!_isValidEmail(emailCompanyController.text.trim())) {
+    //   errors['emailCompany'] = 'Format email tidak valid';
+    // }
+
+    // Document uploads
+    if (ktpFile == null) {
+      errors['ktpFile'] = 'Upload foto KTP';
+    }
+    // NPWP file: Opsional untuk Perorangan, tapi jika NPWP manual tidak diisi maka harus upload
+    if (companyType == 'Perorangan') {
+      // Untuk Perorangan: NPWP opsional (boleh tidak ada sama sekali)
+      // Tidak perlu validasi NPWP file
+    } else {
+      // Untuk Badan atau lainnya: NPWP file tetap opsional
+      // (bisa diisi manual atau upload)
+    }
+
+    return errors;
+  }
+
+  // /// Helper: Email validation
+  // bool _isValidEmail(String email) {
+  //   return RegExp(
+  //     r"^[a-zA-Z0-9.a-zA-Z0-9.!#$%&'*+-/=?^_`{|}~]+@[a-zA-Z0-9]+\.[a-zA-Z]+",
+  //   ).hasMatch(email);
+  // }
+
+  /// Convert to JSON untuk API submission
+  /// registrationType: 'GPID' untuk first registration, 'GCID' untuk perusahaan baru di group, 'BCID' untuk cabang
+  Map<String, dynamic> toJson({
+    String registrationType = 'GPID',
+    String? parentGcid,
+  }) {
+    final companyNameFormatted = getFormattedCompanyName();
+
+    // Generate BC_name with format: "COMPANY_NAME - DAERAH" (untuk SEMUA registration)
+    // final bcName = selectedBranch != null
+    //     ? '$companyNameFormatted - ${selectedBranch?.area?.toUpperCase()}'
+    //     : companyNameFormatted;
+
+    return {
+      // Registration Metadata
+      'type': registrationType,
+      'nama': namaController.text.trim(),
+      'email': emailController.text.trim(),
+      'phone': phoneController.text.trim(),
+      'birthPlace': birthPlaceController.text.trim(),
+      'dateOfBirth': dateOfBirthController.text.trim(),
+
+      // Company Info (kept for compatibility)
+      'business_name': companyNameFormatted,
+      'entity': companyType,
+      'nik': nikController.text.trim(),
+      'npwp': npwpController.text.trim(),
+
+      // Branch
+      'branch': selectedBranch?.id,
+      'branch_name': selectedBranch?.branchName,
+      'branch_daerah': selectedBranch?.area, // NEW: Daerah from branch
+      // Address
+      'address': addressController.text.trim(),
+      'province': selectedProvince?.name,
+      'city': selectedRegency?.name,
+      'district': selectedDistrict?.name,
+      'village': selectedVillage?.name,
+      'rt': rtController.text.trim(),
+      'rw': rwController.text.trim(),
+      'postal_code': postalCodeController.text.trim(),
+
+      // Supporting Data
+      'contact_person': contactPersonController.text.trim(),
+      'factory_address': factoryAddressController.text.trim(),
+      'email_company': emailCompanyController.text.trim(),
+      'fax': faxController.text.trim(),
+    };
+  }
+}
