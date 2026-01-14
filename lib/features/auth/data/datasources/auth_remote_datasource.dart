@@ -15,6 +15,7 @@ import '../models/user_model.dart';
 
 abstract class AuthRemoteDataSource {
   Future<bool> checkPhoneExists(String phone);
+  Future<User> getUserInfo();
   Future<bool> checkPassword(String password);
   Future<User> changePassword(String oldPassword, String newPassword);
   Future<String> generateOtp(String phone, String method);
@@ -512,6 +513,27 @@ class AuthLocalDataSourceImpl implements AuthRemoteDataSource {
     if (response.statusCode != 200 || body['status'] != 'success') {
       throw Exception(body['message'] ?? 'Gagal memperbarui data user');
     }
+  }
+
+  @override
+  Future<User> getUserInfo() async {
+    final response = await authedRequest((token) {
+      return http.get(
+        Uri.parse('${ApiConfig.baseUrl}/api/user/me'),
+        headers: {...ApiConfig.headers, 'Authorization': 'Bearer $token'},
+      );
+    });
+
+    final body = jsonDecode(response.body);
+
+    if (response.statusCode != 200 || body['status'] != 'success') {
+      throw Exception(body['message'] ?? 'Gagal memperbarui data user');
+    }
+
+    final updatedUser = UserModel.fromApiJson(body['data']);
+
+    await saveLoginUser(updatedUser);
+    return updatedUser;
   }
 
   // ⭐ NEW: Update Profile Picture

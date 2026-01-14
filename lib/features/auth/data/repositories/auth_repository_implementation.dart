@@ -193,16 +193,19 @@ class AuthRepositoryImplementation implements AuthRepository {
   ) async {
     try {
       // Cek apakah profilePicPath adalah file lokal (untuk upload)
-      final isLocalFile = profilePicPath != null &&
-                         profilePicPath.isNotEmpty &&
-                         !profilePicPath.startsWith('http') &&
-                         !profilePicPath.startsWith('assets/') &&
-                         !profilePicPath.startsWith('local:') &&
-                         profilePicPath.contains('/');
+      final isLocalFile =
+          profilePicPath != null &&
+          profilePicPath.isNotEmpty &&
+          !profilePicPath.startsWith('http') &&
+          !profilePicPath.startsWith('assets/') &&
+          !profilePicPath.startsWith('local:') &&
+          profilePicPath.contains('/');
 
       if (isLocalFile) {
         // Upload file ke server
-        final updatedUser = await localDataSource.updateProfilePicture(profilePicPath);
+        final updatedUser = await localDataSource.updateProfilePicture(
+          profilePicPath,
+        );
         return Right(updatedUser);
       } else if (profilePicPath != null && profilePicPath.isEmpty) {
         // Delete foto profil dari server
@@ -370,6 +373,16 @@ class AuthRepositoryImplementation implements AuthRepository {
   }) async {
     try {
       final valid = await localDataSource.checkPassword(password);
+      return Right(valid);
+    } catch (e) {
+      return Left(ValidationFailure(message: e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, User>> getUserInfo() async {
+    try {
+      final valid = await localDataSource.getUserInfo();
       return Right(valid);
     } catch (e) {
       return Left(ValidationFailure(message: e.toString()));

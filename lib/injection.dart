@@ -3,6 +3,7 @@ import 'package:ekaplus_ekatunggal/core/constants.dart'; // Import Constants
 import 'package:ekaplus_ekatunggal/features/auth/data/datasources/google_auth_service.dart';
 import 'package:ekaplus_ekatunggal/features/auth/domain/usecases/change_password.dart';
 import 'package:ekaplus_ekatunggal/features/auth/domain/usecases/check_password.dart';
+import 'package:ekaplus_ekatunggal/features/auth/domain/usecases/get_user_info.dart';
 import 'package:ekaplus_ekatunggal/features/auth/domain/usecases/login_with_google.dart';
 import 'package:ekaplus_ekatunggal/features/auth/domain/usecases/register_otp.dart';
 import 'package:ekaplus_ekatunggal/features/auth/domain/usecases/reset_password_with_otp.dart';
@@ -115,7 +116,10 @@ Future<void> init() async {
 
   // Auth Session Cubit
   myinjection.registerLazySingleton<AuthSessionCubit>(
-    () => AuthSessionCubit(saveLoginUser: myinjection()),
+    () => AuthSessionCubit(
+      saveLoginUser: myinjection(),
+      getUserInfo: myinjection(),
+    ),
   );
 
   // ProductBloc as Singleton
@@ -177,6 +181,10 @@ Future<void> init() async {
 
   myinjection.registerLazySingleton<SaveLoginUser>(
     () => SaveLoginUser(myinjection()),
+  );
+
+  myinjection.registerLazySingleton<GetUserInfo>(
+    () => GetUserInfo(myinjection()),
   );
 
   myinjection.registerLazySingleton<TypeRemoteDatasource>(

@@ -1,4 +1,5 @@
 // lib/features/auth/presentation/cubit/auth_session_cubit.dart
+import 'package:ekaplus_ekatunggal/features/auth/domain/usecases/get_user_info.dart';
 import 'package:ekaplus_ekatunggal/features/auth/domain/usecases/save_login_user.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ekaplus_ekatunggal/core/utils/session_manager.dart';
@@ -8,7 +9,9 @@ import 'auth_session_state.dart';
 
 class AuthSessionCubit extends Cubit<AuthSessionState> {
   final SaveLoginUser saveLoginUser;
-  AuthSessionCubit({required this.saveLoginUser}) : super(AuthSessionInitial());
+  final GetUserInfo getUserInfo;
+  AuthSessionCubit({required this.saveLoginUser, required this.getUserInfo})
+    : super(AuthSessionInitial());
 
   Future<void> checkSession() async {
     emit(AuthSessionLoading());
@@ -35,14 +38,18 @@ class AuthSessionCubit extends Cubit<AuthSessionState> {
     }
   }
 
-  // Future<void> refreshUser() async {
-  //   try {
-  //     final user = await _repo.getCurrentUser();
-  //     await saveLoginUser(user);
+  Future<void> refreshUser() async {
+    final result = await getUserInfo();
 
-  //     emit(AuthSessionAuthenticated(user: user, status: UserStatus.loggedIn));
-  //   } catch (_) {}
-  // }
+    result.fold(
+      (f) {
+        checkSession();
+      },
+      (user) {
+        emit(AuthSessionAuthenticated(user: user, status: UserStatus.loggedIn));
+      },
+    );
+  }
 
   Future<void> login(User user) async {
     emit(AuthSessionAuthenticated(user: user, status: UserStatus.loggedIn));

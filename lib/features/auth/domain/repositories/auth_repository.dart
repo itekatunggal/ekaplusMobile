@@ -18,6 +18,7 @@ abstract class AuthRepository {
   );
 
   Future<Either<Failure, User>> registerUser(RegisterUserParams params);
+  Future<Either<Failure, User>> getUserInfo();
 
   Future<Either<Failure, User>> getUserByPhone(String phone);
 
