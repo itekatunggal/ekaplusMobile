@@ -51,10 +51,7 @@ class _SplashScreenPageState extends State<SplashScreenPage>
           ),
 
           /// Logo + Text
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 240,
+          Center(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -113,7 +110,7 @@ class _SplashScreenPageState extends State<SplashScreenPage>
                             return Opacity(
                               opacity: opacity.clamp(0.0, 1.0),
                               child: Transform.translate(
-                                offset: const Offset(1, -6),
+                                offset: const Offset(1, -4),
                                 child: const Text(
                                   '+',
                                   style: TextStyle(
