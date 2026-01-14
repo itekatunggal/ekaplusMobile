@@ -100,7 +100,7 @@ class _HomePageState extends State<HomePage> {
                           ),
                           // const SizedBox(height: 8),
                           ProductsSection(
-                            title: 'Yang Baru Dari Kami 🔥',
+                            title: 'Yang Baru Dari Kami TESSS 🔥',
                             subtitle: 'Yang baru - baru, dijamin menarik !!!',
                             hotDealsOnly: false,
                             showCount: 6,
