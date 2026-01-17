@@ -1,4 +1,4 @@
-package com.example.ekaplus_ekatunggal
+package com.ekatunggal.ekaplus
 
 import io.flutter.embedding.android.FlutterActivity
 
