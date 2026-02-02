@@ -53,13 +53,32 @@ class _EditContactPageState extends State<EditContactPage> {
       isPhone ? 'Konfirmasi Nomor Handphone' : 'Konfirmasi Email';
   String get currentLabel => isPhone ? 'Nomor saat ini:' : 'Email saat ini:';
   String get hintText =>
-      isPhone ? 'Contoh: 081234567890' : 'Contoh: user@example.com';
+      isPhone ? 'Contoh:  08123456789' : 'Contoh: user@example.com';
   String get confirmHintText =>
       isPhone ? 'Konfirmasi nomor handphone baru' : 'Konfirmasi email baru';
   String get otpInfoText => isPhone
       ? 'Kode OTP akan dikirim ke nomor baru'
       : 'Kode verifikasi akan dikirim ke email baru';
   String get buttonText => isPhone ? 'Kirim Kode OTP' : 'Kirim Kode Verifikasi';
+
+  /// Helper untuk normalize phone number
+  /// Menghapus semua karakter non-digit (+, -, spasi, dll)
+  String _normalizePhone(String phone) {
+    return phone.trim().replaceAll(RegExp(r'[^0-9]'), '');
+  }
+
+  /// Helper untuk convert phone ke format 62xxx
+  String _toInternationalFormat(String phone) {
+    String normalized = _normalizePhone(phone);
+
+    if (normalized.startsWith('0')) {
+      return '62${normalized.substring(1)}';
+    } else if (normalized.startsWith('62')) {
+      return normalized;
+    }
+
+    return normalized;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -107,34 +126,52 @@ class _EditContactPageState extends State<EditContactPage> {
             );
           }
         },
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // Current Value Info
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[100],
-                    borderRadius: BorderRadius.circular(8),
-                  ),
+        child: Column(
+          children: [
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(16),
+                child: Form(
+                  key: _formKey,
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Text(
-                        currentLabel,
-                        style: TextStyle(
-                          fontFamily: AppFonts.primaryFont,
-                          fontSize: 12,
-                          color: AppColors.grayColor,
+                      // Current Value Info
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.grey[100],
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              currentLabel,
+                              style: TextStyle(
+                                fontFamily: AppFonts.primaryFont,
+                                fontSize: 12,
+                                color: AppColors.grayColor,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              widget.currentValue,
+                              style: TextStyle(
+                                fontFamily: AppFonts.primaryFont,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.black87,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 24),
+
+                      // New Value
                       Text(
-                        widget.currentValue,
+                        fieldLabel,
                         style: TextStyle(
                           fontFamily: AppFonts.primaryFont,
                           fontSize: 14,
@@ -142,179 +179,197 @@ class _EditContactPageState extends State<EditContactPage> {
                           color: Colors.black87,
                         ),
                       ),
+                      const SizedBox(height: 8),
+                      TextFormField(
+                        controller: _valueController,
+                        keyboardType: isPhone
+                            ? TextInputType.phone
+                            : TextInputType.emailAddress,
+                        decoration: InputDecoration(
+                          hintText: hintText,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
+                        ),
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return '${isPhone ? 'Nomor handphone' : 'Email'} tidak boleh kosong';
+                          }
+
+                          if (isPhone) {
+                            // Normalize dulu (hapus +, -, spasi, dll)
+                            String normalized = _normalizePhone(value);
+
+                            // Validasi panjang setelah dinormalisasi
+                            if (normalized.length < 10 ||
+                                normalized.length > 15) {
+                              return 'Nomor handphone tidak valid (10-15 digit)';
+                            }
+
+                            // Validasi hanya berisi angka setelah normalisasi
+                            if (!RegExp(r'^[0-9]+$').hasMatch(normalized)) {
+                              return 'Nomor handphone hanya boleh berisi angka';
+                            }
+
+                            // Convert ke format international untuk comparison
+                            String internationalFormat = _toInternationalFormat(
+                              value,
+                            );
+                            String currentInternationalFormat =
+                                _toInternationalFormat(widget.currentValue);
+
+                            if (internationalFormat ==
+                                currentInternationalFormat) {
+                              return 'Nomor baru sama dengan nomor lama';
+                            }
+                          } else {
+                            if (!RegExp(
+                              r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
+                            ).hasMatch(value)) {
+                              return 'Format email tidak valid';
+                            }
+                            if (value.toLowerCase() ==
+                                widget.currentValue.toLowerCase()) {
+                              return 'Email baru sama dengan email lama';
+                            }
+                          }
+
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Confirm Value
+                      Text(
+                        confirmLabel,
+                        style: TextStyle(
+                          fontFamily: AppFonts.primaryFont,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black87,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      TextFormField(
+                        controller: _confirmValueController,
+                        keyboardType: isPhone
+                            ? TextInputType.phone
+                            : TextInputType.emailAddress,
+                        decoration: InputDecoration(
+                          hintText: confirmHintText,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
+                        ),
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Konfirmasi ${isPhone ? 'nomor' : 'email'} tidak boleh kosong';
+                          }
+
+                          if (isPhone) {
+                            // Normalize kedua nomor dan convert ke international format
+                            String confirmedInternational =
+                                _toInternationalFormat(value);
+                            String originalInternational =
+                                _toInternationalFormat(_valueController.text);
+
+                            if (confirmedInternational !=
+                                originalInternational) {
+                              return 'Nomor tidak cocok';
+                            }
+                          } else {
+                            final compareValue = value.toLowerCase();
+                            final originalValue = _valueController.text
+                                .toLowerCase();
+
+                            if (compareValue != originalValue) {
+                              return 'Email tidak cocok';
+                            }
+                          }
+                          return null;
+                        },
+                      ),
+
+                      const SizedBox(height: 8),
+                      Text(
+                        otpInfoText,
+                        style: TextStyle(
+                          fontFamily: AppFonts.primaryFont,
+                          fontSize: 12,
+                          color: AppColors.grayColor,
+                        ),
+                      ),
                     ],
                   ),
                 ),
-                const SizedBox(height: 24),
+              ),
+            ),
 
-                // New Value
-                Text(
-                  fieldLabel,
-                  style: TextStyle(
-                    fontFamily: AppFonts.primaryFont,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black87,
+            // Button di bawah (sticky)
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppColors.whiteColor,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, -2),
                   ),
-                ),
-                const SizedBox(height: 8),
-                TextFormField(
-                  controller: _valueController,
-                  keyboardType: isPhone
-                      ? TextInputType.phone
-                      : TextInputType.emailAddress,
-                  decoration: InputDecoration(
-                    hintText: hintText,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
-                    ),
-                  ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return '${isPhone ? 'Nomor handphone' : 'Email'} tidak boleh kosong';
-                    }
-
-                    if (isPhone) {
-                      if (!RegExp(r'^[0-9+]+$').hasMatch(value)) {
-                        return 'Nomor handphone tidak valid';
-                      }
-
-                      // Normalize for comparison
-                      String normalizedNew = value.replaceAll(
-                        RegExp(r'[^0-9]'),
-                        '',
-                      );
-                      if (normalizedNew.startsWith('0')) {
-                        normalizedNew = '62${normalizedNew.substring(1)}';
-                      }
-
-                      String normalizedCurrent = widget.currentValue.replaceAll(
-                        RegExp(r'[^0-9]'),
-                        '',
-                      );
-                      if (normalizedCurrent.startsWith('0')) {
-                        normalizedCurrent =
-                            '62${normalizedCurrent.substring(1)}';
-                      }
-
-                      if (normalizedNew == normalizedCurrent) {
-                        return 'Nomor baru sama dengan nomor lama';
-                      }
-                    } else {
-                      if (!RegExp(
-                        r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
-                      ).hasMatch(value)) {
-                        return 'Format email tidak valid';
-                      }
-                      if (value.toLowerCase() ==
-                          widget.currentValue.toLowerCase()) {
-                        return 'Email baru sama dengan email lama';
-                      }
-                    }
-
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
-
-                // Confirm Value
-                Text(
-                  confirmLabel,
-                  style: TextStyle(
-                    fontFamily: AppFonts.primaryFont,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black87,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                TextFormField(
-                  controller: _confirmValueController,
-                  keyboardType: isPhone
-                      ? TextInputType.phone
-                      : TextInputType.emailAddress,
-                  decoration: InputDecoration(
-                    hintText: confirmHintText,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
-                    ),
-                  ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Konfirmasi ${isPhone ? 'nomor' : 'email'} tidak boleh kosong';
-                    }
-
-                    final compareValue = isPhone ? value : value.toLowerCase();
-                    final originalValue = isPhone
-                        ? _valueController.text
-                        : _valueController.text.toLowerCase();
-
-                    if (compareValue != originalValue) {
-                      return '${isPhone ? 'Nomor' : 'Email'} tidak cocok';
-                    }
-                    return null;
-                  },
-                ),
-
-                const SizedBox(height: 8),
-                Text(
-                  otpInfoText,
-                  style: TextStyle(
-                    fontFamily: AppFonts.primaryFont,
-                    fontSize: 12,
-                    color: AppColors.grayColor,
-                  ),
-                ),
-                const SizedBox(height: 24),
-
-                BlocBuilder<ProfileUpdateCubit, ProfileUpdateState>(
+                ],
+              ),
+              child: SafeArea(
+                child: BlocBuilder<ProfileUpdateCubit, ProfileUpdateState>(
                   builder: (context, state) {
                     final isLoading = state is ProfileUpdateLoading;
 
-                    return ElevatedButton(
-                      onPressed: isLoading ? null : _handleSubmit,
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        backgroundColor: AppColors.primaryColor,
-                        disabledBackgroundColor: AppColors.primaryColor
-                            .withOpacity(0.5),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
+                    return SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: isLoading ? null : _handleSubmit,
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          backgroundColor: AppColors.secondaryColor,
+                          disabledBackgroundColor: AppColors.secondaryColor
+                              .withOpacity(0.5),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
                         ),
-                      ),
-                      child: isLoading
-                          ? const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                  Colors.white,
+                        child: isLoading
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    Colors.white,
+                                  ),
+                                ),
+                              )
+                            : Text(
+                                buttonText,
+                                style: TextStyle(
+                                  fontFamily: AppFonts.primaryFont,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.blackColor,
                                 ),
                               ),
-                            )
-                          : Text(
-                              buttonText,
-                              style: TextStyle(
-                                fontFamily: AppFonts.primaryFont,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.whiteColor,
-                              ),
-                            ),
+                      ),
                     );
                   },
                 ),
-              ],
+              ),
             ),
-          ),
+          ],
         ),
       ),
     );
@@ -323,11 +378,10 @@ class _EditContactPageState extends State<EditContactPage> {
   void _handleSubmit() {
     if (_formKey.currentState!.validate()) {
       if (isPhone) {
-        // Normalize phone number
-        String newPhone = _valueController.text.trim().replaceAll(
-          RegExp(r'[^0-9]'),
-          '',
-        );
+        // Normalize phone number (hapus semua non-digit)
+        String newPhone = _normalizePhone(_valueController.text);
+
+        // Convert ke format international
         if (newPhone.startsWith('0')) {
           newPhone = '62${newPhone.substring(1)}';
         }
