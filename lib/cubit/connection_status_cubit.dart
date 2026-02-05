@@ -42,12 +42,9 @@ class ConnectionCubit extends Cubit<ConnectionStateCubit> {
         return ConnectionStatus.serverIssue;
       }
 
-      if (response.statusCode >= 200 && response.statusCode < 400) {
-        return ConnectionStatus.online;
-      }
-
-      // Other non-success responses are treated as server issues.
-      return ConnectionStatus.serverIssue;
+      // Any non-5xx response means the server is reachable.
+      // This covers 404/401/403 that many APIs return on base URL.
+      return ConnectionStatus.online;
     } on TimeoutException {
       return ConnectionStatus.serverIssue;
     } on HandshakeException {
