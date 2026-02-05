@@ -4,11 +4,16 @@ import 'package:ekaplus_ekatunggal/constant.dart';
 import 'package:flutter/material.dart';
 import '../utils/member_registration_form_state.dart';
 
-/// Widget untuk section identitas (read-only fields dari data user)
+/// Widget untuk section identitas (sebagian read-only dari data user)
 class IdentitySectionWidget extends StatelessWidget {
   final MemberRegistrationFormState formState;
+  final VoidCallback onSelectBirthDate;
 
-  const IdentitySectionWidget({super.key, required this.formState});
+  const IdentitySectionWidget({
+    super.key,
+    required this.formState,
+    required this.onSelectBirthDate,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -60,22 +65,19 @@ class IdentitySectionWidget extends StatelessWidget {
             ),
             const SizedBox(height: 8),
 
-            // Tempat Lahir (Read-only)
-            _buildReadOnlyField(
+            // Tempat Lahir (Editable)
+            _buildEditableField(
               context: context,
               label: 'Tempat lahir',
               controller: formState.birthPlaceController,
               icon: Icons.location_on,
+              hint: 'Masukkan tempat lahir',
+              textCapitalization: TextCapitalization.words,
             ),
             const SizedBox(height: 8),
 
-            // Tanggal Lahir (Read-only)
-            _buildReadOnlyField(
-              context: context,
-              label: 'Tanggal Lahir',
-              controller: formState.dateOfBirthController,
-              icon: Icons.calendar_today,
-            ),
+            // Tanggal Lahir (Editable via date picker)
+            _buildDateField(context),
 
             // Info text
             const SizedBox(height: 12),
@@ -92,7 +94,9 @@ class IdentitySectionWidget extends StatelessWidget {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Data ini diambil dari akun Anda dan tidak dapat diubah',
+                      'Nama, No. Handphone, dan Email diambil dari akun Anda '
+                      'dan tidak dapat diubah. Tempat lahir dan tanggal lahir '
+                      'bisa diperbarui sesuai KTP.',
                       style: TextStyle(
                         fontSize: 12,
                         color: Colors.blue[700],
@@ -150,7 +154,121 @@ class IdentitySectionWidget extends StatelessWidget {
           style: const TextStyle(
             color: Colors.black87,
             fontWeight: FontWeight.w400,
-            fontSize: 14
+            fontSize: 14,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildEditableField({
+    required BuildContext context,
+    required String label,
+    required TextEditingController controller,
+    required IconData icon,
+    String? hint,
+    TextCapitalization? textCapitalization,
+    TextInputType? keyboardType,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 12,
+            color: Colors.black54,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 8),
+        TextFormField(
+          controller: controller,
+          keyboardType: keyboardType,
+          textCapitalization: textCapitalization ?? TextCapitalization.none,
+          decoration: InputDecoration(
+            prefixIcon: Icon(icon, size: 20),
+            hintText: hint,
+            hintStyle: const TextStyle(fontSize: 14, color: Colors.grey),
+            filled: true,
+            fillColor: AppColors.whiteColor,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: AppColors.blackColor),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: AppColors.blackColor),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(
+                color: AppColors.primaryColor,
+                width: 2,
+              ),
+            ),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 12,
+            ),
+          ),
+          style: const TextStyle(
+            color: Colors.black87,
+            fontWeight: FontWeight.w400,
+            fontSize: 14,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDateField(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Tanggal Lahir',
+          style: TextStyle(
+            fontSize: 12,
+            color: Colors.black54,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 8),
+        TextFormField(
+          controller: formState.dateOfBirthController,
+          readOnly: true,
+          onTap: onSelectBirthDate,
+          decoration: InputDecoration(
+            prefixIcon: const Icon(Icons.calendar_today, size: 20),
+            hintText: 'Pilih tanggal lahir',
+            hintStyle: const TextStyle(fontSize: 14, color: Colors.grey),
+            filled: true,
+            fillColor: AppColors.whiteColor,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: AppColors.blackColor),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: AppColors.blackColor),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(
+                color: AppColors.primaryColor,
+                width: 2,
+              ),
+            ),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 12,
+            ),
+          ),
+          style: const TextStyle(
+            color: Colors.black87,
+            fontWeight: FontWeight.w400,
+            fontSize: 14,
           ),
         ),
       ],

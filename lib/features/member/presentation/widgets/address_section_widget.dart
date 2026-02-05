@@ -184,34 +184,34 @@ class _AddressSectionWidgetState extends State<AddressSectionWidget> {
               const SizedBox(height: 16),
 
               // RT & RW Row
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildTextField(
-                      label: 'RT *',
-                      controller: widget.formState.rtController,
-                      icon: Icons.numbers,
-                      keyboardType: TextInputType.number,
-                      maxLength: 3,
-                      errorText: widget.rtError,
-                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: _buildTextField(
-                      label: 'RW *',
-                      controller: widget.formState.rwController,
-                      icon: Icons.numbers,
-                      keyboardType: TextInputType.number,
-                      maxLength: 3,
-                      errorText: widget.rwError,
-                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
+              // Row(
+              //   children: [
+              //     Expanded(
+              //       child: _buildTextField(
+              //         label: 'RT *',
+              //         controller: widget.formState.rtController,
+              //         icon: Icons.numbers,
+              //         keyboardType: TextInputType.number,
+              //         maxLength: 3,
+              //         errorText: widget.rtError,
+              //         inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              //       ),
+              //     ),
+              //     const SizedBox(width: 16),
+              //     Expanded(
+              //       child: _buildTextField(
+              //         label: 'RW *',
+              //         controller: widget.formState.rwController,
+              //         icon: Icons.numbers,
+              //         keyboardType: TextInputType.number,
+              //         maxLength: 3,
+              //         errorText: widget.rwError,
+              //         inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              //       ),
+              //     ),
+              //   ],
+              // ),
+              // const SizedBox(height: 16),
 
               // Kode Pos
               _buildTextField(

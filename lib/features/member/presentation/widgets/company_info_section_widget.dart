@@ -37,18 +37,35 @@ class CompanyInfoSectionWidget extends StatefulWidget {
 }
 
 class _CompanyInfoSectionWidgetState extends State<CompanyInfoSectionWidget> {
-  final List<String> _companyTypes = ['Perorangan', 'Badan'];
-  final List<String> _badanSuffixes = ['PT', 'CV', 'TOKO', 'UD'];
-  final List<String> _peroranganSuffixes = ['BP', 'IBU'];
+  final List<String> _companyTypes = ['Company', 'Individual'];
+  final List<String> _companyTitles = ['PT', 'CV', 'UD'];
+  final List<String> _individualTitles = [
+    'Toko',
+    'Home Industri',
+    'Freelance',
+  ];
+  final List<String> _productNeeds = [
+    'Bahan Baku Springbed & Sofa',
+    'Furniture',
+  ];
+  final Map<String, String> _titleAbbreviations = {
+    'Toko': 'TK',
+    'Home Industri': 'HI',
+    'PT': 'PT',
+    'CV': 'CV',
+    'UD': 'UD',
+  };
+  final TextEditingController _suffixController = TextEditingController();
+  String? _selectedTitle;
   String? _selectedSuffix;
   String _formattedCompanyName = '';
   late BranchCubit bCubit;
 
-  List<String> get _currentSuffixes {
-    if (widget.formState.companyType == 'Badan') {
-      return _badanSuffixes;
-    } else if (widget.formState.companyType == 'Perorangan') {
-      return _peroranganSuffixes;
+  List<String> get _currentTitles {
+    if (widget.formState.companyType == 'Company') {
+      return _companyTitles;
+    } else if (widget.formState.companyType == 'Individual') {
+      return _individualTitles;
     }
     return [];
   }
@@ -57,13 +74,36 @@ class _CompanyInfoSectionWidgetState extends State<CompanyInfoSectionWidget> {
   void initState() {
     super.initState();
     bCubit = context.read<BranchCubit>();
+    _selectedSuffix = widget.formState.companySuffix;
+    _suffixController.text = _selectedSuffix ?? '';
     widget.formState.companyNameController.addListener(_updateFormattedName);
   }
 
   @override
   void dispose() {
     widget.formState.companyNameController.removeListener(_updateFormattedName);
+    _suffixController.dispose();
     super.dispose();
+  }
+
+  bool get _isFreelanceIndividual {
+    return widget.formState.companyType == 'Individual' &&
+        _selectedTitle == 'Freelance';
+  }
+
+  String? _getAbbreviationForTitle(String? title) {
+    if (title == null) return null;
+    if (title == 'Freelance') return null;
+    return _titleAbbreviations[title] ?? title;
+  }
+
+  void _setSuffix(String? suffix, {bool updateFormattedName = true}) {
+    _selectedSuffix = suffix;
+    _suffixController.text = suffix ?? '';
+    widget.formState.companySuffix = suffix;
+    if (updateFormattedName) {
+      _updateFormattedName();
+    }
   }
 
   void _updateFormattedName() {
@@ -76,10 +116,11 @@ class _CompanyInfoSectionWidgetState extends State<CompanyInfoSectionWidget> {
         return;
       }
 
-      // For Badan or Perorangan with suffix
-      if ((widget.formState.companyType == 'Badan' ||
-              widget.formState.companyType == 'Perorangan') &&
-          _selectedSuffix != null) {
+      // For Company/Individual with suffix
+      if ((widget.formState.companyType == 'Company' ||
+              widget.formState.companyType == 'Individual') &&
+          _selectedSuffix != null &&
+          _selectedSuffix!.isNotEmpty) {
         _formattedCompanyName = '$cleanName $_selectedSuffix';
       } else {
         _formattedCompanyName = cleanName;
@@ -111,33 +152,42 @@ class _CompanyInfoSectionWidgetState extends State<CompanyInfoSectionWidget> {
               value: widget.formState.companyType,
               items: _companyTypes,
               onChanged: (value) {
-                setState(() {
-                  widget.onCompanyTypeChanged(value);
-                  // Reset suffix when company type changes
-                  if (_selectedSuffix != null && value != null) {
-                    // Check if current suffix is valid for new type
-                    final newSuffixes = value == 'Badan'
-                        ? _badanSuffixes
-                        : _peroranganSuffixes;
-                    if (!newSuffixes.contains(_selectedSuffix)) {
-                      _selectedSuffix = null;
-                    }
-                  }
-                  _updateFormattedName();
-                });
+                widget.onCompanyTypeChanged(value);
+                _selectedTitle = null;
+                _setSuffix(null, updateFormattedName: false);
+                _updateFormattedName();
               },
               errorText: widget.companyTypeError,
               icon: Icons.category_outlined,
             ),
             const SizedBox(height: 12),
 
-            // Company Name Field with suffix for Badan
-            if (widget.formState.companyType == 'Badan' ||
-                widget.formState.companyType == 'Perorangan') ...[
+            // Gelar Perusahaan
+            _buildDropdownField(
+              label: 'Gelar Perusahaan',
+              value: _selectedTitle,
+              items: _currentTitles,
+              onChanged: (value) {
+                _selectedTitle = value;
+                if (_isFreelanceIndividual) {
+                  _setSuffix(null, updateFormattedName: false);
+                } else {
+                  _setSuffix(_getAbbreviationForTitle(value),
+                      updateFormattedName: false);
+                }
+                _updateFormattedName();
+              },
+              icon: Icons.apartment_outlined,
+            ),
+            const SizedBox(height: 12),
+
+            // Company Name Field with suffix
+            if (widget.formState.companyType == 'Company' ||
+                widget.formState.companyType == 'Individual') ...[
               _buildCompanyNameWithSuffix(),
             ] else ...[
               _buildTextField(
-                label: 'Nama Perusahaan',
+                label: 'Nama',
                 controller: widget.formState.companyNameController,
                 errorText: widget.companyNameError,
                 textCapitalization: TextCapitalization.characters,
@@ -215,6 +265,20 @@ class _CompanyInfoSectionWidgetState extends State<CompanyInfoSectionWidget> {
             ),
             const SizedBox(height: 12),
 
+            // Kebutuhan Produk
+            _buildDropdownField(
+              label: 'Kebutuhan Produk',
+              value: widget.formState.productNeed,
+              items: _productNeeds,
+              onChanged: (value) {
+                setState(() {
+                  widget.formState.productNeed = value;
+                });
+              },
+              icon: Icons.inventory_2_outlined,
+            ),
+            const SizedBox(height: 12),
+
             // Branch Dropdown
             _buildBranchDropdown(),
           ],
@@ -228,7 +292,7 @@ class _CompanyInfoSectionWidgetState extends State<CompanyInfoSectionWidget> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Nama Perusahaan',
+          'Nama',
           style: TextStyle(
             fontSize: 12,
             color: Colors.black54,
@@ -266,8 +330,8 @@ class _CompanyInfoSectionWidgetState extends State<CompanyInfoSectionWidget> {
                   ),
                   errorText: widget.companyNameError,
                   contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 14,
+                    horizontal: 16,
+                    vertical: 12,
                   ),
                 ),
                 textCapitalization: TextCapitalization.characters,
@@ -287,62 +351,95 @@ class _CompanyInfoSectionWidgetState extends State<CompanyInfoSectionWidget> {
               ),
             ),
             const SizedBox(width: 8),
-            // Suffix Dropdown
+            // Suffix (Abbreviation)
             SizedBox(
               width: 105,
-              child: DropdownButtonFormField<String>(
-                initialValue: _selectedSuffix,
-                isExpanded: true,
-                menuMaxHeight: 200,
-                borderRadius: BorderRadius.circular(8),
-                decoration: InputDecoration(
-                  hintText: 'Pilih',
-                  hintStyle: const TextStyle(fontSize: 14, color: Colors.grey),
-                  filled: true,
-                  fillColor: AppColors.whiteColor,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(color: AppColors.blackColor),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(color: AppColors.blackColor),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(
-                      color: AppColors.primaryColor,
-                      width: 2,
-                    ),
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 14,
-                  ),
-                ),
-                items: _currentSuffixes.map((suffix) {
-                  return DropdownMenuItem(
-                    value: suffix,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                      child: Text(
-                        suffix,
-                        style: const TextStyle(fontSize: 14),
-                        overflow: TextOverflow.ellipsis,
+              child: _isFreelanceIndividual
+                  ? DropdownButtonFormField<String>(
+                      initialValue: _selectedSuffix,
+                      isExpanded: true,
+                      menuMaxHeight: 200,
+                      borderRadius: BorderRadius.circular(8),
+                      decoration: InputDecoration(
+                        hintText: 'Pilih',
+                        hintStyle:
+                            const TextStyle(fontSize: 14, color: Colors.grey),
+                        filled: true,
+                        fillColor: AppColors.whiteColor,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(color: AppColors.blackColor),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(color: AppColors.blackColor),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: const BorderSide(
+                            color: AppColors.primaryColor,
+                            width: 2,
+                          ),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
+                      ),
+                      items: const [
+                        DropdownMenuItem(
+                          value: 'IBU',
+                          child: Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 8.0),
+                            child: Text('IBU',
+                                style: TextStyle(fontSize: 14)),
+                          ),
+                        ),
+                        DropdownMenuItem(
+                          value: 'BP',
+                          child: Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 8.0),
+                            child:
+                                Text('BP', style: TextStyle(fontSize: 14)),
+                          ),
+                        ),
+                      ],
+                      onChanged: (value) {
+                        _setSuffix(value);
+                      },
+                      dropdownColor: AppColors.whiteColor,
+                    )
+                  : TextFormField(
+                      controller: _suffixController,
+                      readOnly: true,
+                      enableInteractiveSelection: false,
+                      decoration: InputDecoration(
+                        hintText: 'Singkatan',
+                        hintStyle:
+                            const TextStyle(fontSize: 14, color: Colors.grey),
+                        filled: true,
+                        fillColor: AppColors.whiteColor,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(color: AppColors.blackColor),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(color: AppColors.blackColor),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: const BorderSide(
+                            color: AppColors.primaryColor,
+                            width: 2,
+                          ),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
                       ),
                     ),
-                  );
-                }).toList(),
-                onChanged: (value) {
-                  setState(() {
-                    _selectedSuffix = value;
-                    // IMPORTANT: Save suffix to formState
-                    widget.formState.companySuffix = value;
-                    _updateFormattedName();
-                  });
-                },
-                dropdownColor: AppColors.whiteColor,
-              ),
             ),
           ],
         ),
@@ -402,8 +499,8 @@ class _CompanyInfoSectionWidgetState extends State<CompanyInfoSectionWidget> {
                   ),
                   errorText: widget.branchError,
                   contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 14,
+                    horizontal: 16,
+                    vertical: 12,
                   ),
                 ),
                 items: state.branches.map((branch) {
@@ -485,8 +582,8 @@ class _CompanyInfoSectionWidgetState extends State<CompanyInfoSectionWidget> {
             ),
             errorText: errorText,
             contentPadding: const EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: 14,
+              horizontal: 16,
+              vertical: 12,
             ),
           ),
           items: items.map((item) {
@@ -558,8 +655,8 @@ class _CompanyInfoSectionWidgetState extends State<CompanyInfoSectionWidget> {
             errorText: errorText,
             counterText: '',
             contentPadding: const EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: 14,
+              horizontal: 16,
+              vertical: 12,
             ),
           ),
           onChanged: onChanged,

@@ -39,6 +39,7 @@ class MemberRegistrationFormState {
   // === COMPANY TYPE & BRANCH ===
   String? companyType; // 'Perorangan' or 'Badan'
   String? companySuffix; // BP, IBU, PT, CV, TOKO, UD
+  String? productNeed; // Kebutuhan produk
   Branch? selectedBranch;
 
   // === CASCADING ADDRESS DROPDOWNS ===
@@ -280,7 +281,7 @@ class MemberRegistrationFormState {
       errors['ktpFile'] = 'Upload foto KTP';
     }
     // NPWP file: Opsional untuk Perorangan, tapi jika NPWP manual tidak diisi maka harus upload
-    if (companyType == 'Perorangan') {
+    if (companyType == 'Individual') {
       // Untuk Perorangan: NPWP opsional (boleh tidak ada sama sekali)
       // Tidak perlu validasi NPWP file
     } else {
@@ -325,6 +326,7 @@ class MemberRegistrationFormState {
       'entity': companyType,
       'nik': nikController.text.trim(),
       'npwp': npwpController.text.trim(),
+      'product_need': productNeed,
 
       // Branch
       'branch': selectedBranch?.id,

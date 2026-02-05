@@ -151,6 +151,7 @@ class MemberConfirmationDialog extends StatelessWidget {
                 children: [
                   _buildDataRow('Jenis Perusahaan', formData['company_type']),
                   _buildDataRow('Nama Perusahaan', formData['company_name']),
+                  _buildDataRow('Kebutuhan Produk', formData['product_need']),
                   _buildDataRow('NIK', formData['nik']),
                   _buildDataRow('NPWP', formData['npwp']),
                   _buildDataRow('Cabang', formData['branch_name']),
