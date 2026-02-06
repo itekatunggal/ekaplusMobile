@@ -19,7 +19,8 @@ import '../utils/member_registration_form_state.dart';
 import '../widgets/identity_section_widget.dart';
 import '../widgets/company_info_section_widget.dart';
 import '../widgets/address_section_widget.dart';
-import '../widgets/supporting_data_section_widget.dart';
+import '../widgets/shipping_address_section_widget.dart';
+// import '../widgets/supporting_data_section_widget.dart';
 import '../widgets/upload_documents_section_widget.dart';
 import '../widgets/member_confirmation_dialog.dart';
 import '../../domain/usecases/get_member_registrations_by_user_id.dart';
@@ -77,9 +78,7 @@ class _MemberRegistrationPageState extends State<MemberRegistrationPage> {
       dateOfBirth: userDateOfBirth,
     );
 
-    _selectedBirthDate = _parseBirthDate(
-      _formState.dateOfBirthController.text,
-    );
+    _selectedBirthDate = _parseBirthDate(_formState.dateOfBirthController.text);
 
     _checkExistingRegistration(userId);
   }
@@ -367,9 +366,11 @@ class _MemberRegistrationPageState extends State<MemberRegistrationPage> {
                             onCompanyTypeChanged: _onCompanyTypeChanged,
                             onBranchChanged: _onBranchChanged,
                             companyTypeError: _errors['companyType'],
+                            companyTitleError: _errors['companyTitle'],
+                            companySuffixError: _errors['companySuffix'],
                             companyNameError: _errors['companyName'],
-                            nikError: _errors['nik'],
-                            npwpError: _errors['npwp'],
+                            // nikError: _errors['nik'],
+                            // npwpError: _errors['npwp'],
                             branchError: _errors['branch'],
                           ),
                         ),
@@ -381,28 +382,35 @@ class _MemberRegistrationPageState extends State<MemberRegistrationPage> {
                             provinceError: _errors['province'],
                             regencyError: _errors['regency'],
                             districtError: _errors['district'],
-                            villageError: _errors['village'],
-                            rtError: _errors['rt'],
-                            rwError: _errors['rw'],
+                            // villageError: _errors['village'],
+                            // rtError: _errors['rt'],
+                            // rwError: _errors['rw'],
                             postalCodeError: _errors['postalCode'],
                           ),
                         ),
-                        Container(
-                          key: _supportingDataKey,
-                          child: SupportingDataSectionWidget(
-                            formState: _formState,
-                            contactPersonError: _errors['contactPerson'],
-                            emailCompanyError: _errors['emailCompany'],
-                            factoryAddressError: _errors['factoryAddress'],
-                            faxError: _errors['fax'],
-                          ),
+                        // Shipping Address Section
+                        ShippingAddressSectionWidget(
+                          formState: _formState,
+                          errors: _errors,
+                          onStateChanged: () => setState(() {}),
                         ),
+                        // Container(
+                        //   key: _supportingDataKey,
+                        //   child: SupportingDataSectionWidget(
+                        //     formState: _formState,
+                        //     contactPersonError: _errors['contactPerson'],
+                        //     emailCompanyError: _errors['emailCompany'],
+                        //     factoryAddressError: _errors['factoryAddress'],
+                        //     faxError: _errors['fax'],
+                        //   ),
+                        // ),
                         Container(
                           key: _documentsKey,
                           child: UploadDocumentsSectionWidget(
                             formState: _formState,
                             ktpFileError: _errors['ktpFile'],
                             npwpFileError: _errors['npwpFile'],
+                            onStateChanged: () => setState(() {}),
                           ),
                         ),
                         const SizedBox(height: 16),

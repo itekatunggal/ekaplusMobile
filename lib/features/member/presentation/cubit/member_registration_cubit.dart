@@ -4,9 +4,12 @@ import 'dart:io';
 
 import 'package:bloc/bloc.dart';
 import 'package:ekaplus_ekatunggal/features/member/domain/entities/member_registration.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:http/io_client.dart';
+import 'package:path_provider/path_provider.dart';
 
 import '../../data/models/branch_model.dart';
 import '../../data/models/province_model.dart';
@@ -39,6 +42,16 @@ class MemberRegistrationCubit extends Cubit<MemberRegistrationState> {
 
   static const String _wilayahApiBase = 'https://wilayah.id/api';
 
+  /// Create HTTP client that handles SSL certificate issues
+  http.Client _createHttpClient() {
+    final httpClient = HttpClient()
+      ..badCertificateCallback = (X509Certificate cert, String host, int port) {
+        // Allow wilayah.id API in debug/development mode
+        return !kReleaseMode || host == 'wilayah.id';
+      };
+    return IOClient(httpClient);
+  }
+
   Future<void> loadBranches() async {
     try {
       emit(const MemberRegistrationLoading());
@@ -58,10 +71,13 @@ class MemberRegistrationCubit extends Cubit<MemberRegistrationState> {
   }
 
   Future<void> loadProvinces() async {
+    final client = _createHttpClient();
     try {
       emit(const MemberRegistrationLoading());
 
-      final res = await http.get(Uri.parse('$_wilayahApiBase/provinces.json'));
+      final res = await client.get(
+        Uri.parse('$_wilayahApiBase/provinces.json'),
+      );
 
       if (res.statusCode != 200) {
         emit(const MemberRegistrationError('Gagal memuat data provinsi'));
@@ -76,14 +92,17 @@ class MemberRegistrationCubit extends Cubit<MemberRegistrationState> {
       emit(MemberRegistrationProvincesLoaded(provinces));
     } catch (e) {
       emit(MemberRegistrationError('Error loading provinces: $e'));
+    } finally {
+      client.close();
     }
   }
 
   Future<void> loadRegencies(String provinceId) async {
+    final client = _createHttpClient();
     try {
       emit(const MemberRegistrationLoading());
 
-      final res = await http.get(
+      final res = await client.get(
         Uri.parse('$_wilayahApiBase/regencies/$provinceId.json'),
       );
 
@@ -100,14 +119,17 @@ class MemberRegistrationCubit extends Cubit<MemberRegistrationState> {
       emit(MemberRegistrationRegenciesLoaded(regencies));
     } catch (e) {
       emit(MemberRegistrationError('Error loading regencies: $e'));
+    } finally {
+      client.close();
     }
   }
 
   Future<void> loadDistricts(String regencyId) async {
+    final client = _createHttpClient();
     try {
       emit(const MemberRegistrationLoading());
 
-      final res = await http.get(
+      final res = await client.get(
         Uri.parse('$_wilayahApiBase/districts/$regencyId.json'),
       );
 
@@ -124,14 +146,17 @@ class MemberRegistrationCubit extends Cubit<MemberRegistrationState> {
       emit(MemberRegistrationDistrictsLoaded(districts));
     } catch (e) {
       emit(MemberRegistrationError('Error loading districts: $e'));
+    } finally {
+      client.close();
     }
   }
 
   Future<void> loadVillages(String districtId) async {
+    final client = _createHttpClient();
     try {
       emit(const MemberRegistrationLoading());
 
-      final res = await http.get(
+      final res = await client.get(
         Uri.parse('$_wilayahApiBase/villages/$districtId.json'),
       );
 
@@ -148,6 +173,8 @@ class MemberRegistrationCubit extends Cubit<MemberRegistrationState> {
       emit(MemberRegistrationVillagesLoaded(villages));
     } catch (e) {
       emit(MemberRegistrationError('Error loading villages: $e'));
+    } finally {
+      client.close();
     }
   }
 
@@ -221,6 +248,86 @@ class MemberRegistrationCubit extends Cubit<MemberRegistrationState> {
       );
     } catch (e) {
       emit(MemberRegistrationError('Error refreshing data: $e'));
+    }
+  }
+
+  // === SHIPPING ADDRESS METHODS ===
+
+  Future<void> loadShippingProvinces(String addressId) async {
+    final client = _createHttpClient();
+    try {
+      final res = await client.get(
+        Uri.parse('$_wilayahApiBase/provinces.json'),
+      );
+
+      if (res.statusCode != 200) {
+        emit(const MemberRegistrationError('Gagal memuat data provinsi'));
+        return;
+      }
+
+      final json = jsonDecode(res.body);
+      final provinces = (json['data'] as List)
+          .map((e) => ProvinceModel.fromJson(e))
+          .toList();
+
+      emit(MemberRegistrationShippingProvincesLoaded(addressId, provinces));
+    } catch (e) {
+      emit(MemberRegistrationError('Error loading provinces: $e'));
+    } finally {
+      client.close();
+    }
+  }
+
+  Future<void> loadShippingRegencies(
+    String addressId,
+    String provinceId,
+  ) async {
+    final client = _createHttpClient();
+    try {
+      final res = await client.get(
+        Uri.parse('$_wilayahApiBase/regencies/$provinceId.json'),
+      );
+
+      if (res.statusCode != 200) {
+        emit(const MemberRegistrationError('Gagal memuat data kabupaten'));
+        return;
+      }
+
+      final json = jsonDecode(res.body);
+      final regencies = (json['data'] as List)
+          .map((e) => RegencyModel.fromJson(e))
+          .toList();
+
+      emit(MemberRegistrationShippingRegenciesLoaded(addressId, regencies));
+    } catch (e) {
+      emit(MemberRegistrationError('Error loading regencies: $e'));
+    } finally {
+      client.close();
+    }
+  }
+
+  Future<void> loadShippingDistricts(String addressId, String regencyId) async {
+    final client = _createHttpClient();
+    try {
+      final res = await client.get(
+        Uri.parse('$_wilayahApiBase/districts/$regencyId.json'),
+      );
+
+      if (res.statusCode != 200) {
+        emit(const MemberRegistrationError('Gagal memuat data kecamatan'));
+        return;
+      }
+
+      final json = jsonDecode(res.body);
+      final districts = (json['data'] as List)
+          .map((e) => DistrictModel.fromJson(e))
+          .toList();
+
+      emit(MemberRegistrationShippingDistrictsLoaded(addressId, districts));
+    } catch (e) {
+      emit(MemberRegistrationError('Error loading districts: $e'));
+    } finally {
+      client.close();
     }
   }
 }

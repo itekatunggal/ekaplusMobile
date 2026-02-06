@@ -13,6 +13,7 @@ class UploadDocumentsSectionWidget extends StatefulWidget {
   final MemberRegistrationFormState formState;
   final String? ktpFileError;
   final String? npwpFileError;
+  final VoidCallback? onStateChanged;
   // final String? companyDocFileError;
 
   const UploadDocumentsSectionWidget({
@@ -20,6 +21,7 @@ class UploadDocumentsSectionWidget extends StatefulWidget {
     required this.formState,
     this.ktpFileError,
     this.npwpFileError,
+    this.onStateChanged,
     // this.companyDocFileError,
   });
 
@@ -121,76 +123,116 @@ class _UploadDocumentsSectionWidgetState
           children: [
             // Section Title
             const Text(
-              'Upload Dokumen',
+              'Status Pajak',
               style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
             ),
             const SizedBox(height: 12),
 
-            // Upload KTP
-            _buildUploadField(
-              title: 'Foto KTP *',
-              description: 'Upload foto KTP yang masih berlaku',
-              icon: Icons.badge_outlined,
-              filePath: widget.formState.ktpFile?.path,
-              errorText: widget.ktpFileError,
-              onUploadPressed: () =>
-                  _showImageSourceDialog(type: 'ktp', title: 'KTP'),
-              onRemovePressed: () => _removeImage('ktp'),
-            ),
-            const SizedBox(height: 16),
-
-            // Upload NPWP
-            _buildUploadField(
-              title: 'Foto NPWP',
-              description: 'Upload foto NPWP pribadi',
-              icon: Icons.assignment_outlined,
-              filePath: widget.formState.npwpFile?.path,
-              errorText: widget.npwpFileError,
-              onUploadPressed: () =>
-                  _showImageSourceDialog(type: 'npwp', title: 'NPWP'),
-              onRemovePressed: () => _removeImage('npwp'),
-            ),
-            const SizedBox(height: 16),
-
-            // Info text
+            // PKP Checkbox
             Container(
-              padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.teal[50],
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.teal[200]!),
+                color: widget.formState.isPKP
+                    ? AppColors.primaryColor.withValues(alpha: 0.05)
+                    : Colors.grey[50],
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: widget.formState.isPKP
+                      ? AppColors.primaryColor.withValues(alpha: 0.3)
+                      : Colors.grey[300]!,
+                ),
               ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(Icons.info_outline, size: 20, color: Colors.teal[700]),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Persyaratan Upload:',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.teal[700],
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          '• Format: JPG, PNG\n• Ukuran maksimal: 5 MB\n• Pastikan foto jelas dan dapat dibaca',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.teal[700],
-                          ),
-                        ),
-                      ],
-                    ),
+              child: CheckboxListTile(
+                value: widget.formState.isPKP,
+                onChanged: (value) {
+                  setState(() {
+                    widget.formState.isPKP = value ?? false;
+                    // Clear NPWP file if PKP is unchecked
+                    if (!widget.formState.isPKP) {
+                      widget.formState.npwpFile = null;
+                    }
+                  });
+                  widget.onStateChanged?.call();
+                },
+                title: const Text(
+                  'Pengusaha Kena Pajak (PKP)',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
                   ),
-                ],
+                ),
+                subtitle: Text(
+                  'Centang jika Anda terdaftar sebagai PKP',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey[600],
+                  ),
+                ),
+                activeColor: AppColors.primaryColor,
+                controlAffinity: ListTileControlAffinity.leading,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 8,
+                  vertical: 4,
+                ),
               ),
             ),
+
+            // Show NPWP upload only if PKP is checked
+            if (widget.formState.isPKP) ...[
+              const SizedBox(height: 16),
+
+              // Upload NPWP
+              _buildUploadField(
+                title: 'Foto NPWP',
+                description: 'Upload foto NPWP untuk verifikasi status PKP',
+                icon: Icons.assignment_outlined,
+                filePath: widget.formState.npwpFile?.path,
+                errorText: widget.npwpFileError,
+                onUploadPressed: () =>
+                    _showImageSourceDialog(type: 'npwp', title: 'NPWP'),
+                onRemovePressed: () => _removeImage('npwp'),
+              ),
+              const SizedBox(height: 16),
+
+              // Info text
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.teal[50],
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.teal[200]!),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.info_outline, size: 20, color: Colors.teal[700]),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Persyaratan Upload:',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.teal[700],
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '• Format: JPG, PNG\n• Ukuran maksimal: 5 MB\n• Pastikan foto jelas dan dapat dibaca',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.teal[700],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ],
         ),
       ),

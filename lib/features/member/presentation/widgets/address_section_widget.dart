@@ -180,8 +180,8 @@ class _AddressSectionWidgetState extends State<AddressSectionWidget> {
               const SizedBox(height: 16),
 
               // Village Dropdown
-              _buildVillageDropdown(),
-              const SizedBox(height: 16),
+              // _buildVillageDropdown(),
+              // const SizedBox(height: 16),
 
               // RT & RW Row
               // Row(
@@ -390,60 +390,60 @@ class _AddressSectionWidgetState extends State<AddressSectionWidget> {
     );
   }
 
-  Widget _buildVillageDropdown() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Kelurahan/Desa *',
-          style: const TextStyle(
-            fontSize: 12,
-            color: Colors.black54,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        const SizedBox(height: 8),
-        DropdownButtonFormField<VillageModel>(
-          initialValue: widget.formState.selectedVillage,
-          decoration: InputDecoration(
-            prefixIcon: _isLoadingVillages
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: Padding(
-                      padding: EdgeInsets.all(12),
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    ),
-                  )
-                : const Icon(Icons.place_outlined, size: 20),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-            errorText: widget.villageError,
-            hintText: 'Pilih Kelurahan/Desa',
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 12,
-            ),
-          ),
-          items: widget.formState.villages.map((village) {
-            return DropdownMenuItem(value: village, child: Text(village.name));
-          }).toList(),
-          onChanged:
-              widget.formState.selectedDistrict == null || _isLoadingVillages
-              ? null
-              : _onVillageChanged,
-          isExpanded: true,
-        ),
-        if (widget.formState.selectedDistrict == null)
-          Padding(
-            padding: const EdgeInsets.only(top: 4, left: 12),
-            child: Text(
-              'Pilih kecamatan terlebih dahulu',
-              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-            ),
-          ),
-      ],
-    );
-  }
+  // Widget _buildVillageDropdown() {
+  //   return Column(
+  //     crossAxisAlignment: CrossAxisAlignment.start,
+  //     children: [
+  //       Text(
+  //         'Kelurahan/Desa *',
+  //         style: const TextStyle(
+  //           fontSize: 12,
+  //           color: Colors.black54,
+  //           fontWeight: FontWeight.w500,
+  //         ),
+  //       ),
+  //       const SizedBox(height: 8),
+  //       DropdownButtonFormField<VillageModel>(
+  //         initialValue: widget.formState.selectedVillage,
+  //         decoration: InputDecoration(
+  //           prefixIcon: _isLoadingVillages
+  //               ? const SizedBox(
+  //                   width: 20,
+  //                   height: 20,
+  //                   child: Padding(
+  //                     padding: EdgeInsets.all(12),
+  //                     child: CircularProgressIndicator(strokeWidth: 2),
+  //                   ),
+  //                 )
+  //               : const Icon(Icons.place_outlined, size: 20),
+  //           border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+  //           errorText: widget.villageError,
+  //           hintText: 'Pilih Kelurahan/Desa',
+  //           contentPadding: const EdgeInsets.symmetric(
+  //             horizontal: 16,
+  //             vertical: 12,
+  //           ),
+  //         ),
+  //         items: widget.formState.villages.map((village) {
+  //           return DropdownMenuItem(value: village, child: Text(village.name));
+  //         }).toList(),
+  //         onChanged:
+  //             widget.formState.selectedDistrict == null || _isLoadingVillages
+  //             ? null
+  //             : _onVillageChanged,
+  //         isExpanded: true,
+  //       ),
+  //       if (widget.formState.selectedDistrict == null)
+  //         Padding(
+  //           padding: const EdgeInsets.only(top: 4, left: 12),
+  //           child: Text(
+  //             'Pilih kecamatan terlebih dahulu',
+  //             style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+  //           ),
+  //         ),
+  //     ],
+  //   );
+  // }
 
   Widget _buildTextField({
     required String label,

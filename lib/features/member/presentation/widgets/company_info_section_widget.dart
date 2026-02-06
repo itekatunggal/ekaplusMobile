@@ -17,6 +17,8 @@ class CompanyInfoSectionWidget extends StatefulWidget {
   final String? nikError;
   final String? npwpError;
   final String? companyTypeError;
+  final String? companyTitleError;
+  final String? companySuffixError;
   final String? branchError;
 
   const CompanyInfoSectionWidget({
@@ -28,6 +30,8 @@ class CompanyInfoSectionWidget extends StatefulWidget {
     this.nikError,
     this.npwpError,
     this.companyTypeError,
+    this.companyTitleError,
+    this.companySuffixError,
     this.branchError,
   });
 
@@ -39,11 +43,7 @@ class CompanyInfoSectionWidget extends StatefulWidget {
 class _CompanyInfoSectionWidgetState extends State<CompanyInfoSectionWidget> {
   final List<String> _companyTypes = ['Company', 'Individual'];
   final List<String> _companyTitles = ['PT', 'CV', 'UD'];
-  final List<String> _individualTitles = [
-    'Toko',
-    'Home Industri',
-    'Freelance',
-  ];
+  final List<String> _individualTitles = ['Toko', 'Home Industri', 'Freelance'];
   final List<String> _productNeeds = [
     'Bahan Baku Springbed & Sofa',
     'Furniture',
@@ -74,6 +74,7 @@ class _CompanyInfoSectionWidgetState extends State<CompanyInfoSectionWidget> {
   void initState() {
     super.initState();
     bCubit = context.read<BranchCubit>();
+    _selectedTitle = widget.formState.companyTitle;
     _selectedSuffix = widget.formState.companySuffix;
     _suffixController.text = _selectedSuffix ?? '';
     widget.formState.companyNameController.addListener(_updateFormattedName);
@@ -153,7 +154,10 @@ class _CompanyInfoSectionWidgetState extends State<CompanyInfoSectionWidget> {
               items: _companyTypes,
               onChanged: (value) {
                 widget.onCompanyTypeChanged(value);
-                _selectedTitle = null;
+                setState(() {
+                  _selectedTitle = null;
+                  widget.formState.companyTitle = null; // Reset companyTitle
+                });
                 _setSuffix(null, updateFormattedName: false);
                 _updateFormattedName();
               },
@@ -164,19 +168,25 @@ class _CompanyInfoSectionWidgetState extends State<CompanyInfoSectionWidget> {
 
             // Gelar Perusahaan
             _buildDropdownField(
-              label: 'Gelar Perusahaan',
+              label: 'Gelar Perusahaan *',
               value: _selectedTitle,
               items: _currentTitles,
               onChanged: (value) {
-                _selectedTitle = value;
+                setState(() {
+                  _selectedTitle = value;
+                  widget.formState.companyTitle = value; // Save to formState
+                });
                 if (_isFreelanceIndividual) {
                   _setSuffix(null, updateFormattedName: false);
                 } else {
-                  _setSuffix(_getAbbreviationForTitle(value),
-                      updateFormattedName: false);
+                  _setSuffix(
+                    _getAbbreviationForTitle(value),
+                    updateFormattedName: false,
+                  );
                 }
                 _updateFormattedName();
               },
+              errorText: widget.companyTitleError,
               icon: Icons.apartment_outlined,
             ),
             const SizedBox(height: 12),
@@ -187,7 +197,7 @@ class _CompanyInfoSectionWidgetState extends State<CompanyInfoSectionWidget> {
               _buildCompanyNameWithSuffix(),
             ] else ...[
               _buildTextField(
-                label: 'Nama',
+                label: 'Nama *',
                 controller: widget.formState.companyNameController,
                 errorText: widget.companyNameError,
                 textCapitalization: TextCapitalization.characters,
@@ -241,33 +251,33 @@ class _CompanyInfoSectionWidgetState extends State<CompanyInfoSectionWidget> {
               ),
             const SizedBox(height: 12),
 
-            // NIK Field
-            _buildTextField(
-              label: 'NIK *',
-              controller: widget.formState.nikController,
-              keyboardType: TextInputType.number,
-              maxLength: 16,
-              errorText: widget.nikError,
-              icon: Icons.badge_outlined,
-              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-            ),
-            const SizedBox(height: 12),
+            // // NIK Field
+            // _buildTextField(
+            //   label: 'NIK *',
+            //   controller: widget.formState.nikController,
+            //   keyboardType: TextInputType.number,
+            //   maxLength: 16,
+            //   errorText: widget.nikError,
+            //   icon: Icons.badge_outlined,
+            //   inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            // ),
+            // const SizedBox(height: 12),
 
             // NPWP Field
-            _buildTextField(
-              label: 'NPWP',
-              controller: widget.formState.npwpController,
-              keyboardType: TextInputType.number,
-              maxLength: 15,
-              errorText: widget.npwpError,
-              icon: Icons.credit_card_outlined,
-              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-            ),
-            const SizedBox(height: 12),
+            // _buildTextField(
+            //   label: 'NPWP',
+            //   controller: widget.formState.npwpController,
+            //   keyboardType: TextInputType.number,
+            //   maxLength: 15,
+            //   errorText: widget.npwpError,
+            //   icon: Icons.credit_card_outlined,
+            //   inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            // ),
+            // const SizedBox(height: 12),
 
             // Kebutuhan Produk
             _buildDropdownField(
-              label: 'Kebutuhan Produk',
+              label: 'Kebutuhan Produk *',
               value: widget.formState.productNeed,
               items: _productNeeds,
               onChanged: (value) {
@@ -292,7 +302,7 @@ class _CompanyInfoSectionWidgetState extends State<CompanyInfoSectionWidget> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Nama',
+          'Nama *',
           style: TextStyle(
             fontSize: 12,
             color: Colors.black54,
@@ -351,28 +361,38 @@ class _CompanyInfoSectionWidgetState extends State<CompanyInfoSectionWidget> {
               ),
             ),
             const SizedBox(width: 8),
-            // Suffix (Abbreviation)
+            // Suffix (Abbreviation / Sapaan)
             SizedBox(
               width: 105,
               child: _isFreelanceIndividual
                   ? DropdownButtonFormField<String>(
-                      initialValue: _selectedSuffix,
+                      value: _selectedSuffix,
                       isExpanded: true,
                       menuMaxHeight: 200,
                       borderRadius: BorderRadius.circular(8),
                       decoration: InputDecoration(
-                        hintText: 'Pilih',
-                        hintStyle:
-                            const TextStyle(fontSize: 14, color: Colors.grey),
+                        hintText: 'Pilih *',
+                        hintStyle: const TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey,
+                        ),
                         filled: true,
                         fillColor: AppColors.whiteColor,
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
-                          borderSide: BorderSide(color: AppColors.blackColor),
+                          borderSide: BorderSide(
+                            color: widget.companySuffixError != null
+                                ? Colors.red
+                                : AppColors.blackColor,
+                          ),
                         ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
-                          borderSide: BorderSide(color: AppColors.blackColor),
+                          borderSide: BorderSide(
+                            color: widget.companySuffixError != null
+                                ? Colors.red
+                                : AppColors.blackColor,
+                          ),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
@@ -381,6 +401,8 @@ class _CompanyInfoSectionWidgetState extends State<CompanyInfoSectionWidget> {
                             width: 2,
                           ),
                         ),
+                        errorText: widget.companySuffixError,
+                        errorStyle: const TextStyle(fontSize: 10),
                         contentPadding: const EdgeInsets.symmetric(
                           horizontal: 16,
                           vertical: 12,
@@ -391,16 +413,14 @@ class _CompanyInfoSectionWidgetState extends State<CompanyInfoSectionWidget> {
                           value: 'IBU',
                           child: Padding(
                             padding: EdgeInsets.symmetric(horizontal: 8.0),
-                            child: Text('IBU',
-                                style: TextStyle(fontSize: 14)),
+                            child: Text('IBU', style: TextStyle(fontSize: 14)),
                           ),
                         ),
                         DropdownMenuItem(
                           value: 'BP',
                           child: Padding(
                             padding: EdgeInsets.symmetric(horizontal: 8.0),
-                            child:
-                                Text('BP', style: TextStyle(fontSize: 14)),
+                            child: Text('BP', style: TextStyle(fontSize: 14)),
                           ),
                         ),
                       ],
@@ -415,8 +435,10 @@ class _CompanyInfoSectionWidgetState extends State<CompanyInfoSectionWidget> {
                       enableInteractiveSelection: false,
                       decoration: InputDecoration(
                         hintText: 'Singkatan',
-                        hintStyle:
-                            const TextStyle(fontSize: 14, color: Colors.grey),
+                        hintStyle: const TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey,
+                        ),
                         filled: true,
                         fillColor: AppColors.whiteColor,
                         border: OutlineInputBorder(
@@ -452,7 +474,7 @@ class _CompanyInfoSectionWidgetState extends State<CompanyInfoSectionWidget> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Pilih Cabang Terdekat',
+          'Pilih Cabang Terdekat *',
           style: TextStyle(
             fontSize: 12,
             color: Colors.black54,
