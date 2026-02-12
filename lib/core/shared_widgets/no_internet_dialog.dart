@@ -130,7 +130,6 @@ class NoInternetDialog extends StatelessWidget {
           accentColor: Colors.orange,
         );
       case NoInternetDialogVariant.offline:
-      default:
         return const _DialogContent(
           title: 'Koneksi Internet Tidak Aktif',
           description:

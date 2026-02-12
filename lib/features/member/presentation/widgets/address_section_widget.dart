@@ -1,5 +1,7 @@
 // lib/features/member/presentation/widgets/address_section_widget.dart
 
+// ignore_for_file: unused_field
+
 import 'package:ekaplus_ekatunggal/constant.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -9,7 +11,7 @@ import '../utils/member_registration_form_state.dart';
 import '../../data/models/province_model.dart';
 import '../../data/models/regency_model.dart';
 import '../../data/models/district_model.dart';
-import '../../data/models/village_model.dart';
+// import '../../data/models/village_model.dart';
 
 /// Widget untuk section alamat dengan cascading dropdowns
 class AddressSectionWidget extends StatefulWidget {
@@ -94,11 +96,11 @@ class _AddressSectionWidgetState extends State<AddressSectionWidget> {
     }
   }
 
-  void _onVillageChanged(VillageModel? village) {
-    setState(() {
-      widget.formState.selectedVillage = village;
-    });
-  }
+  // void _onVillageChanged(VillageModel? village) {
+  //   setState(() {
+  //     widget.formState.selectedVillage = village;
+  //   });
+  // }
 
   @override
   Widget build(BuildContext context) {
