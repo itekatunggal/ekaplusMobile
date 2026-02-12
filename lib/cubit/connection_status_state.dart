@@ -2,7 +2,7 @@
 
 part of 'connection_status_cubit.dart';
 
-enum ConnectionStatus { online, offline, low }
+enum ConnectionStatus { online, offline, serverIssue, low }
 
 class ConnectionStateCubit {
   final ConnectionStatus status;

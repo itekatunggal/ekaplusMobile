@@ -874,7 +874,7 @@ class _AccountLoggedInViewState extends State<AccountLoggedInView> {
             icon: Icons.business_center_outlined,
             iconSize: iconSize,
             textSize: itemTextSize,
-            title: 'Member',
+            title: 'Lihat Perusahaan',
             onTap: () {
               context.pushNamed('memberList');
             },

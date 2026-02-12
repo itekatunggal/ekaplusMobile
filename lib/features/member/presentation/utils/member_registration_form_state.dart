@@ -8,6 +8,7 @@ import '../../data/models/province_model.dart';
 import '../../data/models/regency_model.dart';
 import '../../data/models/district_model.dart';
 import '../../data/models/village_model.dart';
+import '../../data/models/shipping_address_model.dart';
 
 /// Class untuk mengelola semua form controllers dan state untuk Member Registration
 class MemberRegistrationFormState {
@@ -37,8 +38,10 @@ class MemberRegistrationFormState {
   final TextEditingController faxController;
 
   // === COMPANY TYPE & BRANCH ===
-  String? companyType; // 'Perorangan' or 'Badan'
-  String? companySuffix; // BP, IBU, PT, CV, TOKO, UD
+  String? companyType; // 'Company' or 'Individual'
+  String? companyTitle; // Gelar: PT, CV, UD, Toko, Home Industri, Freelance
+  String? companySuffix; // Singkatan: BP, IBU, PT, CV, TK, HI, UD
+  String? productNeed; // Kebutuhan produk
   Branch? selectedBranch;
 
   // === CASCADING ADDRESS DROPDOWNS ===
@@ -58,6 +61,10 @@ class MemberRegistrationFormState {
   File? ktpFile;
   File? npwpFile;
   String? companyDocFilePath; // SIUP/TDP/NIB
+  bool isPKP = false; // Pengusaha Kena Pajak checkbox
+
+  // === SHIPPING ADDRESSES ===
+  List<ShippingAddressModel> shippingAddresses = [];
 
   MemberRegistrationFormState({
     // Identity
@@ -162,6 +169,48 @@ class MemberRegistrationFormState {
     factoryAddressController.dispose();
     emailCompanyController.dispose();
     faxController.dispose();
+    // Shipping Addresses
+    for (final address in shippingAddresses) {
+      address.dispose();
+    }
+  }
+
+  // === SHIPPING ADDRESS METHODS ===
+
+  /// Add new shipping address
+  void addShippingAddress() {
+    shippingAddresses.add(ShippingAddressModel.create());
+  }
+
+  /// Remove shipping address by index
+  void removeShippingAddress(int index) {
+    if (index >= 0 && index < shippingAddresses.length) {
+      shippingAddresses[index].dispose();
+      shippingAddresses.removeAt(index);
+    }
+  }
+
+  /// Copy company address to shipping address
+  void copyCompanyAddressToShipping(int index) {
+    if (index >= 0 && index < shippingAddresses.length) {
+      shippingAddresses[index].copyFromCompanyAddress(
+        address: addressController.text,
+        postalCode: postalCodeController.text,
+        province: selectedProvince,
+        regency: selectedRegency,
+        district: selectedDistrict,
+        companyProvinces: provinces,
+        companyRegencies: regencies,
+        companyDistricts: districts,
+      );
+    }
+  }
+
+  /// Clear shipping address fields
+  void clearShippingAddress(int index) {
+    if (index >= 0 && index < shippingAddresses.length) {
+      shippingAddresses[index].clear();
+    }
   }
 
   /// Reset dropdown selections ketika ada perubahan pada parent
@@ -205,24 +254,38 @@ class MemberRegistrationFormState {
       errors['companyType'] = 'Pilih jenis perusahaan';
     }
 
+    // Company Title (Gelar Perusahaan) - wajib jika sudah pilih jenis perusahaan
+    if (companyType != null && companyType!.isNotEmpty) {
+      if (companyTitle == null || companyTitle!.isEmpty) {
+        errors['companyTitle'] = 'Pilih gelar perusahaan';
+      }
+    }
+
+    // Company Suffix (Sapaan) - wajib untuk Freelance
+    if (companyType == 'Individual' && companyTitle == 'Freelance') {
+      if (companySuffix == null || companySuffix!.isEmpty) {
+        errors['companySuffix'] = 'Pilih sapaan (IBU/BP)';
+      }
+    }
+
     // Company Name
     if (companyNameController.text.trim().isEmpty) {
       errors['companyName'] = 'Nama perusahaan tidak boleh kosong';
     }
 
-    // NIK
-    if (nikController.text.trim().isEmpty) {
-      errors['nik'] = 'NIK tidak boleh kosong';
-    } else if (nikController.text.trim().length != 16) {
-      errors['nik'] = 'NIK harus 16 digit';
-    }
+    // // NIK
+    // if (nikController.text.trim().isEmpty) {
+    //   errors['nik'] = 'NIK tidak boleh kosong';
+    // } else if (nikController.text.trim().length != 16) {
+    //   errors['nik'] = 'NIK harus 16 digit';
+    // }
 
-    // NPWP (Opsional untuk Perorangan, tapi jika diisi harus valid)
-    if (npwpController.text.trim().isNotEmpty) {
-      if (npwpController.text.trim().length != 15) {
-        errors['npwp'] = 'NPWP harus 15 digit';
-      }
-    }
+    // // NPWP (Opsional untuk Perorangan, tapi jika diisi harus valid)
+    // if (npwpController.text.trim().isNotEmpty) {
+    //   if (npwpController.text.trim().length != 15) {
+    //     errors['npwp'] = 'NPWP harus 15 digit';
+    //   }
+    // }
 
     // Branch
     if (selectedBranch == null) {
@@ -244,17 +307,17 @@ class MemberRegistrationFormState {
     if (selectedDistrict == null) {
       errors['district'] = 'Pilih kecamatan';
     }
-    if (selectedVillage == null) {
-      errors['village'] = 'Pilih kelurahan/desa';
-    }
+    // if (selectedVillage == null) {
+    //   errors['village'] = 'Pilih kelurahan/desa';
+    // }
 
     // RT/RW
-    if (rtController.text.trim().isEmpty) {
-      errors['rt'] = 'RT tidak boleh kosong';
-    }
-    if (rwController.text.trim().isEmpty) {
-      errors['rw'] = 'RW tidak boleh kosong';
-    }
+    // if (rtController.text.trim().isEmpty) {
+    //   errors['rt'] = 'RT tidak boleh kosong';
+    // }
+    // if (rwController.text.trim().isEmpty) {
+    //   errors['rw'] = 'RW tidak boleh kosong';
+    // }
 
     // Postal Code
     if (postalCodeController.text.trim().isEmpty) {
@@ -275,12 +338,12 @@ class MemberRegistrationFormState {
     //   errors['emailCompany'] = 'Format email tidak valid';
     // }
 
-    // Document uploads
-    if (ktpFile == null) {
-      errors['ktpFile'] = 'Upload foto KTP';
-    }
+    // // Document uploads
+    // if (ktpFile == null) {
+    //   errors['ktpFile'] = 'Upload foto KTP';
+    // }
     // NPWP file: Opsional untuk Perorangan, tapi jika NPWP manual tidak diisi maka harus upload
-    if (companyType == 'Perorangan') {
+    if (companyType == 'Individual') {
       // Untuk Perorangan: NPWP opsional (boleh tidak ada sama sekali)
       // Tidak perlu validasi NPWP file
     } else {
@@ -323,8 +386,9 @@ class MemberRegistrationFormState {
       // Company Info (kept for compatibility)
       'business_name': companyNameFormatted,
       'entity': companyType,
-      'nik': nikController.text.trim(),
-      'npwp': npwpController.text.trim(),
+      // 'nik': nikController.text.trim(),
+      // 'npwp': npwpController.text.trim(),
+      'product_need': productNeed,
 
       // Branch
       'branch': selectedBranch?.id,
@@ -335,9 +399,9 @@ class MemberRegistrationFormState {
       'province': selectedProvince?.name,
       'city': selectedRegency?.name,
       'district': selectedDistrict?.name,
-      'village': selectedVillage?.name,
-      'rt': rtController.text.trim(),
-      'rw': rwController.text.trim(),
+      // 'village': selectedVillage?.name,
+      // 'rt': rtController.text.trim(),
+      // 'rw': rwController.text.trim(),
       'postal_code': postalCodeController.text.trim(),
 
       // Supporting Data
@@ -345,6 +409,31 @@ class MemberRegistrationFormState {
       'factory_address': factoryAddressController.text.trim(),
       'email_company': emailCompanyController.text.trim(),
       'fax': faxController.text.trim(),
+
+      // PKP Status
+      'is_pkp': isPKP,
+
+      // Shipping Addresses - jika sameAsCompanyAddress true, gunakan data alamat perusahaan
+      'shipping_addresses': shippingAddresses.map((addr) {
+        if (addr.sameAsCompanyAddress) {
+          // Gunakan data alamat perusahaan terbaru
+          return {
+            'label': addr.labelController.text.trim().isEmpty
+                ? 'Alamat Pengiriman'
+                : addr.labelController.text.trim(),
+            'address': addressController.text.trim(),
+            'province': selectedProvince?.name,
+            'province_code': selectedProvince?.code,
+            'city': selectedRegency?.name,
+            'city_code': selectedRegency?.code,
+            'district': selectedDistrict?.name,
+            'district_code': selectedDistrict?.code,
+            'postal_code': postalCodeController.text.trim(),
+            'same_as_company': true,
+          };
+        }
+        return addr.toJson();
+      }).toList(),
     };
   }
 }

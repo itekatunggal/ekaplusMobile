@@ -6,9 +6,11 @@ import 'package:ekaplus_ekatunggal/constant.dart';
 import 'package:ekaplus_ekatunggal/core/shared_widgets/custom_header.dart';
 import 'package:ekaplus_ekatunggal/features/auth/presentation/cubit/auth_session_state.dart';
 import 'package:ekaplus_ekatunggal/features/branch/domain/entities/branch.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 
 import '../../../../injection.dart' as di;
 import '../../../auth/presentation/cubit/auth_session_cubit.dart';
@@ -17,7 +19,8 @@ import '../utils/member_registration_form_state.dart';
 import '../widgets/identity_section_widget.dart';
 import '../widgets/company_info_section_widget.dart';
 import '../widgets/address_section_widget.dart';
-import '../widgets/supporting_data_section_widget.dart';
+import '../widgets/shipping_address_section_widget.dart';
+// import '../widgets/supporting_data_section_widget.dart';
 import '../widgets/upload_documents_section_widget.dart';
 import '../widgets/member_confirmation_dialog.dart';
 import '../../domain/usecases/get_member_registrations_by_user_id.dart';
@@ -36,6 +39,7 @@ class _MemberRegistrationPageState extends State<MemberRegistrationPage> {
 
   Map<String, String?> _errors = {};
   bool _isSubmitting = false;
+  DateTime? _selectedBirthDate;
 
   final ScrollController _scrollController = ScrollController();
 
@@ -74,7 +78,25 @@ class _MemberRegistrationPageState extends State<MemberRegistrationPage> {
       dateOfBirth: userDateOfBirth,
     );
 
+    _selectedBirthDate = _parseBirthDate(_formState.dateOfBirthController.text);
+
     _checkExistingRegistration(userId);
+  }
+
+  DateTime? _parseBirthDate(String value) {
+    if (value.trim().isEmpty) return null;
+
+    // Preferred display format: "01 Februari 2000"
+    try {
+      return DateFormat('dd MMMM yyyy', 'id_ID').parseStrict(value.trim());
+    } catch (_) {}
+
+    // Fallback for older stored format: "01/02/2000"
+    try {
+      return DateFormat('dd/MM/yyyy').parseStrict(value.trim());
+    } catch (_) {}
+
+    return null;
   }
 
   Future<void> _checkExistingRegistration(int userId) async {
@@ -149,6 +171,66 @@ class _MemberRegistrationPageState extends State<MemberRegistrationPage> {
       _formState.selectedBranch = branch;
       _errors.remove('branch');
     });
+  }
+
+  Future<void> _selectBirthDate() async {
+    final DateTime initial = _selectedBirthDate ?? DateTime(2000);
+    DateTime tempPicked = initial;
+
+    await showCupertinoModalPopup(
+      context: context,
+      builder: (context) {
+        return Container(
+          height: 320,
+          color: AppColors.whiteColor,
+          child: Column(
+            children: [
+              SizedBox(
+                height: 44,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    CupertinoButton(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: const Text('Batal'),
+                      onPressed: () => Navigator.of(context).pop(),
+                    ),
+                    CupertinoButton(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: const Text('Selesai'),
+                      onPressed: () {
+                        if (!mounted) return;
+                        setState(() {
+                          _selectedBirthDate = tempPicked;
+                          _formState.dateOfBirthController.text = DateFormat(
+                            'dd MMMM yyyy',
+                            'id_ID',
+                          ).format(_selectedBirthDate!);
+                        });
+                        Navigator.of(context).pop();
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(height: 1),
+              Expanded(
+                child: CupertinoDatePicker(
+                  mode: CupertinoDatePickerMode.date,
+                  initialDateTime: initial,
+                  minimumDate: DateTime(1950),
+                  maximumDate: DateTime.now(),
+                  use24hFormat: true,
+                  onDateTimeChanged: (DateTime picked) {
+                    tempPicked = picked;
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   Future<void> _handleSubmit() async {
@@ -273,7 +355,10 @@ class _MemberRegistrationPageState extends State<MemberRegistrationPage> {
                     child: Column(
                       children: [
                         const SizedBox(height: 16),
-                        IdentitySectionWidget(formState: _formState),
+                        IdentitySectionWidget(
+                          formState: _formState,
+                          onSelectBirthDate: _selectBirthDate,
+                        ),
                         Container(
                           key: _companyInfoKey,
                           child: CompanyInfoSectionWidget(
@@ -281,9 +366,11 @@ class _MemberRegistrationPageState extends State<MemberRegistrationPage> {
                             onCompanyTypeChanged: _onCompanyTypeChanged,
                             onBranchChanged: _onBranchChanged,
                             companyTypeError: _errors['companyType'],
+                            companyTitleError: _errors['companyTitle'],
+                            companySuffixError: _errors['companySuffix'],
                             companyNameError: _errors['companyName'],
-                            nikError: _errors['nik'],
-                            npwpError: _errors['npwp'],
+                            // nikError: _errors['nik'],
+                            // npwpError: _errors['npwp'],
                             branchError: _errors['branch'],
                           ),
                         ),
@@ -295,28 +382,35 @@ class _MemberRegistrationPageState extends State<MemberRegistrationPage> {
                             provinceError: _errors['province'],
                             regencyError: _errors['regency'],
                             districtError: _errors['district'],
-                            villageError: _errors['village'],
-                            rtError: _errors['rt'],
-                            rwError: _errors['rw'],
+                            // villageError: _errors['village'],
+                            // rtError: _errors['rt'],
+                            // rwError: _errors['rw'],
                             postalCodeError: _errors['postalCode'],
                           ),
                         ),
-                        Container(
-                          key: _supportingDataKey,
-                          child: SupportingDataSectionWidget(
-                            formState: _formState,
-                            contactPersonError: _errors['contactPerson'],
-                            emailCompanyError: _errors['emailCompany'],
-                            factoryAddressError: _errors['factoryAddress'],
-                            faxError: _errors['fax'],
-                          ),
+                        // Shipping Address Section
+                        ShippingAddressSectionWidget(
+                          formState: _formState,
+                          errors: _errors,
+                          onStateChanged: () => setState(() {}),
                         ),
+                        // Container(
+                        //   key: _supportingDataKey,
+                        //   child: SupportingDataSectionWidget(
+                        //     formState: _formState,
+                        //     contactPersonError: _errors['contactPerson'],
+                        //     emailCompanyError: _errors['emailCompany'],
+                        //     factoryAddressError: _errors['factoryAddress'],
+                        //     faxError: _errors['fax'],
+                        //   ),
+                        // ),
                         Container(
                           key: _documentsKey,
                           child: UploadDocumentsSectionWidget(
                             formState: _formState,
                             ktpFileError: _errors['ktpFile'],
                             npwpFileError: _errors['npwpFile'],
+                            onStateChanged: () => setState(() {}),
                           ),
                         ),
                         const SizedBox(height: 16),

@@ -4,43 +4,46 @@ import 'dart:io' as io;
 import 'package:flutter/material.dart';
 import '../../constant.dart';
 
-class NoInternetDialog extends StatelessWidget {
-  const NoInternetDialog({super.key});
+enum NoInternetDialogVariant { offline, serverIssue }
 
-  static Future<String?> show(BuildContext context) {
+class NoInternetDialog extends StatelessWidget {
+  final NoInternetDialogVariant variant;
+
+  const NoInternetDialog({super.key, required this.variant});
+
+  static Future<String?> show(
+    BuildContext context, {
+    required NoInternetDialogVariant variant,
+  }) {
     return showDialog<String>(
       context: context,
       barrierDismissible: false,
-      builder: (context) => const NoInternetDialog(),
+      builder: (context) => NoInternetDialog(variant: variant),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     final bool isIOS = io.Platform.isIOS;
+    final content = _dialogContent(variant);
 
     return Dialog(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       clipBehavior: Clip.antiAlias,
       child: Container(
-        constraints: const BoxConstraints(
-          maxWidth: 400,
-        ),
+        constraints: const BoxConstraints(maxWidth: 400),
         padding: const EdgeInsets.all(24),
         color: AppColors.whiteColor,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // WiFi Icon with Red Dot
-            _buildWifiIcon(),
+            _buildStatusIcon(content),
 
             const SizedBox(height: 24),
 
             // Title
             Text(
-              'Koneksi Internet Terganggu',
+              content.title,
               style: TextStyle(
                 fontFamily: AppFonts.primaryFont,
                 fontSize: isIOS ? 19 : 18,
@@ -54,7 +57,7 @@ class NoInternetDialog extends StatelessWidget {
 
             // Description
             Text(
-              'Periksa pengaturan Wi-Fi atau data seluler kamu agar bisa kembali melihat produk kami.',
+              content.description,
               style: TextStyle(
                 fontFamily: AppFonts.primaryFont,
                 fontSize: isIOS ? 14 : 13,
@@ -116,26 +119,48 @@ class NoInternetDialog extends StatelessWidget {
     );
   }
 
-  Widget _buildWifiIcon() {
+  _DialogContent _dialogContent(NoInternetDialogVariant variant) {
+    switch (variant) {
+      case NoInternetDialogVariant.serverIssue:
+        return const _DialogContent(
+          title: 'Server Sedang Bermasalah',
+          description:
+              'Mohon maaf, server sedang mengalami gangguan. Coba lagi dalam beberapa saat.',
+          icon: Icons.cloud_off,
+          accentColor: Colors.orange,
+        );
+      case NoInternetDialogVariant.offline:
+        return const _DialogContent(
+          title: 'Koneksi Internet Tidak Aktif',
+          description:
+              'Aktifkan Wi-Fi atau data seluler kamu agar bisa kembali melihat produk kami.',
+          icon: Icons.wifi_off,
+          accentColor: Colors.red,
+        );
+    }
+  }
+
+  Widget _buildStatusIcon(_DialogContent content) {
+    final accentColor = content.accentColor;
     return Stack(
       clipBehavior: Clip.none,
       children: [
-        // WiFi Off Icon Container
+        // Status Icon Container
         Container(
           width: 80,
           height: 80,
           decoration: BoxDecoration(
-            color: Colors.red.shade50,
+            color: accentColor.withOpacity(0.12),
             shape: BoxShape.circle,
           ),
           child: Icon(
-            Icons.wifi_off,
+            content.icon,
             size: 40,
-            color: Colors.red.shade400,
+            color: accentColor.withOpacity(0.85),
           ),
         ),
 
-        // Red Dot Indicator
+        // Status Dot Indicator
         Positioned(
           right: 12,
           top: 12,
@@ -143,16 +168,27 @@ class NoInternetDialog extends StatelessWidget {
             width: 16,
             height: 16,
             decoration: BoxDecoration(
-              color: Colors.red,
+              color: accentColor,
               shape: BoxShape.circle,
-              border: Border.all(
-                color: Colors.white,
-                width: 2,
-              ),
+              border: Border.all(color: Colors.white, width: 2),
             ),
           ),
         ),
       ],
     );
   }
+}
+
+class _DialogContent {
+  final String title;
+  final String description;
+  final IconData icon;
+  final Color accentColor;
+
+  const _DialogContent({
+    required this.title,
+    required this.description,
+    required this.icon,
+    required this.accentColor,
+  });
 }

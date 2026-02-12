@@ -82,3 +82,29 @@ class MemberRegistrationAllRegistrationsLoaded extends MemberRegistrationState {
 
   const MemberRegistrationAllRegistrationsLoaded(this.registrations);
 }
+
+// === SHIPPING ADDRESS STATES ===
+
+// Shipping Provinces Loaded
+class MemberRegistrationShippingProvincesLoaded extends MemberRegistrationState {
+  final String addressId;
+  final List<ProvinceModel> provinces;
+
+  const MemberRegistrationShippingProvincesLoaded(this.addressId, this.provinces);
+}
+
+// Shipping Regencies Loaded
+class MemberRegistrationShippingRegenciesLoaded extends MemberRegistrationState {
+  final String addressId;
+  final List<RegencyModel> regencies;
+
+  const MemberRegistrationShippingRegenciesLoaded(this.addressId, this.regencies);
+}
+
+// Shipping Districts Loaded
+class MemberRegistrationShippingDistrictsLoaded extends MemberRegistrationState {
+  final String addressId;
+  final List<DistrictModel> districts;
+
+  const MemberRegistrationShippingDistrictsLoaded(this.addressId, this.districts);
+}

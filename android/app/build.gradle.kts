@@ -15,7 +15,8 @@ if (keystorePropertiesFile.exists()) {
 android {
     namespace = "com.ekatunggal.ekaplus"
     compileSdk = 36
-    ndkVersion = flutter.ndkVersion
+    // ndkVersion = flutter.ndkVersion
+    ndkVersion = "27.0.12077973"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
