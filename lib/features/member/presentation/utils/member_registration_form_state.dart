@@ -249,6 +249,14 @@ class MemberRegistrationFormState {
   Map<String, String?> validate() {
     Map<String, String?> errors = {};
 
+    // Identity
+    if (birthPlaceController.text.trim().isEmpty) {
+      errors['birthPlace'] = 'Tempat lahir wajib diisi';
+    }
+    if (dateOfBirthController.text.trim().isEmpty) {
+      errors['dateOfBirth'] = 'Tanggal lahir wajib diisi';
+    }
+
     // Company Type
     if (companyType == null || companyType!.isEmpty) {
       errors['companyType'] = 'Pilih jenis perusahaan';
@@ -271,6 +279,11 @@ class MemberRegistrationFormState {
     // Company Name
     if (companyNameController.text.trim().isEmpty) {
       errors['companyName'] = 'Nama perusahaan tidak boleh kosong';
+    }
+
+    // Kebutuhan Produk
+    if (productNeed == null || productNeed!.trim().isEmpty) {
+      errors['productNeed'] = 'Kebutuhan produk wajib diisi';
     }
 
     // // NIK
@@ -326,6 +339,15 @@ class MemberRegistrationFormState {
       errors['postalCode'] = 'Kode pos harus 5 digit';
     }
 
+    // Shipping Addresses: minimal 1 alamat pengiriman valid
+    if (shippingAddresses.isEmpty) {
+      errors['shippingAddresses'] = 'Minimal 1 alamat pengiriman harus diisi';
+    } else {
+      for (int i = 0; i < shippingAddresses.length; i++) {
+        errors.addAll(shippingAddresses[i].validate(i));
+      }
+    }
+
     // // Contact Person
     // if (contactPersonController.text.trim().isEmpty) {
     //   errors['contactPerson'] = 'Contact person tidak boleh kosong';
@@ -352,6 +374,49 @@ class MemberRegistrationFormState {
     }
 
     return errors;
+  }
+
+  /// Check apakah user sudah mengisi sebagian form (untuk konfirmasi back)
+  bool hasAnyInput() {
+    final hasMainInput =
+        companyType != null ||
+        companyTitle != null ||
+        (companySuffix != null && companySuffix!.isNotEmpty) ||
+        selectedBranch != null ||
+        companyNameController.text.trim().isNotEmpty ||
+        nikController.text.trim().isNotEmpty ||
+        npwpController.text.trim().isNotEmpty ||
+        addressController.text.trim().isNotEmpty ||
+        postalCodeController.text.trim().isNotEmpty ||
+        contactPersonController.text.trim().isNotEmpty ||
+        factoryAddressController.text.trim().isNotEmpty ||
+        emailCompanyController.text.trim().isNotEmpty ||
+        faxController.text.trim().isNotEmpty ||
+        selectedProvince != null ||
+        selectedRegency != null ||
+        selectedDistrict != null ||
+        selectedVillage != null ||
+        ktpFile != null ||
+        npwpFile != null ||
+        (companyDocFilePath != null && companyDocFilePath!.trim().isNotEmpty) ||
+        isPKP;
+
+    if (hasMainInput) {
+      return true;
+    }
+
+    for (final shipping in shippingAddresses) {
+      if (shipping.sameAsCompanyAddress ||
+          shipping.addressController.text.trim().isNotEmpty ||
+          shipping.postalCodeController.text.trim().isNotEmpty ||
+          shipping.selectedProvince != null ||
+          shipping.selectedRegency != null ||
+          shipping.selectedDistrict != null) {
+        return true;
+      }
+    }
+
+    return false;
   }
 
   // /// Helper: Email validation

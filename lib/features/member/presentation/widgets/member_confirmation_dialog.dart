@@ -169,7 +169,9 @@ class _MemberConfirmationDialogState extends State<MemberConfirmationDialog> {
             fontSize: 15,
             fontWeight: FontWeight.w500,
             color: isEmpty && isItalicEmpty ? Colors.grey[500] : Colors.black87,
-            fontStyle: isEmpty && isItalicEmpty ? FontStyle.italic : FontStyle.normal,
+            fontStyle: isEmpty && isItalicEmpty
+                ? FontStyle.italic
+                : FontStyle.normal,
           ),
         ),
       ],
@@ -193,20 +195,11 @@ class _MemberConfirmationDialogState extends State<MemberConfirmationDialog> {
           title: 'Data Identitas',
           onEdit: widget.onEdit,
         ),
-        _buildDataItem(
-          label: 'Nama Lengkap',
-          value: widget.formData['nama'],
-        ),
+        _buildDataItem(label: 'Nama Lengkap', value: widget.formData['nama']),
         _buildDivider(),
-        _buildDataItem(
-          label: 'Email',
-          value: widget.formData['email'],
-        ),
+        _buildDataItem(label: 'Email', value: widget.formData['email']),
         _buildDivider(),
-        _buildDataItem(
-          label: 'Telepon',
-          value: widget.formData['phone'],
-        ),
+        _buildDataItem(label: 'Telepon', value: widget.formData['phone']),
         _buildDivider(),
         Row(
           children: [
@@ -255,10 +248,7 @@ class _MemberConfirmationDialogState extends State<MemberConfirmationDialog> {
           ],
         ),
         _buildDivider(),
-        _buildDataItem(
-          label: 'Cabang',
-          value: widget.formData['branch_name'],
-        ),
+        _buildDataItem(label: 'Cabang', value: widget.formData['branch_name']),
         _buildDivider(),
         _buildDataItem(
           label: 'Jenis Perusahaan',
@@ -269,57 +259,57 @@ class _MemberConfirmationDialogState extends State<MemberConfirmationDialog> {
           label: 'Nama Perusahaan',
           value: widget.formData['business_name'],
         ),
-        _buildDivider(),
-        _buildPKPStatus(widget.formData['is_pkp'] == true),
+        // _buildDivider(),
+        // _buildPKPStatus(widget.formData['is_pkp'] == true),
       ],
     );
   }
 
-  Widget _buildPKPStatus(bool isPKP) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'STATUS PKP',
-          style: TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w500,
-            color: Colors.grey[500],
-            letterSpacing: 0.5,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          decoration: BoxDecoration(
-            color: isPKP
-                ? Colors.green.withValues(alpha: 0.1)
-                : Colors.grey[100],
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                isPKP ? Icons.check_circle : Icons.cancel,
-                size: 16,
-                color: isPKP ? Colors.green[700] : Colors.grey[600],
-              ),
-              const SizedBox(width: 6),
-              Text(
-                isPKP ? 'Terdaftar PKP' : 'Bukan PKP',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                  color: isPKP ? Colors.green[700] : Colors.grey[600],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
+  // Widget _buildPKPStatus(bool isPKP) {
+  //   return Column(
+  //     crossAxisAlignment: CrossAxisAlignment.start,
+  //     children: [
+  //       Text(
+  //         'STATUS PKP',
+  //         style: TextStyle(
+  //           fontSize: 11,
+  //           fontWeight: FontWeight.w500,
+  //           color: Colors.grey[500],
+  //           letterSpacing: 0.5,
+  //         ),
+  //       ),
+  //       const SizedBox(height: 8),
+  //       Container(
+  //         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+  //         decoration: BoxDecoration(
+  //           color: isPKP
+  //               ? Colors.green.withValues(alpha: 0.1)
+  //               : Colors.grey[100],
+  //           borderRadius: BorderRadius.circular(20),
+  //         ),
+  //         child: Row(
+  //           mainAxisSize: MainAxisSize.min,
+  //           children: [
+  //             Icon(
+  //               isPKP ? Icons.check_circle : Icons.cancel,
+  //               size: 16,
+  //               color: isPKP ? Colors.green[700] : Colors.grey[600],
+  //             ),
+  //             const SizedBox(width: 6),
+  //             Text(
+  //               isPKP ? 'Terdaftar PKP' : 'Bukan PKP',
+  //               style: TextStyle(
+  //                 fontSize: 12,
+  //                 fontWeight: FontWeight.w500,
+  //                 color: isPKP ? Colors.green[700] : Colors.grey[600],
+  //               ),
+  //             ),
+  //           ],
+  //         ),
+  //       ),
+  //     ],
+  //   );
+  // }
 
   Widget _buildProductChips(String? productNeed) {
     if (productNeed == null || productNeed.isEmpty) {
@@ -446,9 +436,7 @@ class _MemberConfirmationDialogState extends State<MemberConfirmationDialog> {
         const SizedBox(height: 24),
         Container(
           decoration: BoxDecoration(
-            border: Border(
-              top: BorderSide(color: Colors.grey[200]!),
-            ),
+            border: Border(top: BorderSide(color: Colors.grey[200]!)),
           ),
           padding: const EdgeInsets.only(top: 16),
           child: Column(
@@ -545,10 +533,7 @@ class _MemberConfirmationDialogState extends State<MemberConfirmationDialog> {
             ],
           ),
           const SizedBox(height: 12),
-          _buildDataItem(
-            label: 'Alamat',
-            value: address['address'],
-          ),
+          _buildDataItem(label: 'Alamat', value: address['address']),
           const SizedBox(height: 12),
           Row(
             children: [
@@ -592,9 +577,7 @@ class _MemberConfirmationDialogState extends State<MemberConfirmationDialog> {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        border: Border(
-          top: BorderSide(color: Colors.grey[200]!),
-        ),
+        border: Border(top: BorderSide(color: Colors.grey[200]!)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.05),
@@ -603,7 +586,7 @@ class _MemberConfirmationDialogState extends State<MemberConfirmationDialog> {
           ),
         ],
       ),
-      padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+      padding: const EdgeInsets.fromLTRB(24, 8, 24, 8),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -627,10 +610,7 @@ class _MemberConfirmationDialogState extends State<MemberConfirmationDialog> {
                 children: [
                   Text(
                     'Yakin, Kirim Formulir',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                   ),
                   SizedBox(width: 8),
                   Icon(Icons.send, size: 18),
