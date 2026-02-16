@@ -151,30 +151,28 @@ class _AccountLoggedInViewState extends State<AccountLoggedInView> {
                       userId: currentUser.phone,
                     ),
 
-                    const Divider(height: 1),
+                    // const Divider(height: 1),
+                    // SizedBox(
+                    //   height: _getResponsiveValue(
+                    //     context,
+                    //     mobile: 16,
+                    //     tablet: 20,
+                    //     desktop: 24,
+                    //   ),
+                    // ),
 
-                    SizedBox(
-                      height: _getResponsiveValue(
-                        context,
-                        mobile: 16,
-                        tablet: 20,
-                        desktop: 24,
-                      ),
-                    ),
-
-                    _buildCompanyCard(context),
-
-                    SizedBox(
-                      height: _getResponsiveValue(
-                        context,
-                        mobile: 14,
-                        tablet: 18,
-                        desktop: 22,
-                      ),
-                    ),
+                    // // _buildCompanyCard(context),
+                    // SizedBox(
+                    //   height: _getResponsiveValue(
+                    //     context,
+                    //     mobile: 14,
+                    //     tablet: 18,
+                    //     desktop: 22,
+                    //   ),
+                    // ),
 
                     // Dynamic Company Button
-                    _buildDynamicCompanyButton(context, currentUser),
+                    // _buildDynamicCompanyButton(context, currentUser),
                   ],
                 ),
               ),
@@ -291,36 +289,36 @@ class _AccountLoggedInViewState extends State<AccountLoggedInView> {
         const SizedBox(height: 4),
 
         // Status Badge
-        Container(
-          padding: EdgeInsets.symmetric(
-            horizontal: _getResponsiveValue(
-              context,
-              mobile: 14,
-              tablet: 16,
-              desktop: 18,
-            ),
-            vertical: _getResponsiveValue(
-              context,
-              mobile: 5,
-              tablet: 6,
-              desktop: 7,
-            ),
-          ),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: const Color(0x65A7A7A7), width: 1),
-            color: const Color(0x33A7A7A7),
-          ),
-          child: Text(
-            'Belum terhubung dengan perusahaan',
-            style: TextStyle(
-              fontFamily: AppFonts.primaryFont,
-              fontSize: statusTextSize,
-              color: AppColors.blackColor,
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ),
+        // Container(
+        //   padding: EdgeInsets.symmetric(
+        //     horizontal: _getResponsiveValue(
+        //       context,
+        //       mobile: 14,
+        //       tablet: 16,
+        //       desktop: 18,
+        //     ),
+        //     vertical: _getResponsiveValue(
+        //       context,
+        //       mobile: 5,
+        //       tablet: 6,
+        //       desktop: 7,
+        //     ),
+        //   ),
+        //   decoration: BoxDecoration(
+        //     borderRadius: BorderRadius.circular(20),
+        //     border: Border.all(color: const Color(0x65A7A7A7), width: 1),
+        //     color: const Color(0x33A7A7A7),
+        //   ),
+        //   child: Text(
+        //     'Belum terhubung dengan perusahaan',
+        //     style: TextStyle(
+        //       fontFamily: AppFonts.primaryFont,
+        //       fontSize: statusTextSize,
+        //       color: AppColors.blackColor,
+        //     ),
+        //     textAlign: TextAlign.center,
+        //   ),
+        // ),
       ],
     );
   }
@@ -634,192 +632,192 @@ class _AccountLoggedInViewState extends State<AccountLoggedInView> {
     );
   }
 
-  Widget _buildCompanyCard(BuildContext context) {
-    final imageSize = _getResponsiveValue(
-      context,
-      mobile: 85.0,
-      tablet: 120.0,
-      desktop: 140.0,
-    );
+  // Widget _buildCompanyCard(BuildContext context) {
+  //   final imageSize = _getResponsiveValue(
+  //     context,
+  //     mobile: 85.0,
+  //     tablet: 120.0,
+  //     desktop: 140.0,
+  //   );
 
-    final textSize = _getResponsiveValue(
-      context,
-      mobile: 12.0,
-      tablet: 13.0,
-      desktop: 14.0,
-    );
+  //   final textSize = _getResponsiveValue(
+  //     context,
+  //     mobile: 12.0,
+  //     tablet: 13.0,
+  //     desktop: 14.0,
+  //   );
 
-    final iconSize = _getResponsiveValue(
-      context,
-      mobile: 18.0,
-      tablet: 20.0,
-      desktop: 22.0,
-    );
+  //   final iconSize = _getResponsiveValue(
+  //     context,
+  //     mobile: 18.0,
+  //     tablet: 20.0,
+  //     desktop: 22.0,
+  //   );
 
-    final cardPadding = _getResponsiveValue(
-      context,
-      mobile: 11.0,
-      tablet: 15.0,
-      desktop: 18.0,
-    );
+  //   final cardPadding = _getResponsiveValue(
+  //     context,
+  //     mobile: 11.0,
+  //     tablet: 15.0,
+  //     desktop: 18.0,
+  //   );
 
-    return Container(
-      padding: EdgeInsets.all(cardPadding),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            Colors.blue[50] ?? const Color(0xFFE3F2FD),
-            Colors.blue[25] ?? const Color(0xFFF5F9FD),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.blue[100] ?? const Color(0xFFBBDEFB)),
-      ),
-      child: Row(
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: Image.asset(
-              'assets/images/account/linkCompany.png',
-              width: imageSize,
-              height: imageSize * 0.85,
-              fit: BoxFit.contain,
-              errorBuilder: (_, __, ___) => Container(
-                width: imageSize,
-                height: imageSize * 0.85,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(
-                  Icons.business_rounded,
-                  size: imageSize * 0.4,
-                  color: Colors.blue[200] ?? const Color(0xFF90CAF9),
-                ),
-              ),
-            ),
-          ),
-          SizedBox(
-            width: _getResponsiveValue(
-              context,
-              mobile: 11,
-              tablet: 13,
-              desktop: 15,
-            ),
-          ),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(
-                  Icons.info_outline,
-                  color: Colors.blue[700] ?? const Color(0xFF1976D2),
-                  size: iconSize,
-                ),
-                const SizedBox(height: 7),
-                Text(
-                  'Akses data transaksi dan fitur menarik lainnya',
-                  style: TextStyle(
-                    fontFamily: AppFonts.primaryFont,
-                    fontSize: textSize,
-                    color: Colors.grey[800] ?? const Color(0xFF424242),
-                    height: 1.35,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  //   return Container(
+  //     padding: EdgeInsets.all(cardPadding),
+  //     decoration: BoxDecoration(
+  //       gradient: LinearGradient(
+  //         colors: [
+  //           Colors.blue[50] ?? const Color(0xFFE3F2FD),
+  //           Colors.blue[25] ?? const Color(0xFFF5F9FD),
+  //         ],
+  //       ),
+  //       borderRadius: BorderRadius.circular(14),
+  //       border: Border.all(color: Colors.blue[100] ?? const Color(0xFFBBDEFB)),
+  //     ),
+  //     child: Row(
+  //       children: [
+  //         ClipRRect(
+  //           borderRadius: BorderRadius.circular(10),
+  //           child: Image.asset(
+  //             'assets/images/account/linkCompany.png',
+  //             width: imageSize,
+  //             height: imageSize * 0.85,
+  //             fit: BoxFit.contain,
+  //             errorBuilder: (_, __, ___) => Container(
+  //               width: imageSize,
+  //               height: imageSize * 0.85,
+  //               decoration: BoxDecoration(
+  //                 color: Colors.white,
+  //                 borderRadius: BorderRadius.circular(10),
+  //               ),
+  //               child: Icon(
+  //                 Icons.business_rounded,
+  //                 size: imageSize * 0.4,
+  //                 color: Colors.blue[200] ?? const Color(0xFF90CAF9),
+  //               ),
+  //             ),
+  //           ),
+  //         ),
+  //         SizedBox(
+  //           width: _getResponsiveValue(
+  //             context,
+  //             mobile: 11,
+  //             tablet: 13,
+  //             desktop: 15,
+  //           ),
+  //         ),
+  //         Expanded(
+  //           child: Column(
+  //             crossAxisAlignment: CrossAxisAlignment.start,
+  //             children: [
+  //               Icon(
+  //                 Icons.info_outline,
+  //                 color: Colors.blue[700] ?? const Color(0xFF1976D2),
+  //                 size: iconSize,
+  //               ),
+  //               const SizedBox(height: 7),
+  //               Text(
+  //                 'Akses data transaksi dan fitur menarik lainnya',
+  //                 style: TextStyle(
+  //                   fontFamily: AppFonts.primaryFont,
+  //                   fontSize: textSize,
+  //                   color: Colors.grey[800] ?? const Color(0xFF424242),
+  //                   height: 1.35,
+  //                   fontWeight: FontWeight.w500,
+  //                 ),
+  //               ),
+  //             ],
+  //           ),
+  //         ),
+  //       ],
+  //     ),
+  //   );
+  // }
 
-  Widget _buildDynamicCompanyButton(BuildContext context, User currentUser) {
-    final buttonHeight = _getResponsiveValue(
-      context,
-      mobile: 42,
-      tablet: 46,
-      desktop: 50,
-    );
-    final buttonTextSize = _getResponsiveValue(
-      context,
-      mobile: 12.5,
-      tablet: 13.5,
-      desktop: 14.5,
-    );
+  // Widget _buildDynamicCompanyButton(BuildContext context, User currentUser) {
+  //   final buttonHeight = _getResponsiveValue(
+  //     context,
+  //     mobile: 42,
+  //     tablet: 46,
+  //     desktop: 50,
+  //   );
+  //   final buttonTextSize = _getResponsiveValue(
+  //     context,
+  //     mobile: 12.5,
+  //     tablet: 13.5,
+  //     desktop: 14.5,
+  //   );
 
-    if (_isLoadingRegistration) {
-      return SizedBox(
-        width: double.infinity,
-        height: buttonHeight,
-        child: ElevatedButton(
-          onPressed: null,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.secondaryColor,
-            elevation: 0,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
-          ),
-          child: const SizedBox(
-            height: 18,
-            width: 18,
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              valueColor: AlwaysStoppedAnimation<Color>(Colors.black87),
-            ),
-          ),
-        ),
-      );
-    }
+  //   if (_isLoadingRegistration) {
+  //     return SizedBox(
+  //       width: double.infinity,
+  //       height: buttonHeight,
+  //       child: ElevatedButton(
+  //         onPressed: null,
+  //         style: ElevatedButton.styleFrom(
+  //           backgroundColor: AppColors.secondaryColor,
+  //           elevation: 0,
+  //           shape: RoundedRectangleBorder(
+  //             borderRadius: BorderRadius.circular(8),
+  //           ),
+  //         ),
+  //         child: const SizedBox(
+  //           height: 18,
+  //           width: 18,
+  //           child: CircularProgressIndicator(
+  //             strokeWidth: 2,
+  //             valueColor: AlwaysStoppedAnimation<Color>(Colors.black87),
+  //           ),
+  //         ),
+  //       ),
+  //     );
+  //   }
 
-    String buttonText;
-    VoidCallback onPressed;
+  //   String buttonText;
+  //   VoidCallback onPressed;
 
-    if (_latestRegistration == null) {
-      buttonText = 'Daftar Member';
-      onPressed = () {
-        context.pushNamed('memberRegistration');
-      };
-    } else {
-      final status = _latestRegistration!.status;
+  // if (_latestRegistration == null) {
+  //   buttonText = 'Daftar Member';
+  //   onPressed = () {
+  //     context.pushNamed('memberRegistration');
+  //   };
+  // } else {
+  //   final status = _latestRegistration!.status;
 
-      if (status == 'approved') {
-        buttonText = 'Hubungkan Perusahaan';
-        onPressed = () {
-          context.pushNamed('companySelection');
-        };
-      } else {
-        buttonText = 'Lihat Pengajuan Member';
-        onPressed = () {
-          context.pushNamed('memberList', extra: {'initialTabIndex': 0});
-        };
-      }
-    }
+  //   if (status == 'approved') {
+  //     buttonText = 'Hubungkan Perusahaan';
+  //     onPressed = () {
+  //       context.pushNamed('companySelection');
+  //     };
+  //   } else {
+  //     buttonText = 'Lihat Pengajuan Member';
+  //     onPressed = () {
+  //       context.pushNamed('memberList', extra: {'initialTabIndex': 0});
+  //     };
+  //   }
+  // }
 
-    return SizedBox(
-      width: double.infinity,
-      height: buttonHeight,
-      child: ElevatedButton(
-        onPressed: onPressed,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.secondaryColor,
-          elevation: 0,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        ),
-        child: Text(
-          buttonText,
-          style: TextStyle(
-            fontFamily: AppFonts.primaryFont,
-            fontSize: buttonTextSize,
-            fontWeight: FontWeight.w700,
-            color: Colors.black87,
-          ),
-        ),
-      ),
-    );
-  }
+  // return SizedBox(
+  //   width: double.infinity,
+  //   height: buttonHeight,
+  //   child: ElevatedButton(
+  //     onPressed: onPressed,
+  //     style: ElevatedButton.styleFrom(
+  //       backgroundColor: AppColors.secondaryColor,
+  //       elevation: 0,
+  //       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+  //     ),
+  //     child: Text(
+  //       buttonText,
+  //       style: TextStyle(
+  //         fontFamily: AppFonts.primaryFont,
+  //         fontSize: buttonTextSize,
+  //         fontWeight: FontWeight.w700,
+  //         color: Colors.black87,
+  //       ),
+  //     ),
+  //   ),
+  // );
+  // }
 
   Widget _buildSettingsSection(BuildContext context, User currentUser) {
     final horizontalPadding = _getResponsiveValue(
@@ -870,16 +868,15 @@ class _AccountLoggedInViewState extends State<AccountLoggedInView> {
 
           const SizedBox(height: 10),
 
-          _buildSettingItem(
-            icon: Icons.business_center_outlined,
-            iconSize: iconSize,
-            textSize: itemTextSize,
-            title: 'Lihat Perusahaan',
-            onTap: () {
-              context.pushNamed('memberList');
-            },
-          ),
-
+          // _buildSettingItem(
+          //   icon: Icons.business_center_outlined,
+          //   iconSize: iconSize,
+          //   textSize: itemTextSize,
+          //   title: 'Lihat Perusahaan',
+          //   onTap: () {
+          //     context.pushNamed('memberList');
+          //   },
+          // ),
           const Divider(height: 1),
 
           _buildSettingItem(

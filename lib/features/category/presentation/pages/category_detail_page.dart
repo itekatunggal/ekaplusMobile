@@ -260,7 +260,7 @@ class _CategoryDetailPageState extends State<CategoryDetailPage> {
                 if (widget.category.image.isNotEmpty)
                   CachedNetworkImage(
                     imageUrl:
-                        '${ApiConfig.baseImageUrl}/${widget.category.image}',
+                        '${ApiConfig.baseImageUrl}/${widget.category.image}?format=rs:fit:500:500/q:80/ext:webp',
                     fit: BoxFit.cover,
                   ),
               ],

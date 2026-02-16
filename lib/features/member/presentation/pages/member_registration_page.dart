@@ -21,7 +21,7 @@ import '../widgets/company_info_section_widget.dart';
 import '../widgets/address_section_widget.dart';
 import '../widgets/shipping_address_section_widget.dart';
 // import '../widgets/supporting_data_section_widget.dart';
-import '../widgets/upload_documents_section_widget.dart';
+// import '../widgets/upload_documents_section_widget.dart';
 import '../widgets/member_confirmation_dialog.dart';
 import '../../domain/usecases/get_member_registrations_by_user_id.dart';
 import '../../domain/entities/member_registration.dart';
@@ -43,8 +43,10 @@ class _MemberRegistrationPageState extends State<MemberRegistrationPage> {
 
   final ScrollController _scrollController = ScrollController();
 
+  final GlobalKey _identityKey = GlobalKey();
   final GlobalKey _companyInfoKey = GlobalKey();
   final GlobalKey _addressKey = GlobalKey();
+  final GlobalKey _shippingAddressKey = GlobalKey();
   final GlobalKey _supportingDataKey = GlobalKey();
   final GlobalKey _documentsKey = GlobalKey();
 
@@ -241,7 +243,9 @@ class _MemberRegistrationPageState extends State<MemberRegistrationPage> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Mohon lengkapi semua field (${errors.length} error)'),
+          content: Text(
+            'Masih ada field wajib diisi atau error (${errors.length})!',
+          ),
           backgroundColor: Colors.red,
         ),
       );
@@ -269,10 +273,24 @@ class _MemberRegistrationPageState extends State<MemberRegistrationPage> {
   void _scrollToFirstError(Map<String, String?> errors) {
     GlobalKey? target;
 
-    if (errors.containsKey('companyType') || errors.containsKey('nik')) {
+    if (errors.containsKey('birthPlace') || errors.containsKey('dateOfBirth')) {
+      target = _identityKey;
+    } else if (errors.containsKey('companyType') ||
+        errors.containsKey('nik') ||
+        errors.containsKey('companyTitle') ||
+        errors.containsKey('companySuffix') ||
+        errors.containsKey('companyName') ||
+        errors.containsKey('productNeed') ||
+        errors.containsKey('branch')) {
       target = _companyInfoKey;
-    } else if (errors.containsKey('address')) {
+    } else if (errors.containsKey('address') ||
+        errors.containsKey('province') ||
+        errors.containsKey('regency') ||
+        errors.containsKey('district') ||
+        errors.containsKey('postalCode')) {
       target = _addressKey;
+    } else if (_hasShippingAddressError(errors)) {
+      target = _shippingAddressKey;
     } else if (errors.containsKey('contactPerson')) {
       target = _supportingDataKey;
     } else if (errors.containsKey('ktpFile')) {
@@ -284,6 +302,61 @@ class _MemberRegistrationPageState extends State<MemberRegistrationPage> {
         target!.currentContext!,
         duration: const Duration(milliseconds: 400),
       );
+    }
+  }
+
+  bool _hasShippingAddressError(Map<String, String?> errors) {
+    if (errors.containsKey('shippingAddresses')) {
+      return true;
+    }
+
+    return errors.keys.any((key) => key.startsWith('shipping'));
+  }
+
+  Future<bool> _showDiscardChangesDialog() async {
+    final result = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Konfirmasi'),
+          content: const Text(
+            'Data form yang sudah diisi belum disimpan. Yakin ingin kembali?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Tidak'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('Ya'),
+            ),
+          ],
+        );
+      },
+    );
+
+    return result ?? false;
+  }
+
+  Future<bool> _onWillPop() async {
+    if (_isSubmitting) {
+      return false;
+    }
+
+    if (!_formState.hasAnyInput()) {
+      return true;
+    }
+
+    return _showDiscardChangesDialog();
+  }
+
+  Future<void> _handleBackPressed() async {
+    final canPop = await _onWillPop();
+    if (!mounted) return;
+    if (canPop) {
+      context.pop();
     }
   }
 
@@ -342,100 +415,119 @@ class _MemberRegistrationPageState extends State<MemberRegistrationPage> {
           }
         },
         builder: (context, state) {
-          return Scaffold(
-            appBar: const CustomHeaderAppBar(
-              title: 'Hubungkan Usaha',
-              subtitle: 'Lengkapi Profil Anda',
-            ),
-            body: Column(
-              children: [
-                Expanded(
-                  child: SingleChildScrollView(
-                    controller: _scrollController,
-                    child: Column(
-                      children: [
-                        const SizedBox(height: 16),
-                        IdentitySectionWidget(
-                          formState: _formState,
-                          onSelectBirthDate: _selectBirthDate,
-                        ),
-                        Container(
-                          key: _companyInfoKey,
-                          child: CompanyInfoSectionWidget(
-                            formState: _formState,
-                            onCompanyTypeChanged: _onCompanyTypeChanged,
-                            onBranchChanged: _onBranchChanged,
-                            companyTypeError: _errors['companyType'],
-                            companyTitleError: _errors['companyTitle'],
-                            companySuffixError: _errors['companySuffix'],
-                            companyNameError: _errors['companyName'],
-                            // nikError: _errors['nik'],
-                            // npwpError: _errors['npwp'],
-                            branchError: _errors['branch'],
-                          ),
-                        ),
-                        Container(
-                          key: _addressKey,
-                          child: AddressSectionWidget(
-                            formState: _formState,
-                            addressError: _errors['address'],
-                            provinceError: _errors['province'],
-                            regencyError: _errors['regency'],
-                            districtError: _errors['district'],
-                            // villageError: _errors['village'],
-                            // rtError: _errors['rt'],
-                            // rwError: _errors['rw'],
-                            postalCodeError: _errors['postalCode'],
-                          ),
-                        ),
-                        // Shipping Address Section
-                        ShippingAddressSectionWidget(
-                          formState: _formState,
-                          errors: _errors,
-                          onStateChanged: () => setState(() {}),
-                        ),
-                        // Container(
-                        //   key: _supportingDataKey,
-                        //   child: SupportingDataSectionWidget(
-                        //     formState: _formState,
-                        //     contactPersonError: _errors['contactPerson'],
-                        //     emailCompanyError: _errors['emailCompany'],
-                        //     factoryAddressError: _errors['factoryAddress'],
-                        //     faxError: _errors['fax'],
-                        //   ),
-                        // ),
-                        Container(
-                          key: _documentsKey,
-                          child: UploadDocumentsSectionWidget(
-                            formState: _formState,
-                            ktpFileError: _errors['ktpFile'],
-                            npwpFileError: _errors['npwpFile'],
-                            onStateChanged: () => setState(() {}),
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          child: SizedBox(
-                            width: double.infinity,
-                            height: 48,
-                            child: ElevatedButton(
-                              onPressed: _isSubmitting ? null : _handleSubmit,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.secondaryColor,
-                              ),
-                              child: _isSubmitting
-                                  ? const CircularProgressIndicator()
-                                  : const Text('Kirim Pengajuan'),
+          return WillPopScope(
+            onWillPop: _onWillPop,
+            child: Scaffold(
+              appBar: CustomHeaderAppBar(
+                title: 'Hubungkan Usaha',
+                subtitle: 'Lengkapi Profil Anda',
+                onBackPressed: _handleBackPressed,
+              ),
+              body: Column(
+                children: [
+                  Expanded(
+                    child: SingleChildScrollView(
+                      controller: _scrollController,
+                      child: Column(
+                        children: [
+                          const SizedBox(height: 16),
+                          Container(
+                            key: _identityKey,
+                            child: IdentitySectionWidget(
+                              formState: _formState,
+                              onSelectBirthDate: _selectBirthDate,
+                              birthPlaceError: _errors['birthPlace'],
+                              dateOfBirthError: _errors['dateOfBirth'],
                             ),
                           ),
-                        ),
-                        const SizedBox(height: 32),
-                      ],
+                          Container(
+                            key: _companyInfoKey,
+                            child: CompanyInfoSectionWidget(
+                              formState: _formState,
+                              onCompanyTypeChanged: _onCompanyTypeChanged,
+                              onBranchChanged: _onBranchChanged,
+                              companyTypeError: _errors['companyType'],
+                              companyTitleError: _errors['companyTitle'],
+                              companySuffixError: _errors['companySuffix'],
+                              companyNameError: _errors['companyName'],
+                              productNeedError: _errors['productNeed'],
+                              // nikError: _errors['nik'],
+                              // npwpError: _errors['npwp'],
+                              branchError: _errors['branch'],
+                            ),
+                          ),
+                          Container(
+                            key: _addressKey,
+                            child: AddressSectionWidget(
+                              formState: _formState,
+                              onStateChanged: () => setState(() {}),
+                              addressError: _errors['address'],
+                              provinceError: _errors['province'],
+                              regencyError: _errors['regency'],
+                              districtError: _errors['district'],
+                              // villageError: _errors['village'],
+                              // rtError: _errors['rt'],
+                              // rwError: _errors['rw'],
+                              postalCodeError: _errors['postalCode'],
+                            ),
+                          ),
+                          // Shipping Address Section
+                          Container(
+                            key: _shippingAddressKey,
+                            child: ShippingAddressSectionWidget(
+                              formState: _formState,
+                              errors: _errors,
+                              onStateChanged: () => setState(() {}),
+                            ),
+                          ),
+                          // Container(
+                          //   key: _supportingDataKey,
+                          //   child: SupportingDataSectionWidget(
+                          //     formState: _formState,
+                          //     contactPersonError: _errors['contactPerson'],
+                          //     emailCompanyError: _errors['emailCompany'],
+                          //     factoryAddressError: _errors['factoryAddress'],
+                          //     faxError: _errors['fax'],
+                          //   ),
+                          // ),
+                          // Container(
+                          //   key: _documentsKey,
+                          //   child: UploadDocumentsSectionWidget(
+                          //     formState: _formState,
+                          //     ktpFileError: _errors['ktpFile'],
+                          //     npwpFileError: _errors['npwpFile'],
+                          //     onStateChanged: () => setState(() {}),
+                          //   ),
+                          // ),
+                          const SizedBox(height: 8),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            child: SizedBox(
+                              width: double.infinity,
+                              height: 48,
+                              child: ElevatedButton(
+                                onPressed: _isSubmitting ? null : _handleSubmit,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.secondaryColor,
+                                  foregroundColor:
+                                      Colors.black, // warna teks/icon
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                ),
+                                child: _isSubmitting
+                                    ? const CircularProgressIndicator()
+                                    : const Text('Kirim Pengajuan'),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 32),
+                        ],
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           );
         },

@@ -137,7 +137,12 @@ class HomeSliderWidget extends StatelessWidget {
       items: visible.map((banner) {
         return Builder(
           builder: (BuildContext context) {
-            final img = "${ApiConfig.baseImageUrl}/${banner.img}";
+            final img =
+                "${ApiConfig.baseImageUrl}/${banner.img}?format=rs:fit:${isMobile
+                    ? 600
+                    : isTablet
+                    ? 1200
+                    : 1600}:400/q:80/ext:webp";
 
             Widget imgWidget;
             if (img.startsWith('assets/')) {

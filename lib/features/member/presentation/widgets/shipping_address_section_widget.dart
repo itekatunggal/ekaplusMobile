@@ -104,7 +104,26 @@ class _ShippingAddressSectionWidgetState
   }
 
   void _onSameAsCompanyToggled(ShippingAddressModel address, bool value) {
+    if (value && !_isCompanyAddressComplete()) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Lengkapi alamat perusahaan terlebih dahulu'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     setState(() {
+      if (value) {
+        // Ensure only one shipping address can use company address.
+        for (final shippingAddress in widget.formState.shippingAddresses) {
+          if (shippingAddress.id != address.id) {
+            shippingAddress.sameAsCompanyAddress = false;
+          }
+        }
+      }
+
       address.sameAsCompanyAddress = value;
       if (value) {
         // Copy company address data
@@ -117,6 +136,34 @@ class _ShippingAddressSectionWidgetState
       }
     });
     widget.onStateChanged();
+  }
+
+  bool _isCompanyAddressComplete() {
+    return widget.formState.addressController.text.trim().isNotEmpty &&
+        widget.formState.selectedProvince != null &&
+        widget.formState.selectedRegency != null &&
+        widget.formState.selectedDistrict != null &&
+        widget.formState.postalCodeController.text.trim().isNotEmpty;
+  }
+
+  bool _hasActiveSameAsCompanyAddress() {
+    return widget.formState.shippingAddresses.any(
+      (address) => address.sameAsCompanyAddress,
+    );
+  }
+
+  bool _showSameAsCompanyToggle(ShippingAddressModel address) {
+    if (!_isCompanyAddressComplete()) {
+      return false;
+    }
+
+    final hasActiveAddress = _hasActiveSameAsCompanyAddress();
+    if (!hasActiveAddress) {
+      return true;
+    }
+
+    // Keep showing toggle only for the active card.
+    return address.sameAsCompanyAddress;
   }
 
   void _addNewAddress() {
@@ -191,7 +238,7 @@ class _ShippingAddressSectionWidgetState
 
           // Add new address button
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             child: TextButton.icon(
               onPressed: _addNewAddress,
               icon: const Icon(
@@ -203,6 +250,7 @@ class _ShippingAddressSectionWidgetState
                 style: TextStyle(
                   color: AppColors.primaryColor,
                   fontWeight: FontWeight.w600,
+                  fontSize: 12,
                 ),
               ),
             ),
@@ -245,35 +293,37 @@ class _ShippingAddressSectionWidgetState
             ),
             const SizedBox(height: 12),
 
-            // Toggle "Sama dengan Alamat Perusahaan"
-            Container(
-              decoration: BoxDecoration(
-                color: address.sameAsCompanyAddress
-                    ? AppColors.secondaryColor.withValues(alpha: 0.1)
-                    : Colors.grey[100],
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
+            if (_showSameAsCompanyToggle(address)) ...[
+              // Toggle "Sama dengan Alamat Perusahaan"
+              Container(
+                decoration: BoxDecoration(
                   color: address.sameAsCompanyAddress
-                      ? AppColors.secondaryColor
-                      : Colors.grey[300]!,
+                      ? AppColors.secondaryColor.withValues(alpha: 0.1)
+                      : Colors.grey[100],
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: address.sameAsCompanyAddress
+                        ? AppColors.secondaryColor
+                        : Colors.grey[300]!,
+                  ),
+                ),
+                child: SwitchListTile(
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 0,
+                  ),
+                  title: const Text(
+                    'Sama Dengan Alamat Perusahaan',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+                  ),
+                  value: address.sameAsCompanyAddress,
+                  onChanged: (value) => _onSameAsCompanyToggled(address, value),
+                  activeColor: AppColors.secondaryColor,
+                  dense: true,
                 ),
               ),
-              child: SwitchListTile(
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 0,
-                ),
-                title: const Text(
-                  'Sama Dengan Alamat Perusahaan',
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-                ),
-                value: address.sameAsCompanyAddress,
-                onChanged: (value) => _onSameAsCompanyToggled(address, value),
-                activeColor: AppColors.secondaryColor,
-                dense: true,
-              ),
-            ),
-            const SizedBox(height: 16),
+              const SizedBox(height: 16),
+            ],
 
             // Jika sama dengan alamat perusahaan, tampilkan preview
             if (address.sameAsCompanyAddress)

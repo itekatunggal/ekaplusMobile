@@ -556,7 +556,7 @@ class _WishlistItemCardState extends State<WishlistItemCard>
                     child: widget.imagePath.isNotEmpty
                         ? CachedNetworkImage(
                             imageUrl:
-                                "${ApiConfig.baseImageUrl}/${widget.imagePath}",
+                                "${ApiConfig.baseImageUrl}/${widget.imagePath}?format=rs:fill:300:300/q:80/ext:webp",
                             fit: BoxFit.cover,
                             width: size,
                             height: size,

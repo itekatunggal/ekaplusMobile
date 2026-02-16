@@ -19,6 +19,7 @@ class CompanyInfoSectionWidget extends StatefulWidget {
   final String? companyTypeError;
   final String? companyTitleError;
   final String? companySuffixError;
+  final String? productNeedError;
   final String? branchError;
 
   const CompanyInfoSectionWidget({
@@ -32,6 +33,7 @@ class CompanyInfoSectionWidget extends StatefulWidget {
     this.companyTypeError,
     this.companyTitleError,
     this.companySuffixError,
+    this.productNeedError,
     this.branchError,
   });
 
@@ -285,6 +287,7 @@ class _CompanyInfoSectionWidgetState extends State<CompanyInfoSectionWidget> {
                   widget.formState.productNeed = value;
                 });
               },
+              errorText: widget.productNeedError,
               icon: Icons.inventory_2_outlined,
             ),
             const SizedBox(height: 12),

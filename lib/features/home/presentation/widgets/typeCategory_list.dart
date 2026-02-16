@@ -229,7 +229,8 @@ class TypeCategoryList extends StatelessWidget {
     return ClipRRect(
       borderRadius: BorderRadius.circular(14),
       child: CachedNetworkImage(
-        imageUrl: "${ApiConfig.baseUrl}/files/$imgPath",
+        imageUrl:
+            "${ApiConfig.baseUrl}/files/$imgPath?format=rs:fill:250:250/q:80/ext:webp",
         width: size,
         height: size,
         fit: BoxFit.contain,

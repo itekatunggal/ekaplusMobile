@@ -16,6 +16,7 @@ import '../../data/models/district_model.dart';
 /// Widget untuk section alamat dengan cascading dropdowns
 class AddressSectionWidget extends StatefulWidget {
   final MemberRegistrationFormState formState;
+  final VoidCallback onStateChanged;
   final String? addressError;
   final String? provinceError;
   final String? regencyError;
@@ -28,6 +29,7 @@ class AddressSectionWidget extends StatefulWidget {
   const AddressSectionWidget({
     super.key,
     required this.formState,
+    required this.onStateChanged,
     this.addressError,
     this.provinceError,
     this.regencyError,
@@ -66,6 +68,7 @@ class _AddressSectionWidgetState extends State<AddressSectionWidget> {
       widget.formState.resetRegency(); // Reset semua child selections
       _isLoadingRegencies = true;
     });
+    widget.onStateChanged();
 
     if (province != null) {
       context.read<MemberRegistrationCubit>().loadRegencies(province.code);
@@ -78,6 +81,7 @@ class _AddressSectionWidgetState extends State<AddressSectionWidget> {
       widget.formState.resetDistrict(); // Reset semua child selections
       _isLoadingDistricts = true;
     });
+    widget.onStateChanged();
 
     if (regency != null) {
       context.read<MemberRegistrationCubit>().loadDistricts(regency.code);
@@ -90,6 +94,7 @@ class _AddressSectionWidgetState extends State<AddressSectionWidget> {
       widget.formState.resetVillage(); // Reset semua child selections
       _isLoadingVillages = true;
     });
+    widget.onStateChanged();
 
     if (district != null) {
       context.read<MemberRegistrationCubit>().loadVillages(district.code);
@@ -166,6 +171,7 @@ class _AddressSectionWidgetState extends State<AddressSectionWidget> {
                 icon: Icons.home_outlined,
                 maxLines: 3,
                 errorText: widget.addressError,
+                onChanged: (_) => widget.onStateChanged(),
               ),
               const SizedBox(height: 16),
 
@@ -224,6 +230,7 @@ class _AddressSectionWidgetState extends State<AddressSectionWidget> {
                 maxLength: 5,
                 errorText: widget.postalCodeError,
                 inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                onChanged: (_) => widget.onStateChanged(),
               ),
             ],
           ),
@@ -457,6 +464,7 @@ class _AddressSectionWidgetState extends State<AddressSectionWidget> {
     int? maxLines,
     String? errorText,
     List<TextInputFormatter>? inputFormatters,
+    Function(String)? onChanged,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -478,6 +486,7 @@ class _AddressSectionWidgetState extends State<AddressSectionWidget> {
           maxLength: maxLength,
           maxLines: maxLines ?? 1,
           inputFormatters: inputFormatters,
+          onChanged: onChanged,
           decoration: InputDecoration(
             prefixIcon: Icon(icon, size: 20),
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),

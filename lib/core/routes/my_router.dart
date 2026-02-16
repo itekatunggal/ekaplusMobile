@@ -59,10 +59,10 @@ final getIt = GetIt.instance;
 class MyRouter {
   GoRouter get router => GoRouter(
     navigatorKey: globalNavigatorKey,
-    // initialLocation: "/splash",
+    initialLocation: "/splash",
     // initialLocation: "/member-list",
     // initialLocation: "/member-registration",
-    initialLocation: "/account",
+    // initialLocation: "/account",
     // initialLocation: "/registerForm",
     routes: [
       // ********** Splash Screen (tanpa bottom nav) **********

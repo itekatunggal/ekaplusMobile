@@ -714,7 +714,8 @@ class _FullScreenThumbnailItem extends StatelessWidget {
     }
 
     return CachedNetworkImage(
-      imageUrl: "${ApiConfig.baseImageUrl}/${variant.image}",
+      imageUrl:
+          "${ApiConfig.baseImageUrl}/${variant.image}?format=rs:fill:200:200/q:80/ext:webp",
       fit: BoxFit.cover,
       placeholder: (context, url) => Container(
         color: Colors.grey.shade800,
@@ -1408,7 +1409,8 @@ class _ThumbnailItem extends StatelessWidget {
     }
 
     return CachedNetworkImage(
-      imageUrl: "${ApiConfig.baseImageUrl}/${variant.image}",
+      imageUrl:
+          "${ApiConfig.baseImageUrl}/${variant.image}?format=rs:fill:250:250/q:80/ext:webp",
       fit: BoxFit.cover,
       placeholder: (context, url) => Shimmer.fromColors(
         baseColor: Colors.grey[200]!,

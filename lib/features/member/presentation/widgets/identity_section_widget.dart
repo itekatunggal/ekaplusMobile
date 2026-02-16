@@ -8,11 +8,15 @@ import '../utils/member_registration_form_state.dart';
 class IdentitySectionWidget extends StatelessWidget {
   final MemberRegistrationFormState formState;
   final VoidCallback onSelectBirthDate;
+  final String? birthPlaceError;
+  final String? dateOfBirthError;
 
   const IdentitySectionWidget({
     super.key,
     required this.formState,
     required this.onSelectBirthDate,
+    this.birthPlaceError,
+    this.dateOfBirthError,
   });
 
   @override
@@ -68,16 +72,17 @@ class IdentitySectionWidget extends StatelessWidget {
             // Tempat Lahir (Editable)
             _buildEditableField(
               context: context,
-              label: 'Tempat lahir',
+              label: 'Tempat lahir *',
               controller: formState.birthPlaceController,
               icon: Icons.location_on,
               hint: 'Masukkan tempat lahir',
               textCapitalization: TextCapitalization.words,
+              errorText: birthPlaceError,
             ),
             const SizedBox(height: 8),
 
             // Tanggal Lahir (Editable via date picker)
-            _buildDateField(context),
+            _buildDateField(context, dateOfBirthError),
 
             // Info text
             const SizedBox(height: 12),
@@ -169,6 +174,7 @@ class IdentitySectionWidget extends StatelessWidget {
     String? hint,
     TextCapitalization? textCapitalization,
     TextInputType? keyboardType,
+    String? errorText,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -207,6 +213,7 @@ class IdentitySectionWidget extends StatelessWidget {
                 width: 2,
               ),
             ),
+            errorText: errorText,
             contentPadding: const EdgeInsets.symmetric(
               horizontal: 16,
               vertical: 12,
@@ -222,12 +229,12 @@ class IdentitySectionWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildDateField(BuildContext context) {
+  Widget _buildDateField(BuildContext context, String? errorText) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Tanggal Lahir',
+          'Tanggal Lahir *',
           style: TextStyle(
             fontSize: 12,
             color: Colors.black54,
@@ -260,6 +267,7 @@ class IdentitySectionWidget extends StatelessWidget {
                 width: 2,
               ),
             ),
+            errorText: errorText,
             contentPadding: const EdgeInsets.symmetric(
               horizontal: 16,
               vertical: 12,
