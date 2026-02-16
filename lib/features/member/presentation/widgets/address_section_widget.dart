@@ -167,7 +167,7 @@ class _AddressSectionWidgetState extends State<AddressSectionWidget> {
               _buildTextField(
                 label: 'Alamat Lengkap *',
                 controller: widget.formState.addressController,
-                textCapitalization: TextCapitalization.sentences,
+                textCapitalization: TextCapitalization.words,
                 icon: Icons.home_outlined,
                 maxLines: 3,
                 errorText: widget.addressError,

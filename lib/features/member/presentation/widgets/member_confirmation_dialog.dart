@@ -324,32 +324,26 @@ class _MemberConfirmationDialogState extends State<MemberConfirmationDialog> {
       );
     }
 
-    // Split product need into parts if it contains "&"
-    final parts = productNeed.split('&').map((e) => e.trim()).toList();
-
     return Wrap(
       spacing: 8,
       runSpacing: 8,
-      children: parts.asMap().entries.map((entry) {
-        final isFirst = entry.key == 0;
-        return Container(
+      children: [
+        Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
-            color: isFirst
-                ? AppColors.primaryColor.withValues(alpha: 0.1)
-                : Colors.grey[100],
+            color: AppColors.primaryColor.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(20),
           ),
           child: Text(
-            entry.value,
+            productNeed,
             style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w500,
-              color: isFirst ? AppColors.primaryColor : Colors.grey[700],
+              color: AppColors.primaryColor,
             ),
           ),
-        );
-      }).toList(),
+        ),
+      ],
     );
   }
 
@@ -388,14 +382,14 @@ class _MemberConfirmationDialogState extends State<MemberConfirmationDialog> {
                 children: [
                   Expanded(
                     child: _buildDataItem(
-                      label: 'Kode Pos',
-                      value: widget.formData['postal_code'],
+                      label: 'Kecamatan',
+                      value: widget.formData['district'],
                     ),
                   ),
                   Expanded(
                     child: _buildDataItem(
-                      label: 'Provinsi',
-                      value: widget.formData['province'],
+                      label: 'Kota/Kabupaten',
+                      value: widget.formData['city'],
                     ),
                   ),
                 ],
@@ -405,14 +399,14 @@ class _MemberConfirmationDialogState extends State<MemberConfirmationDialog> {
                 children: [
                   Expanded(
                     child: _buildDataItem(
-                      label: 'Kota/Kabupaten',
-                      value: widget.formData['city'],
+                      label: 'Provinsi',
+                      value: widget.formData['province'],
                     ),
                   ),
                   Expanded(
                     child: _buildDataItem(
-                      label: 'Kecamatan',
-                      value: widget.formData['district'],
+                      label: 'Kode Pos',
+                      value: widget.formData['postal_code'],
                     ),
                   ),
                 ],
@@ -539,8 +533,8 @@ class _MemberConfirmationDialogState extends State<MemberConfirmationDialog> {
             children: [
               Expanded(
                 child: _buildDataItem(
-                  label: 'Provinsi',
-                  value: address['province'],
+                  label: 'Kecamatan',
+                  value: address['district'],
                 ),
               ),
               Expanded(
@@ -556,8 +550,8 @@ class _MemberConfirmationDialogState extends State<MemberConfirmationDialog> {
             children: [
               Expanded(
                 child: _buildDataItem(
-                  label: 'Kecamatan',
-                  value: address['district'],
+                  label: 'Provinsi',
+                  value: address['province'],
                 ),
               ),
               Expanded(

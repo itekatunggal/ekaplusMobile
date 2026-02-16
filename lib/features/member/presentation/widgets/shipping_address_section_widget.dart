@@ -336,7 +336,7 @@ class _ShippingAddressSectionWidgetState
                   _buildTextField(
                     label: 'Alamat Lengkap',
                     controller: address.addressController,
-                    textCapitalization: TextCapitalization.sentences,
+                    textCapitalization: TextCapitalization.words,
                     icon: Icons.home_outlined,
                     maxLines: 3,
                     errorText: widget.errors['shippingAddress_$index'],
