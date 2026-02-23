@@ -35,6 +35,58 @@ class MemberRemoteDataSourceImpl implements MemberRemoteDataSource {
   final http.Client client;
 
   MemberRemoteDataSourceImpl({required this.client});
+
+  Map<String, dynamic> _sanitizeCustomerRegisterPayload(
+    Map<String, dynamic> raw,
+  ) {
+    const allowedKeys = <String>{
+      'source',
+      'owner_full_name',
+      'owner_phone',
+      'owner_email',
+      'owner_place_of_birth',
+      'owner_date_of_birth',
+      'company_type',
+      'company_title',
+      'company_name',
+      'product_need',
+      'branch_id',
+      'company_address',
+      'company_province',
+      'company_city',
+      'company_district',
+      'company_postal_code',
+      'same_as_company_address',
+      'customer_shipping_address',
+    };
+
+    final payload = <String, dynamic>{};
+    raw.forEach((key, value) {
+      if (!allowedKeys.contains(key) || value == null) return;
+      payload[key] = value;
+    });
+
+    return payload;
+  }
+
+  Exception _buildSaveException(dynamic responseBody, [int? statusCode]) {
+    try {
+      final decoded = jsonDecode(responseBody.toString());
+      if (decoded is Map<String, dynamic>) {
+        final message = decoded['message']?.toString();
+        final errors = decoded['errors'];
+        if (message != null && message.isNotEmpty) {
+          return Exception(
+            'Failed to save registration${statusCode != null ? ' ($statusCode)' : ''}: $message${errors != null ? ' | $errors' : ''}',
+          );
+        }
+      }
+    } catch (_) {}
+
+    return Exception(
+      'Failed to save registration${statusCode != null ? ' ($statusCode)' : ''}: ${responseBody.toString()}',
+    );
+  }
   // ============================================
   Future<List<Map<String, dynamic>>> _loadRegistrationsFromAssets() async {
     try {
@@ -106,15 +158,9 @@ class MemberRemoteDataSourceImpl implements MemberRemoteDataSource {
       final spec = <String, dynamic>{
         "fields": [
           "*",
-          "user.*",
-          "branch.id",
-          "branch.branch_name",
-          "gpid.id",
-          "gpid.gpid_name",
-          "gcid.id",
-          "gcid.gcid_name",
-          "bcid.id",
-          "bcid.name",
+          "branch_id.id",
+          "branch_id.branch_name",
+          "branch_id.city",
         ],
         "order_by": [
           ["created_at", "desc"],
@@ -126,7 +172,7 @@ class MemberRemoteDataSourceImpl implements MemberRemoteDataSource {
       }
 
       final uri = Uri.parse(
-        '${ApiConfig.baseUrl}/api/resource/ekatalog_customer_register'
+        '${ApiConfig.baseUrl}/api/resource/customer_register'
         '?spec=${Uri.encodeComponent(jsonEncode(spec))}',
       );
 
@@ -158,17 +204,27 @@ class MemberRemoteDataSourceImpl implements MemberRemoteDataSource {
   @override
   Future<MemberRegistration> getRegistrationById(int id) async {
     try {
-      final registrations = await loadAllRegistrations(
-        filters: [
-          ["id", "=", "$id"],
-        ],
+      final token = await SessionManager.getToken();
+      final uri = Uri.parse(
+        '${ApiConfig.baseUrl}/api/resource/customer_register/$id',
       );
 
-      if (registrations.isEmpty) {
-        throw "Data tidak ditemukan";
+      final response = await client.get(
+        uri,
+        headers: {...ApiConfig.headers, 'Authorization': 'Bearer $token'},
+      );
+
+      if (response.statusCode != 200) {
+        throw Exception('Gagal mengambil detail registrasi');
       }
 
-      return registrations[0];
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
+      final data = body['data'];
+      if (data is! Map<String, dynamic>) {
+        throw Exception('Format response detail tidak valid');
+      }
+
+      return MemberRegistrationModel.fromJson(data);
     } catch (e) {
       throw "❌ Error getting registration by ID: $e";
     }
@@ -181,55 +237,109 @@ class MemberRemoteDataSourceImpl implements MemberRemoteDataSource {
   }) async {
     try {
       final token = await SessionManager.getToken();
+      final payload = _sanitizeCustomerRegisterPayload(registration);
+      final editingId = registration['id'] is int
+          ? registration['id'] as int
+          : int.tryParse('${registration['id'] ?? ''}');
 
-      final userData = await SessionManager.getCurrentUser();
+      final uri = editingId != null
+          ? Uri.parse('${ApiConfig.baseUrl}/api/resource/customer_register/$editingId')
+          : Uri.parse('${ApiConfig.baseUrl}/api/resource/customer_register');
+      late final int statusCode;
+      late final String responseBody;
 
-      final user = UserModel.fromLocalJson(userData!);
-
-      registration["user"] = user.id;
-
-      final uri = Uri.parse(
-        '${ApiConfig.baseUrl}/api/resource/ekatalog_customer_register',
-      );
-
-      final request = http.MultipartRequest('POST', uri);
-
-      request.headers.addAll({
-        ...ApiConfig.headers,
-        'Authorization': 'Bearer $token',
-      });
-
-      registration.forEach((key, value) {
-        if (value != null) {
-          request.fields[key] = value.toString();
-        }
-      });
-
-      for (final entry in files.entries) {
-        final fieldName = entry.key;
-        final file = entry.value;
-
-        request.files.add(
-          await http.MultipartFile.fromPath(fieldName, file.path),
+      if (files.isEmpty) {
+        final response = editingId != null
+            ? await client.put(
+                uri,
+                headers: {
+                  ...ApiConfig.headers,
+                  'Authorization': 'Bearer $token',
+                },
+                body: jsonEncode(payload),
+              )
+            : await client.post(
+          uri,
+          headers: {
+            ...ApiConfig.headers,
+            'Authorization': 'Bearer $token',
+          },
+          body: jsonEncode(payload),
         );
+        if ((response.statusCode == 307 || response.statusCode == 308) &&
+            response.headers['location'] != null) {
+          final redirectedUri = uri.resolve(response.headers['location']!);
+          final redirectedResponse = editingId != null
+              ? await client.put(
+                  redirectedUri,
+                  headers: {
+                    ...ApiConfig.headers,
+                    'Authorization': 'Bearer $token',
+                  },
+                  body: jsonEncode(payload),
+                )
+              : await client.post(
+            redirectedUri,
+            headers: {
+              ...ApiConfig.headers,
+              'Authorization': 'Bearer $token',
+            },
+            body: jsonEncode(payload),
+          );
+          statusCode = redirectedResponse.statusCode;
+          responseBody = redirectedResponse.body;
+        } else {
+          statusCode = response.statusCode;
+          responseBody = response.body;
+        }
+      } else {
+        final request = http.MultipartRequest('POST', uri);
+        request.headers.addAll({
+          'Accept': 'application/json',
+          'Authorization': 'Bearer $token',
+        });
+
+        payload.forEach((key, value) {
+          if (value is List || value is Map) {
+            request.fields[key] = jsonEncode(value);
+          } else {
+            request.fields[key] = value.toString();
+          }
+        });
+
+        for (final entry in files.entries) {
+          request.files.add(
+            await http.MultipartFile.fromPath(entry.key, entry.value.path),
+          );
+        }
+
+        final response = await request.send();
+        statusCode = response.statusCode;
+        responseBody = await response.stream.bytesToString();
       }
 
-      final response = await request.send();
-      final dynamic responseBody = await response.stream.bytesToString();
-
-      if (response.statusCode < 200 || response.statusCode >= 300) {
-        throw Exception(responseBody);
+      if (statusCode < 200 || statusCode >= 300) {
+        throw _buildSaveException(responseBody, statusCode);
       }
 
       final Map<String, dynamic> json =
           jsonDecode(responseBody) as Map<String, dynamic>;
 
       final data = json['data'];
-
-      MemberRegistration result = await getRegistrationById(data["id"]);
+      final resultId = editingId ??
+          (data is Map<String, dynamic>
+              ? (data['id'] is int
+                    ? data['id'] as int
+                    : int.tryParse('${data['id'] ?? ''}') ?? 0)
+              : 0);
+      if (resultId == 0) {
+        throw Exception('Response save registration tidak berisi id');
+      }
+      MemberRegistration result = await getRegistrationById(resultId);
 
       return result;
     } catch (e) {
+      if (e is Exception) rethrow;
       throw Exception('Failed to save registration: $e');
     }
   }
@@ -292,7 +402,7 @@ class MemberRemoteDataSourceImpl implements MemberRemoteDataSource {
       final user = UserModel.fromLocalJson(userData!);
       final registrations = await loadAllRegistrations(
         filters: [
-          ["user", "=", "${user.id}"],
+          ["owner", "=", "${user.id}"],
         ],
       );
       return registrations;

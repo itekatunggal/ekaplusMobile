@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:ekaplus_ekatunggal/features/branch/domain/entities/branch.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../../data/models/province_model.dart';
 import '../../data/models/regency_model.dart';
 import '../../data/models/district_model.dart';
@@ -432,7 +433,48 @@ class MemberRegistrationFormState {
     String registrationType = 'GPID',
     String? parentGcid,
   }) {
+    return toApiCustomerRegisterJson();
+  }
+
+  Map<String, dynamic> toApiCustomerRegisterJson() {
+    // String registrationType = 'GPID',
+    // String? parentGcid,
+    // }) {
     final companyNameFormatted = getFormattedCompanyName();
+
+    final hasShipping = shippingAddresses.isNotEmpty;
+    final allShippingSameAsCompany =
+        hasShipping && shippingAddresses.every((e) => e.sameAsCompanyAddress);
+
+    final customerShippingAddress = shippingAddresses
+        .map(
+          (e) => {
+            'label': e.labelController.text.trim().isEmpty
+                ? 'Alamat Pengiriman'
+                : e.labelController.text.trim(),
+            'address': e.sameAsCompanyAddress
+                ? addressController.text.trim()
+                : e.addressController.text.trim(),
+            'province': e.sameAsCompanyAddress
+                ? selectedProvince?.name
+                : e.selectedProvince?.name,
+            'city': e.sameAsCompanyAddress
+                ? selectedRegency?.name
+                : e.selectedRegency?.name,
+            'district': e.sameAsCompanyAddress
+                ? selectedDistrict?.name
+                : e.selectedDistrict?.name,
+            'postal_code': e.sameAsCompanyAddress
+                ? postalCodeController.text.trim()
+                : e.postalCodeController.text.trim(),
+            'pic_name': e.picNameController.text.trim(),
+            'pic_phone': e.picPhoneController.text.trim(),
+            'is_default': e.isDefault ? 1 : 0,
+            'country':
+                'Indonesia', // ini hanya untuk sementara (api development belum di build ulang) nanti hapus yaaa!!!
+          },
+        )
+        .toList();
 
     // Generate BC_name with format: "COMPANY_NAME - DAERAH" (untuk SEMUA registration)
     // final bcName = selectedBranch != null
@@ -441,64 +483,88 @@ class MemberRegistrationFormState {
 
     return {
       // Registration Metadata
-      'type': registrationType,
-      'nama': namaController.text.trim(),
-      'email': emailController.text.trim(),
-      'phone': phoneController.text.trim(),
-      'birthPlace': birthPlaceController.text.trim(),
-      'dateOfBirth': dateOfBirthController.text.trim(),
+      // 'type': registrationType,
+      'source': 'ekaplus',
+      'owner_full_name': namaController.text.trim(),
+      'owner_phone': phoneController.text.trim(),
+      'owner_email': emailController.text.trim(),
+      'owner_place_of_birth': birthPlaceController.text.trim(),
+      'owner_date_of_birth': _formatDateForApi(
+        dateOfBirthController.text.trim(),
+      ),
 
       // Company Info (kept for compatibility)
-      'business_name': companyNameFormatted,
-      'entity': companyType,
+      'company_type': companyType,
+      'company_title': companyTitle,
+      'company_name': companyNameFormatted,
+      'product_need': productNeed,
       // 'nik': nikController.text.trim(),
       // 'npwp': npwpController.text.trim(),
-      'product_need': productNeed,
 
       // Branch
-      'branch': selectedBranch?.id,
+      'branch_id': selectedBranch?.id,
       'branch_name': selectedBranch?.branchName,
-      'branch_daerah': selectedBranch?.area, // NEW: Daerah from branch
-      // Address
-      'address': addressController.text.trim(),
-      'province': selectedProvince?.name,
-      'city': selectedRegency?.name,
-      'district': selectedDistrict?.name,
+      'branch_area': selectedBranch?.area,
+
+      // Company Address
+      'company_address': addressController.text.trim(),
+      'company_province': selectedProvince?.name,
+      'company_city': selectedRegency?.name,
+      'company_district': selectedDistrict?.name,
       // 'village': selectedVillage?.name,
       // 'rt': rtController.text.trim(),
       // 'rw': rwController.text.trim(),
-      'postal_code': postalCodeController.text.trim(),
+      'company_postal_code': postalCodeController.text.trim(),
 
+      'same_as_company_address': allShippingSameAsCompany ? 1 : 0,
+      if (hasShipping) 'customer_shipping_address': customerShippingAddress,
       // Supporting Data
-      'contact_person': contactPersonController.text.trim(),
-      'factory_address': factoryAddressController.text.trim(),
-      'email_company': emailCompanyController.text.trim(),
-      'fax': faxController.text.trim(),
-
-      // PKP Status
-      'is_pkp': isPKP,
+      // 'contact_person': contactPersonController.text.trim(),
+      // 'factory_address': factoryAddressController.text.trim(),
+      // 'email_company': emailCompanyController.text.trim(),
+      // 'fax': faxController.text.trim(),
 
       // Shipping Addresses - jika sameAsCompanyAddress true, gunakan data alamat perusahaan
-      'shipping_addresses': shippingAddresses.map((addr) {
-        if (addr.sameAsCompanyAddress) {
-          // Gunakan data alamat perusahaan terbaru
-          return {
-            'label': addr.labelController.text.trim().isEmpty
-                ? 'Alamat Pengiriman'
-                : addr.labelController.text.trim(),
-            'address': addressController.text.trim(),
-            'province': selectedProvince?.name,
-            'province_code': selectedProvince?.code,
-            'city': selectedRegency?.name,
-            'city_code': selectedRegency?.code,
-            'district': selectedDistrict?.name,
-            'district_code': selectedDistrict?.code,
-            'postal_code': postalCodeController.text.trim(),
-            'same_as_company': true,
-          };
-        }
-        return addr.toJson();
-      }).toList(),
+      // 'shipping_addresses': shippingAddresses.map((addr) {
+      //   if (addr.sameAsCompanyAddress) {
+      //     // Gunakan data alamat perusahaan terbaru
+      //     return {
+      //       'label': addr.labelController.text.trim().isEmpty
+      //           ? 'Alamat Pengiriman'
+      //           : addr.labelController.text.trim(),
+      //       'address': addressController.text.trim(),
+      //       'province': selectedProvince?.name,
+      //       'province_code': selectedProvince?.code,
+      //       'city': selectedRegency?.name,
+      //       'city_code': selectedRegency?.code,
+      //       'district': selectedDistrict?.name,
+      //       'district_code': selectedDistrict?.code,
+      //       'postal_code': postalCodeController.text.trim(),
+      //       'same_as_company': true,
+      //     };
+      //   }
+      //   return addr.toJson();
+      // }).toList(),
     };
+  }
+
+  String _formatDateForApi(String value) {
+    final raw = value.trim();
+    if (raw.isEmpty) return raw;
+
+    try {
+      return DateFormat(
+        'dd MMMM yyyy',
+        'id_ID',
+      ).parseStrict(raw).toIso8601String().substring(0, 10);
+    } catch (_) {}
+
+    try {
+      return DateFormat(
+        'dd/MM/yyyy',
+      ).parseStrict(raw).toIso8601String().substring(0, 10);
+    } catch (_) {}
+
+    return raw;
   }
 }

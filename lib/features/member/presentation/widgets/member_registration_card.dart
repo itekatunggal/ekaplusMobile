@@ -18,7 +18,11 @@ class MemberRegistrationCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final companyName = registration.businessName;
-    final branchName = registration.branch.branchName;
+    final branchName =
+        registration.branch.city != null &&
+            registration.branch.city!.trim().isNotEmpty
+        ? '${registration.branch.branchName} - ${registration.branch.city}'
+        : registration.branch.branchName;
     final formattedDate = DateFormat(
       'dd MMM yyyy, HH:mm',
       'id_ID',
@@ -57,7 +61,7 @@ class MemberRegistrationCard extends StatelessWidget {
                 children: [
                   Expanded(
                     child: Text(
-                      companyName,
+                      '$companyName - ${registration.branch.city}',
                       style: TextStyle(
                         fontFamily: AppFonts.primaryFont,
                         fontSize: 14,

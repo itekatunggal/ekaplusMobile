@@ -76,6 +76,10 @@ class _CompanyInfoSectionWidgetState extends State<CompanyInfoSectionWidget> {
   void initState() {
     super.initState();
     bCubit = context.read<BranchCubit>();
+    final branchState = bCubit.state;
+    if (branchState is! BranchListLoaded && branchState is! BranchLoading) {
+      bCubit.fetchBranches();
+    }
     _selectedTitle = widget.formState.companyTitle;
     _selectedSuffix = widget.formState.companySuffix;
     _suffixController.text = _selectedSuffix ?? '';
@@ -487,7 +491,7 @@ class _CompanyInfoSectionWidgetState extends State<CompanyInfoSectionWidget> {
         const SizedBox(height: 6),
 
         BlocBuilder<BranchCubit, BranchState>(
-          bloc: bCubit..fetchBranches(),
+          bloc: bCubit,
           builder: (context, state) {
             if (state is BranchLoading) {
               return const SizedBox(
@@ -497,8 +501,15 @@ class _CompanyInfoSectionWidgetState extends State<CompanyInfoSectionWidget> {
             }
 
             if (state is BranchListLoaded) {
+              final selectedBranch = widget.formState.selectedBranch == null
+                  ? null
+                  : state.branches.cast<Branch?>().firstWhere(
+                      (b) => b?.id == widget.formState.selectedBranch!.id,
+                      orElse: () => widget.formState.selectedBranch,
+                    );
+
               return DropdownButtonFormField<Branch>(
-                initialValue: widget.formState.selectedBranch,
+                initialValue: selectedBranch,
                 menuMaxHeight: 250,
                 dropdownColor: AppColors.whiteColor,
                 borderRadius: BorderRadius.circular(8),

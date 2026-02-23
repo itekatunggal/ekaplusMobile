@@ -18,6 +18,8 @@ class MemberRegistration extends Equatable {
   final String businessName;
   final String type;
   final String entity;
+  final String? companyTitle;
+  final String? productNeed;
   final String status;
   final int docstatus;
 
@@ -60,6 +62,8 @@ class MemberRegistration extends Equatable {
     required this.businessName,
     required this.type,
     required this.entity,
+    this.companyTitle,
+    this.productNeed,
     required this.status,
     required this.docstatus,
     required this.address,
@@ -97,6 +101,8 @@ class MemberRegistration extends Equatable {
     businessName,
     type,
     entity,
+    companyTitle,
+    productNeed,
     status,
     docstatus,
     address,

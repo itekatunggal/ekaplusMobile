@@ -1,9 +1,14 @@
 // lib/features/member/presentation/pages/member_list_page.dart
 
+import 'dart:convert';
+
 import 'package:ekaplus_ekatunggal/features/member/presentation/cubit/member_registration_cubit.dart';
+import 'package:ekaplus_ekatunggal/core/config/api_config.dart';
+import 'package:ekaplus_ekatunggal/core/utils/session_manager.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:http/http.dart' as http;
 import '../../../../constant.dart';
 import '../../../../core/shared_widgets/custom_header.dart';
 // import '../../../../injection.dart';
@@ -11,6 +16,7 @@ import '../../../../core/shared_widgets/custom_header.dart';
 // import '../../domain/usecases/get_member_registrations_by_user_id.dart';
 import '../../domain/entities/member_registration.dart';
 import '../widgets/member_registration_card.dart';
+import '../widgets/member_confirmation_dialog.dart';
 
 class MemberListPage extends StatefulWidget {
   final int initialTabIndex;
@@ -97,9 +103,10 @@ class _MemberListPageState extends State<MemberListPage>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.whiteColor,
-      appBar: const CustomHeaderAppBar(
+      appBar: CustomHeaderAppBar(
         title: 'Member',
         subtitle: 'Daftar Perusahaan',
+        onBackPressed: () => context.goNamed('account'),
       ),
       body: Column(
         children: [
@@ -412,5 +419,106 @@ class _MemberListPageState extends State<MemberListPage>
     );
   }
 
-  void _showRegistrationDetail(MemberRegistration registration) {}
+  Future<void> _showRegistrationDetail(MemberRegistration registration) async {
+    final status = registration.status.toLowerCase();
+    final shippingAddresses = await _loadShippingAddresses(registration.id);
+    if (!mounted) return;
+    final formData = _toConfirmationFormData(
+      registration,
+      shippingAddresses: shippingAddresses,
+    );
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => MemberConfirmationDialog(
+        formData: formData,
+        title: 'Detail Pengajuan',
+        description:
+            'Berikut adalah detail pengajuan member Anda yang sudah tersimpan.',
+        primaryButtonText: 'Selesai',
+        secondaryButtonText: status == 'draft' ? 'Edit Pengajuan' : null,
+        showSectionEditAction: false,
+        showPrimarySendIcon: false,
+        onClose: () => Navigator.of(dialogContext).pop(),
+        onConfirm: () => Navigator.of(dialogContext).pop(),
+        onEdit: status == 'draft'
+            ? () {
+                Navigator.of(dialogContext).pop();
+                context.pushNamed(
+                  'memberRegistration',
+                  extra: {'registration': registration},
+                );
+              }
+            : null,
+      ),
+    );
+  }
+
+  Map<String, dynamic> _toConfirmationFormData(
+    MemberRegistration registration, {
+    List<Map<String, dynamic>> shippingAddresses = const [],
+  }) {
+    final dob = registration.user.dateOfBirth;
+    return {
+      'owner_full_name': registration.user.fullName,
+      'owner_email': registration.user.email,
+      'owner_phone': registration.user.phone,
+      'owner_place_of_birth': registration.user.placeOfBirth,
+      'owner_date_of_birth': dob == null
+          ? ''
+          : '${dob.year.toString().padLeft(4, '0')}-${dob.month.toString().padLeft(2, '0')}-${dob.day.toString().padLeft(2, '0')}',
+      'company_type': registration.entity,
+      'company_title': registration.companyTitle,
+      'company_name': registration.businessName,
+      'product_need': registration.productNeed,
+      'branch_id': registration.branch.id,
+      'branch_name': registration.branch.branchName,
+      'branch_area': registration.branch.area ?? registration.branch.city,
+      'company_address': registration.address,
+      'company_province': registration.province,
+      'company_city': registration.city,
+      'company_district': registration.district,
+      'company_postal_code': registration.postalCode,
+      'customer_shipping_address': shippingAddresses,
+    };
+  }
+
+  Future<List<Map<String, dynamic>>> _loadShippingAddresses(int parentId) async {
+    try {
+      final token = await SessionManager.getToken();
+      final spec = {
+        'fields': ['*'],
+        'filters': [
+          ['parent_id', '=', parentId.toString()],
+          ['parent_type', '=', 'customer_register'],
+        ],
+        'order_by': [
+          ['idx', 'asc'],
+        ],
+      };
+
+      final uri = Uri.parse(
+        '${ApiConfig.baseUrl}/api/resource/customer_register_address'
+        '?spec=${Uri.encodeComponent(jsonEncode(spec))}',
+      );
+
+      final response = await http.get(
+        uri,
+        headers: {...ApiConfig.headers, 'Authorization': 'Bearer $token'},
+      );
+      if (response.statusCode != 200) return const [];
+
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
+      final data = body['data'];
+      if (data is! List) return const [];
+
+      return data
+          .whereType<Map>()
+          .map((e) => Map<String, dynamic>.from(e))
+          .toList();
+    } catch (_) {
+      return const [];
+    }
+  }
 }

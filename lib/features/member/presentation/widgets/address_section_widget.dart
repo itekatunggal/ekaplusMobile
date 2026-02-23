@@ -112,18 +112,72 @@ class _AddressSectionWidgetState extends State<AddressSectionWidget> {
     return BlocListener<MemberRegistrationCubit, MemberRegistrationState>(
       listener: (context, state) {
         if (state is MemberRegistrationProvincesLoaded) {
+          ProvinceModel? matchedProvince;
           setState(() {
             widget.formState.provinces = state.provinces;
+            final selected = widget.formState.selectedProvince;
+            if (selected != null) {
+              final matched = state.provinces.where((p) {
+                if (selected.code.isNotEmpty) {
+                  return p.code == selected.code;
+                }
+                return p.name == selected.name;
+              });
+              if (matched.isNotEmpty) {
+                matchedProvince = matched.first;
+                widget.formState.selectedProvince = matchedProvince;
+              }
+            }
             _isLoadingProvinces = false;
           });
+          if (matchedProvince != null &&
+              widget.formState.selectedRegency != null &&
+              widget.formState.regencies.isEmpty &&
+              !_isLoadingRegencies) {
+            _isLoadingRegencies = true;
+            context.read<MemberRegistrationCubit>().loadRegencies(matchedProvince!.code);
+          }
         } else if (state is MemberRegistrationRegenciesLoaded) {
+          RegencyModel? matchedRegency;
           setState(() {
             widget.formState.regencies = state.regencies;
+            final selected = widget.formState.selectedRegency;
+            if (selected != null) {
+              final matched = state.regencies.where((r) {
+                if (selected.code.isNotEmpty) {
+                  return r.code == selected.code;
+                }
+                return r.name == selected.name;
+              });
+              if (matched.isNotEmpty) {
+                matchedRegency = matched.first;
+                widget.formState.selectedRegency = matchedRegency;
+              }
+            }
             _isLoadingRegencies = false;
           });
+          if (matchedRegency != null &&
+              widget.formState.selectedDistrict != null &&
+              widget.formState.districts.isEmpty &&
+              !_isLoadingDistricts) {
+            _isLoadingDistricts = true;
+            context.read<MemberRegistrationCubit>().loadDistricts(matchedRegency!.code);
+          }
         } else if (state is MemberRegistrationDistrictsLoaded) {
           setState(() {
             widget.formState.districts = state.districts;
+            final selected = widget.formState.selectedDistrict;
+            if (selected != null) {
+              final matched = state.districts.where((d) {
+                if (selected.code.isNotEmpty) {
+                  return d.code == selected.code;
+                }
+                return d.name == selected.name;
+              });
+              if (matched.isNotEmpty) {
+                widget.formState.selectedDistrict = matched.first;
+              }
+            }
             _isLoadingDistricts = false;
           });
         } else if (state is MemberRegistrationVillagesLoaded) {
@@ -132,9 +186,6 @@ class _AddressSectionWidgetState extends State<AddressSectionWidget> {
             _isLoadingVillages = false;
           });
         } else if (state is MemberRegistrationError) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(state.message), backgroundColor: Colors.red),
-          );
           setState(() {
             _isLoadingProvinces = false;
             _isLoadingRegencies = false;
@@ -255,7 +306,8 @@ class _AddressSectionWidgetState extends State<AddressSectionWidget> {
         DropdownButtonFormField<ProvinceModel>(
           initialValue: widget.formState.selectedProvince,
           decoration: InputDecoration(
-            prefixIcon: _isLoadingProvinces
+            prefixIcon: const Icon(Icons.map_outlined, size: 20),
+            suffixIcon: _isLoadingProvinces
                 ? const SizedBox(
                     width: 20,
                     height: 20,
@@ -264,7 +316,7 @@ class _AddressSectionWidgetState extends State<AddressSectionWidget> {
                       child: CircularProgressIndicator(strokeWidth: 2),
                     ),
                   )
-                : const Icon(Icons.map_outlined, size: 20),
+                : null,
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
             errorText: widget.provinceError,
             hintText: 'Pilih Provinsi',
@@ -302,7 +354,8 @@ class _AddressSectionWidgetState extends State<AddressSectionWidget> {
         DropdownButtonFormField<RegencyModel>(
           initialValue: widget.formState.selectedRegency,
           decoration: InputDecoration(
-            prefixIcon: _isLoadingRegencies
+            prefixIcon: const Icon(Icons.location_city_outlined, size: 20),
+            suffixIcon: _isLoadingRegencies
                 ? const SizedBox(
                     width: 20,
                     height: 20,
@@ -311,7 +364,7 @@ class _AddressSectionWidgetState extends State<AddressSectionWidget> {
                       child: CircularProgressIndicator(strokeWidth: 2),
                     ),
                   )
-                : const Icon(Icons.location_city_outlined, size: 20),
+                : null,
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
             errorText: widget.regencyError,
             hintText: 'Pilih Kota/Kabupaten',
@@ -357,7 +410,8 @@ class _AddressSectionWidgetState extends State<AddressSectionWidget> {
         DropdownButtonFormField<DistrictModel>(
           initialValue: widget.formState.selectedDistrict,
           decoration: InputDecoration(
-            prefixIcon: _isLoadingDistricts
+            prefixIcon: const Icon(Icons.apartment_outlined, size: 20),
+            suffixIcon: _isLoadingDistricts
                 ? const SizedBox(
                     width: 20,
                     height: 20,
@@ -366,7 +420,7 @@ class _AddressSectionWidgetState extends State<AddressSectionWidget> {
                       child: CircularProgressIndicator(strokeWidth: 2),
                     ),
                   )
-                : const Icon(Icons.apartment_outlined, size: 20),
+                : null,
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
             errorText: widget.districtError,
             hintText: 'Pilih Kecamatan',

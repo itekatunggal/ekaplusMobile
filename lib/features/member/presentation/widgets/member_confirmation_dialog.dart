@@ -1,18 +1,34 @@
 // lib/features/member/presentation/widgets/member_confirmation_dialog.dart
 
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../../../../constant.dart';
 
 class MemberConfirmationDialog extends StatefulWidget {
   final Map<String, dynamic> formData;
   final VoidCallback onConfirm;
-  final VoidCallback onEdit;
+  final VoidCallback onClose;
+  final VoidCallback? onEdit;
+  final String title;
+  final String description;
+  final String primaryButtonText;
+  final String? secondaryButtonText;
+  final bool showSectionEditAction;
+  final bool showPrimarySendIcon;
 
   const MemberConfirmationDialog({
     super.key,
     required this.formData,
     required this.onConfirm,
-    required this.onEdit,
+    required this.onClose,
+    this.onEdit,
+    this.title = 'Konfirmasi Data',
+    this.description =
+        'Pastikan seluruh data yang Anda masukkan sudah benar sebelum mengirim formulir pendaftaran.',
+    this.primaryButtonText = 'Yakin, Kirim Formulir',
+    this.secondaryButtonText = 'Perbaiki Data',
+    this.showSectionEditAction = true,
+    this.showPrimarySendIcon = true,
   });
 
   @override
@@ -22,6 +38,63 @@ class MemberConfirmationDialog extends StatefulWidget {
 
 class _MemberConfirmationDialogState extends State<MemberConfirmationDialog> {
   bool _isShippingExpanded = false;
+
+  String? _asString(dynamic value) {
+    if (value == null) return null;
+    if (value is String) return value;
+    return value.toString();
+  }
+
+  String? _value(List<String> keys) {
+    for (final key in keys) {
+      final str = _asString(widget.formData[key]);
+      if (str != null) return str;
+    }
+    return null;
+  }
+
+  String? _branchDisplayValue() {
+    final branchName = _asString(widget.formData['branch_name'])?.trim();
+    final branchArea = _asString(widget.formData['branch_area'])?.trim();
+    final branchId = _asString(widget.formData['branch_id'])?.trim();
+
+    if (branchName != null && branchName.isNotEmpty) {
+      if (branchArea != null && branchArea.isNotEmpty) {
+        return '$branchName - $branchArea';
+      }
+      return branchName;
+    }
+
+    return branchId;
+  }
+
+  String _displayBirthDate() {
+    final raw = _asString(widget.formData['owner_date_of_birth'])?.trim() ?? '';
+    if (raw.isEmpty) return '';
+
+    try {
+      final date = DateTime.parse(raw);
+      final d = date.toLocal();
+      return DateFormat('dd MMM yyyy', 'id_ID').format(d);
+    } catch (_) {}
+
+    final parts = raw.split('-');
+    if (parts.length >= 3) {
+      final y = parts[0];
+      final m = parts[1];
+      final d = parts[2].split('T').first;
+      if (y.length == 4) {
+        try {
+          final parsed = DateTime.parse('$y-$m-$d');
+          return DateFormat('dd MMM yyyy', 'id_ID').format(parsed);
+        } catch (_) {
+          return '$d-$m-$y';
+        }
+      }
+    }
+
+    return raw;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -33,10 +106,10 @@ class _MemberConfirmationDialogState extends State<MemberConfirmationDialog> {
           elevation: 0,
           leading: IconButton(
             icon: const Icon(Icons.arrow_back, color: Colors.black87),
-            onPressed: widget.onEdit,
+            onPressed: widget.onClose,
           ),
-          title: const Text(
-            'Konfirmasi Data',
+          title: Text(
+            widget.title,
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w600,
@@ -65,7 +138,7 @@ class _MemberConfirmationDialogState extends State<MemberConfirmationDialog> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Pastikan seluruh data yang Anda masukkan sudah benar sebelum mengirim formulir pendaftaran.',
+                      widget.description,
                       style: TextStyle(
                         fontSize: 14,
                         color: Colors.grey[600],
@@ -193,26 +266,29 @@ class _MemberConfirmationDialogState extends State<MemberConfirmationDialog> {
         _buildSectionHeader(
           icon: Icons.person,
           title: 'Data Identitas',
-          onEdit: widget.onEdit,
+          onEdit: widget.showSectionEditAction ? widget.onEdit : null,
         ),
-        _buildDataItem(label: 'Nama Lengkap', value: widget.formData['nama']),
+        _buildDataItem(
+          label: 'Nama Lengkap',
+          value: widget.formData['owner_full_name'],
+        ),
         _buildDivider(),
-        _buildDataItem(label: 'Email', value: widget.formData['email']),
+        _buildDataItem(label: 'Email', value: widget.formData['owner_email']),
         _buildDivider(),
-        _buildDataItem(label: 'Telepon', value: widget.formData['phone']),
+        _buildDataItem(label: 'Telepon', value: widget.formData['owner_phone']),
         _buildDivider(),
         Row(
           children: [
             Expanded(
               child: _buildDataItem(
                 label: 'Tempat Lahir',
-                value: widget.formData['birthPlace'],
+                value: widget.formData['owner_place_of_birth'],
               ),
             ),
             Expanded(
               child: _buildDataItem(
                 label: 'Tanggal Lahir',
-                value: widget.formData['dateOfBirth'],
+                value: _displayBirthDate(),
               ),
             ),
           ],
@@ -228,7 +304,7 @@ class _MemberConfirmationDialogState extends State<MemberConfirmationDialog> {
         _buildSectionHeader(
           icon: Icons.business,
           title: 'Informasi Perusahaan',
-          onEdit: widget.onEdit,
+          onEdit: widget.showSectionEditAction ? widget.onEdit : null,
         ),
         // Kebutuhan Produk with chips
         Column(
@@ -248,16 +324,21 @@ class _MemberConfirmationDialogState extends State<MemberConfirmationDialog> {
           ],
         ),
         _buildDivider(),
-        _buildDataItem(label: 'Cabang', value: widget.formData['branch_name']),
+        _buildDataItem(label: 'Cabang', value: _branchDisplayValue()),
         _buildDivider(),
         _buildDataItem(
           label: 'Jenis Perusahaan',
-          value: widget.formData['entity'],
+          value: widget.formData['company_type'],
+        ),
+        _buildDivider(),
+        _buildDataItem(
+          label: 'Gelar Perusahaan',
+          value: widget.formData['company_title'],
         ),
         _buildDivider(),
         _buildDataItem(
           label: 'Nama Perusahaan',
-          value: widget.formData['business_name'],
+          value: widget.formData['company_name'],
         ),
         // _buildDivider(),
         // _buildPKPStatus(widget.formData['is_pkp'] == true),
@@ -354,7 +435,7 @@ class _MemberConfirmationDialogState extends State<MemberConfirmationDialog> {
         _buildSectionHeader(
           icon: Icons.place,
           title: 'Alamat',
-          onEdit: widget.onEdit,
+          onEdit: widget.showSectionEditAction ? widget.onEdit : null,
         ),
         Container(
           padding: const EdgeInsets.all(16),
@@ -375,7 +456,7 @@ class _MemberConfirmationDialogState extends State<MemberConfirmationDialog> {
             children: [
               _buildDataItem(
                 label: 'Alamat Lengkap',
-                value: widget.formData['address'],
+                value: _value(['company_address', 'address']),
               ),
               const SizedBox(height: 16),
               Row(
@@ -383,13 +464,13 @@ class _MemberConfirmationDialogState extends State<MemberConfirmationDialog> {
                   Expanded(
                     child: _buildDataItem(
                       label: 'Kecamatan',
-                      value: widget.formData['district'],
+                      value: _value(['company_district', 'district']),
                     ),
                   ),
                   Expanded(
                     child: _buildDataItem(
                       label: 'Kota/Kabupaten',
-                      value: widget.formData['city'],
+                      value: _value(['company_city', 'city']),
                     ),
                   ),
                 ],
@@ -400,13 +481,13 @@ class _MemberConfirmationDialogState extends State<MemberConfirmationDialog> {
                   Expanded(
                     child: _buildDataItem(
                       label: 'Provinsi',
-                      value: widget.formData['province'],
+                      value: _value(['company_province', 'province']),
                     ),
                   ),
                   Expanded(
                     child: _buildDataItem(
                       label: 'Kode Pos',
-                      value: widget.formData['postal_code'],
+                      value: _value(['company_postal_code', 'postal_code']),
                     ),
                   ),
                 ],
@@ -420,7 +501,9 @@ class _MemberConfirmationDialogState extends State<MemberConfirmationDialog> {
 
   Widget _buildShippingAddressSection() {
     final shippingAddresses =
-        widget.formData['shipping_addresses'] as List<dynamic>?;
+        (widget.formData['customer_shipping_address'] ??
+                widget.formData['shipping_addresses'])
+            as List<dynamic>?;
     final count = shippingAddresses?.length ?? 0;
 
     if (count == 0) return const SizedBox.shrink();
@@ -480,7 +563,11 @@ class _MemberConfirmationDialogState extends State<MemberConfirmationDialog> {
   }
 
   Widget _buildShippingAddressCard(int index, Map<String, dynamic> address) {
-    final isSameAsCompany = address['same_as_company'] == true;
+    final isSameAsCompany =
+        address['same_as_company'] == true ||
+        address['same_as_company_address'] == true ||
+        address['same_as_company_address'] == 1;
+    final isDefault = address['is_default'] == true || address['is_default'] == 1;
 
     return Container(
       margin: EdgeInsets.only(top: index > 0 ? 12 : 0),
@@ -496,13 +583,36 @@ class _MemberConfirmationDialogState extends State<MemberConfirmationDialog> {
           Row(
             children: [
               Text(
-                'Alamat ${index + 1}',
+                _asString(address['label'])?.trim().isNotEmpty == true
+                    ? _asString(address['label'])!
+                    : 'Alamat ${index + 1}',
                 style: const TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
                   color: AppColors.primaryColor,
                 ),
               ),
+              if (isDefault) ...[
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    'Default',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.green[700],
+                    ),
+                  ),
+                ),
+              ],
               if (isSameAsCompany) ...[
                 const SizedBox(width: 8),
                 Container(
@@ -524,6 +634,23 @@ class _MemberConfirmationDialogState extends State<MemberConfirmationDialog> {
                   ),
                 ),
               ],
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _buildDataItem(
+                  label: 'PIC',
+                  value: _asString(address['pic_name']),
+                ),
+              ),
+              Expanded(
+                child: _buildDataItem(
+                  label: 'No HP PIC',
+                  value: _asString(address['pic_phone']),
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 12),
@@ -584,47 +711,58 @@ class _MemberConfirmationDialogState extends State<MemberConfirmationDialog> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Primary Button
-          SizedBox(
-            width: double.infinity,
-            height: 52,
-            child: ElevatedButton(
-              onPressed: widget.onConfirm,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primaryColor,
-                foregroundColor: Colors.white,
-                elevation: 4,
-                shadowColor: AppColors.primaryColor.withValues(alpha: 0.4),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              child: const Row(
+          Builder(
+            builder: (_) {
+              final child = Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
-                    'Yakin, Kirim Formulir',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                    widget.primaryButtonText,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
-                  SizedBox(width: 8),
-                  Icon(Icons.send, size: 18),
+                  if (widget.showPrimarySendIcon) ...[
+                    const SizedBox(width: 8),
+                    const Icon(Icons.send, size: 18),
+                  ],
                 ],
+              );
+
+              return SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: ElevatedButton(
+                  onPressed: widget.onConfirm,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primaryColor,
+                    foregroundColor: Colors.white,
+                    elevation: 4,
+                    shadowColor: AppColors.primaryColor.withValues(alpha: 0.4),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: child,
+                ),
+              );
+            },
+          ),
+          if (widget.onEdit != null && widget.secondaryButtonText != null) ...[
+            const SizedBox(height: 12),
+            TextButton(
+              onPressed: widget.onEdit,
+              child: Text(
+                widget.secondaryButtonText!,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.grey[600],
+                ),
               ),
             ),
-          ),
-          const SizedBox(height: 12),
-          // Secondary Button
-          TextButton(
-            onPressed: widget.onEdit,
-            child: Text(
-              'Perbaiki Data',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                color: Colors.grey[600],
-              ),
-            ),
-          ),
+          ],
         ],
       ),
     );

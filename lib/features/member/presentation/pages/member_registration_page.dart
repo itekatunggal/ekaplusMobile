@@ -1,15 +1,23 @@
 // lib/features/member/presentation/pages/member_registration_page.dart
 
 import 'dart:io';
+import 'dart:convert';
 
 import 'package:ekaplus_ekatunggal/constant.dart';
+import 'package:ekaplus_ekatunggal/core/config/api_config.dart';
 import 'package:ekaplus_ekatunggal/core/shared_widgets/custom_header.dart';
+import 'package:ekaplus_ekatunggal/core/utils/session_manager.dart';
 import 'package:ekaplus_ekatunggal/features/auth/presentation/cubit/auth_session_state.dart';
 import 'package:ekaplus_ekatunggal/features/branch/domain/entities/branch.dart';
+import 'package:ekaplus_ekatunggal/features/member/data/models/district_model.dart';
+import 'package:ekaplus_ekatunggal/features/member/data/models/province_model.dart';
+import 'package:ekaplus_ekatunggal/features/member/data/models/regency_model.dart';
+import 'package:ekaplus_ekatunggal/features/member/data/models/shipping_address_model.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 
 import '../../../../injection.dart' as di;
@@ -27,7 +35,9 @@ import '../../domain/usecases/get_member_registrations_by_user_id.dart';
 import '../../domain/entities/member_registration.dart';
 
 class MemberRegistrationPage extends StatefulWidget {
-  const MemberRegistrationPage({super.key});
+  final MemberRegistration? initialRegistration;
+
+  const MemberRegistrationPage({super.key, this.initialRegistration});
 
   @override
   State<MemberRegistrationPage> createState() => _MemberRegistrationPageState();
@@ -49,6 +59,17 @@ class _MemberRegistrationPageState extends State<MemberRegistrationPage> {
   final GlobalKey _shippingAddressKey = GlobalKey();
   final GlobalKey _supportingDataKey = GlobalKey();
   final GlobalKey _documentsKey = GlobalKey();
+
+  bool get _isEditMode => widget.initialRegistration != null;
+  int? get _editingRegistrationId => widget.initialRegistration?.id;
+
+  static const Map<String, String> _companyTitleSuffixMap = {
+    'Toko': 'TK',
+    'Home Industri': 'HI',
+    'PT': 'PT',
+    'CV': 'CV',
+    'UD': 'UD',
+  };
 
   @override
   void initState() {
@@ -82,7 +103,177 @@ class _MemberRegistrationPageState extends State<MemberRegistrationPage> {
 
     _selectedBirthDate = _parseBirthDate(_formState.dateOfBirthController.text);
 
-    _checkExistingRegistration(userId);
+    if (_isEditMode) {
+      _prefillFromRegistration(widget.initialRegistration!);
+      _loadShippingAddressesForEdit(widget.initialRegistration!.id);
+    } else {
+      _checkExistingRegistration(userId);
+    }
+  }
+
+  void _prefillFromRegistration(MemberRegistration registration) {
+    _formState.namaController.text = registration.user.fullName;
+    _formState.phoneController.text = registration.user.phone;
+    _formState.emailController.text = registration.user.email;
+    _formState.birthPlaceController.text = registration.user.placeOfBirth;
+    if (registration.user.dateOfBirth != null) {
+      final dt = registration.user.dateOfBirth!;
+      _selectedBirthDate = dt;
+      _formState.dateOfBirthController.text = DateFormat(
+        'dd MMMM yyyy',
+        'id_ID',
+      ).format(dt.toLocal());
+    }
+
+    _formState.companyType = registration.entity.isEmpty ? null : registration.entity;
+    _formState.companyTitle = registration.companyTitle;
+    _formState.productNeed = registration.productNeed;
+    _prefillCompanyNameAndSuffix(registration.businessName, registration.companyTitle);
+    _formState.selectedBranch = registration.branch.id == 0 ? null : registration.branch;
+
+    _formState.addressController.text = registration.address;
+    _formState.postalCodeController.text = registration.postalCode;
+    _formState.selectedProvince = registration.province.isEmpty
+        ? null
+        : ProvinceModel(code: '', name: registration.province);
+    _formState.selectedRegency = registration.city.isEmpty
+        ? null
+        : RegencyModel(code: '', name: registration.city, provinceId: '');
+    _formState.selectedDistrict = registration.district.isEmpty
+        ? null
+        : DistrictModel(code: '', name: registration.district, regencyId: '');
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (_formState.selectedProvince != null &&
+          _formState.selectedProvince!.code.isNotEmpty) {
+        _memberCubit.loadRegencies(_formState.selectedProvince!.code);
+      }
+      if (_formState.selectedRegency != null &&
+          _formState.selectedRegency!.code.isNotEmpty) {
+        _memberCubit.loadDistricts(_formState.selectedRegency!.code);
+      }
+    });
+  }
+
+  void _prefillCompanyNameAndSuffix(String fullName, String? companyTitle) {
+    final raw = fullName.trim();
+    if (raw.isEmpty) {
+      _formState.companyNameController.clear();
+      return;
+    }
+
+    String? suffix;
+    if (companyTitle == 'Freelance') {
+      final upper = raw.toUpperCase();
+      if (upper.endsWith(' IBU')) suffix = 'IBU';
+      if (upper.endsWith(' BP')) suffix = 'BP';
+    } else if (companyTitle != null && companyTitle.isNotEmpty) {
+      suffix = _companyTitleSuffixMap[companyTitle];
+    }
+
+    if (suffix != null && suffix.isNotEmpty) {
+      final upper = raw.toUpperCase();
+      final suffixToken = ' $suffix';
+      if (upper.endsWith(suffixToken)) {
+        _formState.companySuffix = suffix;
+        _formState.companyNameController.text =
+            raw.substring(0, raw.length - suffixToken.length).trim();
+        return;
+      }
+      _formState.companySuffix = suffix;
+    }
+
+    _formState.companyNameController.text = raw;
+  }
+
+  Future<void> _loadShippingAddressesForEdit(int parentId) async {
+    try {
+      final token = await SessionManager.getToken();
+      final spec = {
+        'fields': ['*'],
+        'filters': [
+          ['parent_id', '=', parentId.toString()],
+          ['parent_type', '=', 'customer_register'],
+        ],
+        'order_by': [
+          ['idx', 'asc'],
+        ],
+      };
+
+      final uri = Uri.parse(
+        '${ApiConfig.baseUrl}/api/resource/customer_register_address'
+        '?spec=${Uri.encodeComponent(jsonEncode(spec))}',
+      );
+
+      final response = await http.get(
+        uri,
+        headers: {...ApiConfig.headers, 'Authorization': 'Bearer $token'},
+      );
+      if (response.statusCode != 200) return;
+
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
+      final data = body['data'];
+      if (data is! List) return;
+
+      final shipping = <ShippingAddressModel>[];
+      for (final item in data) {
+        if (item is! Map<String, dynamic>) continue;
+        final model = ShippingAddressModel.create();
+        model.labelController.text = (item['label'] ?? '').toString();
+        model.addressController.text = (item['address'] ?? '').toString();
+        model.postalCodeController.text = (item['postal_code'] ?? '').toString();
+        model.picNameController.text = (item['pic_name'] ?? '').toString();
+        model.picPhoneController.text = (item['pic_phone'] ?? '').toString();
+        model.isDefault = item['is_default'] == 1 || item['is_default'] == true;
+        model.sameAsCompanyAddress =
+            model.addressController.text.trim() == _formState.addressController.text.trim() &&
+            (item['province']?.toString() ?? '') ==
+                (_formState.selectedProvince?.name ?? '') &&
+            (item['city']?.toString() ?? '') == (_formState.selectedRegency?.name ?? '') &&
+            (item['district']?.toString() ?? '') ==
+                (_formState.selectedDistrict?.name ?? '') &&
+            model.postalCodeController.text.trim() ==
+                _formState.postalCodeController.text.trim();
+
+        final provinceName = (item['province'] ?? '').toString();
+        final cityName = (item['city'] ?? '').toString();
+        final districtName = (item['district'] ?? '').toString();
+        if (provinceName.isNotEmpty) {
+          model.selectedProvince = ProvinceModel(code: '', name: provinceName);
+        }
+        if (cityName.isNotEmpty) {
+          model.selectedRegency = RegencyModel(code: '', name: cityName, provinceId: '');
+        }
+        if (districtName.isNotEmpty) {
+          model.selectedDistrict = DistrictModel(code: '', name: districtName, regencyId: '');
+        }
+        shipping.add(model);
+      }
+
+      if (!mounted) return;
+      setState(() {
+        for (final old in _formState.shippingAddresses) {
+          old.dispose();
+        }
+        _formState.shippingAddresses = shipping.isEmpty ? [ShippingAddressModel.create()] : shipping;
+      });
+
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        for (final address in _formState.shippingAddresses) {
+          _memberCubit.loadShippingProvinces(address.id);
+          if (address.selectedProvince != null &&
+              address.selectedProvince!.code.isNotEmpty) {
+            _memberCubit.loadShippingRegencies(address.id, address.selectedProvince!.code);
+          }
+          if (address.selectedRegency != null &&
+              address.selectedRegency!.code.isNotEmpty) {
+            _memberCubit.loadShippingDistricts(address.id, address.selectedRegency!.code);
+          }
+        }
+      });
+    } catch (_) {}
   }
 
   DateTime? _parseBirthDate(String value) {
@@ -265,7 +456,10 @@ class _MemberRegistrationPageState extends State<MemberRegistrationPage> {
       files['npwp_image'] = _formState.npwpFile!;
     }
 
-    final formData = _formState.toJson();
+    final formData = _formState.toApiCustomerRegisterJson();
+    if (_editingRegistrationId != null) {
+      formData['id'] = _editingRegistrationId;
+    }
 
     await _showConfirmationDialog(formData, files);
   }
@@ -369,6 +563,7 @@ class _MemberRegistrationPageState extends State<MemberRegistrationPage> {
       barrierDismissible: false,
       builder: (_) => MemberConfirmationDialog(
         formData: formData,
+        onClose: () => Navigator.pop(context),
         onEdit: () => Navigator.pop(context),
         onConfirm: () async {
           Navigator.pop(context);
@@ -395,8 +590,12 @@ class _MemberRegistrationPageState extends State<MemberRegistrationPage> {
         listener: (context, state) {
           if (state is MemberRegistrationSuccess) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Pengajuan berhasil dikirim'),
+              SnackBar(
+                content: Text(
+                  _isEditMode
+                      ? 'Pengajuan berhasil diperbarui'
+                      : 'Pengajuan berhasil dikirim',
+                ),
                 backgroundColor: Colors.green,
               ),
             );
@@ -419,8 +618,8 @@ class _MemberRegistrationPageState extends State<MemberRegistrationPage> {
             onWillPop: _onWillPop,
             child: Scaffold(
               appBar: CustomHeaderAppBar(
-                title: 'Hubungkan Usaha',
-                subtitle: 'Lengkapi Profil Anda',
+                title: _isEditMode ? 'Ubah Pengajuan' : 'Hubungkan Usaha',
+                subtitle: _isEditMode ? 'Perbarui Draft Pengajuan' : 'Lengkapi Profil Anda',
                 onBackPressed: _handleBackPressed,
               ),
               body: Column(

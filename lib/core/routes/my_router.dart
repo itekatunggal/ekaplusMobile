@@ -15,6 +15,7 @@ import 'package:ekaplus_ekatunggal/features/member/presentation/pages/member_reg
 import 'package:ekaplus_ekatunggal/features/member/presentation/pages/member_list_page.dart';
 import 'package:ekaplus_ekatunggal/features/member/presentation/pages/company_selection_page.dart';
 import 'package:ekaplus_ekatunggal/features/member/presentation/pages/add_bcid_page.dart';
+import 'package:ekaplus_ekatunggal/features/member/domain/entities/member_registration.dart';
 import 'package:ekaplus_ekatunggal/features/auth/domain/entities/user.dart';
 import 'package:ekaplus_ekatunggal/features/auth/domain/usecases/change_password.dart';
 import 'package:ekaplus_ekatunggal/features/auth/domain/usecases/request_email_change.dart';
@@ -59,8 +60,8 @@ final getIt = GetIt.instance;
 class MyRouter {
   GoRouter get router => GoRouter(
     navigatorKey: globalNavigatorKey,
-    initialLocation: "/splash",
-    // initialLocation: "/account",
+    // initialLocation: "/splash",
+    initialLocation: "/account",
     routes: [
       // ********** Splash Screen (tanpa bottom nav) **********
       GoRoute(
@@ -207,7 +208,11 @@ class MyRouter {
         name: 'memberRegistration',
         path: '/member-registration',
         builder: (context, state) {
-          return const MemberRegistrationPage();
+          final extra = state.extra as Map<String, dynamic>?;
+          return MemberRegistrationPage(
+            initialRegistration:
+                extra?['registration'] as MemberRegistration?,
+          );
         },
       ),
 

@@ -11,6 +11,8 @@ class ShippingAddressModel {
   final TextEditingController addressController;
   final TextEditingController postalCodeController;
   final TextEditingController labelController; // Label alamat (Rumah, Kantor, dll)
+  final TextEditingController picNameController;
+  final TextEditingController picPhoneController;
 
   ProvinceModel? selectedProvince;
   RegencyModel? selectedRegency;
@@ -21,12 +23,15 @@ class ShippingAddressModel {
   List<DistrictModel> districts;
 
   bool sameAsCompanyAddress;
+  bool isDefault;
 
   ShippingAddressModel({
     required this.id,
     TextEditingController? addressController,
     TextEditingController? postalCodeController,
     TextEditingController? labelController,
+    TextEditingController? picNameController,
+    TextEditingController? picPhoneController,
     this.selectedProvince,
     this.selectedRegency,
     this.selectedDistrict,
@@ -34,9 +39,12 @@ class ShippingAddressModel {
     List<RegencyModel>? regencies,
     List<DistrictModel>? districts,
     this.sameAsCompanyAddress = false,
+    this.isDefault = false,
   })  : addressController = addressController ?? TextEditingController(),
         postalCodeController = postalCodeController ?? TextEditingController(),
         labelController = labelController ?? TextEditingController(),
+        picNameController = picNameController ?? TextEditingController(),
+        picPhoneController = picPhoneController ?? TextEditingController(),
         provinces = provinces ?? [],
         regencies = regencies ?? [],
         districts = districts ?? [];
@@ -73,6 +81,9 @@ class ShippingAddressModel {
   void clear() {
     addressController.clear();
     postalCodeController.clear();
+    labelController.clear();
+    picNameController.clear();
+    picPhoneController.clear();
     selectedProvince = null;
     selectedRegency = null;
     selectedDistrict = null;
@@ -97,13 +108,29 @@ class ShippingAddressModel {
     addressController.dispose();
     postalCodeController.dispose();
     labelController.dispose();
+    picNameController.dispose();
+    picPhoneController.dispose();
   }
 
   /// Validate shipping address
   Map<String, String?> validate(int index) {
     Map<String, String?> errors = {};
 
-    // Skip validation if same as company address
+    if (labelController.text.trim().isEmpty) {
+      errors['shippingLabel_$index'] = 'Label alamat wajib diisi';
+    }
+
+    if (picNameController.text.trim().isEmpty) {
+      errors['shippingPicName_$index'] = 'Nama penanggung jawab wajib diisi';
+    }
+
+    if (picPhoneController.text.trim().isEmpty) {
+      errors['shippingPicPhone_$index'] = 'No HP penanggung jawab wajib diisi';
+    } else if (picPhoneController.text.trim().length < 10) {
+      errors['shippingPicPhone_$index'] = 'No HP penanggung jawab tidak valid';
+    }
+
+    // Skip address-region validation if same as company address
     if (sameAsCompanyAddress) return errors;
 
     if (addressController.text.trim().isEmpty) {
@@ -145,6 +172,9 @@ class ShippingAddressModel {
       'district': selectedDistrict?.name,
       'district_code': selectedDistrict?.code,
       'postal_code': postalCodeController.text.trim(),
+      'pic_name': picNameController.text.trim(),
+      'pic_phone': picPhoneController.text.trim(),
+      'is_default': isDefault ? 1 : 0,
       'same_as_company': sameAsCompanyAddress,
     };
   }

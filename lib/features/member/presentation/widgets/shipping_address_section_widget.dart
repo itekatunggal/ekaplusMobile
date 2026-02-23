@@ -31,6 +31,8 @@ class ShippingAddressSectionWidget extends StatefulWidget {
 
 class _ShippingAddressSectionWidgetState
     extends State<ShippingAddressSectionWidget> {
+  static const int _maxShippingAddresses = 3;
+
   // Track loading states per address
   final Map<String, bool> _isLoadingProvinces = {};
   final Map<String, bool> _isLoadingRegencies = {};
@@ -45,6 +47,19 @@ class _ShippingAddressSectionWidgetState
     }
     // Load provinces for all addresses
     _loadProvincesForAll();
+  }
+
+  @override
+  void didUpdateWidget(covariant ShippingAddressSectionWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    for (final address in widget.formState.shippingAddresses) {
+      final hasLoadedProvinceList = address.provinces.isNotEmpty;
+      final isLoading = _isLoadingProvinces[address.id] ?? false;
+      if (!hasLoadedProvinceList && !isLoading) {
+        _loadProvinces(address);
+      }
+    }
   }
 
   void _loadProvincesForAll() {
@@ -167,6 +182,16 @@ class _ShippingAddressSectionWidgetState
   }
 
   void _addNewAddress() {
+    if (widget.formState.shippingAddresses.length >= _maxShippingAddresses) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Maksimal 3 alamat pengiriman'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
     setState(() {
       widget.formState.addShippingAddress();
       final newAddress = widget.formState.shippingAddresses.last;
@@ -184,28 +209,93 @@ class _ShippingAddressSectionWidgetState
     }
   }
 
+  void _onDefaultChanged(ShippingAddressModel address, bool value) {
+    setState(() {
+      if (value) {
+        for (final item in widget.formState.shippingAddresses) {
+          item.isDefault = item.id == address.id;
+        }
+      } else {
+        address.isDefault = false;
+      }
+    });
+    widget.onStateChanged();
+  }
+
   @override
   Widget build(BuildContext context) {
     return BlocListener<MemberRegistrationCubit, MemberRegistrationState>(
       listener: (context, state) {
         if (state is MemberRegistrationShippingProvincesLoaded) {
+          ShippingAddressModel? targetAddress;
+          ProvinceModel? matchedProvince;
           setState(() {
             final address = widget.formState.shippingAddresses.firstWhere(
               (a) => a.id == state.addressId,
               orElse: () => widget.formState.shippingAddresses.first,
             );
+            targetAddress = address;
             address.provinces = state.provinces;
+            final selected = address.selectedProvince;
+            if (selected != null) {
+              final matched = state.provinces.where((p) {
+                if (selected.code.isNotEmpty) {
+                  return p.code == selected.code;
+                }
+                return p.name == selected.name;
+              });
+              if (matched.isNotEmpty) {
+                matchedProvince = matched.first;
+                address.selectedProvince = matchedProvince;
+              }
+            }
             _isLoadingProvinces[state.addressId] = false;
           });
+          if (targetAddress != null &&
+              matchedProvince != null &&
+              targetAddress!.selectedRegency != null &&
+              targetAddress!.regencies.isEmpty) {
+            _isLoadingRegencies[targetAddress!.id] = true;
+            context.read<MemberRegistrationCubit>().loadShippingRegencies(
+              targetAddress!.id,
+              matchedProvince!.code,
+            );
+          }
         } else if (state is MemberRegistrationShippingRegenciesLoaded) {
+          ShippingAddressModel? targetAddress;
+          RegencyModel? matchedRegency;
           setState(() {
             final address = widget.formState.shippingAddresses.firstWhere(
               (a) => a.id == state.addressId,
               orElse: () => widget.formState.shippingAddresses.first,
             );
+            targetAddress = address;
             address.regencies = state.regencies;
+            final selected = address.selectedRegency;
+            if (selected != null) {
+              final matched = state.regencies.where((r) {
+                if (selected.code.isNotEmpty) {
+                  return r.code == selected.code;
+                }
+                return r.name == selected.name;
+              });
+              if (matched.isNotEmpty) {
+                matchedRegency = matched.first;
+                address.selectedRegency = matchedRegency;
+              }
+            }
             _isLoadingRegencies[state.addressId] = false;
           });
+          if (targetAddress != null &&
+              matchedRegency != null &&
+              targetAddress!.selectedDistrict != null &&
+              targetAddress!.districts.isEmpty) {
+            _isLoadingDistricts[targetAddress!.id] = true;
+            context.read<MemberRegistrationCubit>().loadShippingDistricts(
+              targetAddress!.id,
+              matchedRegency!.code,
+            );
+          }
         } else if (state is MemberRegistrationShippingDistrictsLoaded) {
           setState(() {
             final address = widget.formState.shippingAddresses.firstWhere(
@@ -213,12 +303,21 @@ class _ShippingAddressSectionWidgetState
               orElse: () => widget.formState.shippingAddresses.first,
             );
             address.districts = state.districts;
+            final selected = address.selectedDistrict;
+            if (selected != null) {
+              final matched = state.districts.where((d) {
+                if (selected.code.isNotEmpty) {
+                  return d.code == selected.code;
+                }
+                return d.name == selected.name;
+              });
+              if (matched.isNotEmpty) {
+                address.selectedDistrict = matched.first;
+              }
+            }
             _isLoadingDistricts[state.addressId] = false;
           });
         } else if (state is MemberRegistrationError) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(state.message), backgroundColor: Colors.red),
-          );
           setState(() {
             _isLoadingProvinces.clear();
             _isLoadingRegencies.clear();
@@ -240,15 +339,26 @@ class _ShippingAddressSectionWidgetState
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             child: TextButton.icon(
-              onPressed: _addNewAddress,
-              icon: const Icon(
+              onPressed: widget.formState.shippingAddresses.length >=
+                      _maxShippingAddresses
+                  ? null
+                  : _addNewAddress,
+              icon: Icon(
                 Icons.add_circle_outline,
-                color: AppColors.primaryColor,
+                color: widget.formState.shippingAddresses.length >=
+                        _maxShippingAddresses
+                    ? Colors.grey
+                    : AppColors.primaryColor,
               ),
-              label: const Text(
-                'Tambah Alamat Pengiriman',
+              label: Text(
+                widget.formState.shippingAddresses.length >= _maxShippingAddresses
+                    ? 'Maksimal 3 alamat pengiriman'
+                    : 'Tambah Alamat Pengiriman',
                 style: TextStyle(
-                  color: AppColors.primaryColor,
+                  color: widget.formState.shippingAddresses.length >=
+                          _maxShippingAddresses
+                      ? Colors.grey
+                      : AppColors.primaryColor,
                   fontWeight: FontWeight.w600,
                   fontSize: 12,
                 ),
@@ -325,6 +435,65 @@ class _ShippingAddressSectionWidgetState
               const SizedBox(height: 16),
             ],
 
+            _buildTextField(
+              label: 'Label Alamat',
+              controller: address.labelController,
+              icon: Icons.label_outline,
+              textCapitalization: TextCapitalization.words,
+              errorText: widget.errors['shippingLabel_$index'],
+            ),
+            const SizedBox(height: 16),
+
+            _buildTextField(
+              label: 'Nama Penanggung Jawab',
+              controller: address.picNameController,
+              icon: Icons.person_outline,
+              textCapitalization: TextCapitalization.words,
+              errorText: widget.errors['shippingPicName_$index'],
+            ),
+            const SizedBox(height: 16),
+
+            _buildTextField(
+              label: 'No HP Penanggung Jawab',
+              controller: address.picPhoneController,
+              icon: Icons.phone_outlined,
+              keyboardType: TextInputType.phone,
+              errorText: widget.errors['shippingPicPhone_$index'],
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            ),
+            const SizedBox(height: 12),
+
+            Container(
+              decoration: BoxDecoration(
+                color: address.isDefault
+                    ? AppColors.secondaryColor.withValues(alpha: 0.1)
+                    : Colors.grey[100],
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: address.isDefault
+                      ? AppColors.secondaryColor
+                      : Colors.grey[300]!,
+                ),
+              ),
+              child: CheckboxListTile(
+                dense: true,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                value: address.isDefault,
+                onChanged: (value) => _onDefaultChanged(address, value ?? false),
+                activeColor: AppColors.secondaryColor,
+                controlAffinity: ListTileControlAffinity.leading,
+                title: const Text(
+                  'Jadikan Alamat Default',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+                ),
+                subtitle: const Text(
+                  'Hanya satu alamat pengiriman yang bisa default',
+                  style: TextStyle(fontSize: 11),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+
             // Jika sama dengan alamat perusahaan, tampilkan preview
             if (address.sameAsCompanyAddress)
               _buildCompanyAddressPreview()
@@ -391,7 +560,8 @@ class _ShippingAddressSectionWidgetState
         DropdownButtonFormField<ProvinceModel>(
           value: address.selectedProvince,
           decoration: InputDecoration(
-            prefixIcon: isLoading
+            prefixIcon: const Icon(Icons.map_outlined, size: 20),
+            suffixIcon: isLoading
                 ? const SizedBox(
                     width: 20,
                     height: 20,
@@ -400,7 +570,7 @@ class _ShippingAddressSectionWidgetState
                       child: CircularProgressIndicator(strokeWidth: 2),
                     ),
                   )
-                : const Icon(Icons.map_outlined, size: 20),
+                : null,
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
             errorText: widget.errors['shippingProvince_$index'],
             hintText: 'Pilih Provinsi',
@@ -442,7 +612,8 @@ class _ShippingAddressSectionWidgetState
         DropdownButtonFormField<RegencyModel>(
           value: address.selectedRegency,
           decoration: InputDecoration(
-            prefixIcon: isLoading
+            prefixIcon: const Icon(Icons.location_city_outlined, size: 20),
+            suffixIcon: isLoading
                 ? const SizedBox(
                     width: 20,
                     height: 20,
@@ -451,7 +622,7 @@ class _ShippingAddressSectionWidgetState
                       child: CircularProgressIndicator(strokeWidth: 2),
                     ),
                   )
-                : const Icon(Icons.location_city_outlined, size: 20),
+                : null,
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
             errorText: widget.errors['shippingRegency_$index'],
             hintText: 'Pilih Kota/Kabupaten',
@@ -498,7 +669,8 @@ class _ShippingAddressSectionWidgetState
         DropdownButtonFormField<DistrictModel>(
           value: address.selectedDistrict,
           decoration: InputDecoration(
-            prefixIcon: isLoading
+            prefixIcon: const Icon(Icons.apartment_outlined, size: 20),
+            suffixIcon: isLoading
                 ? const SizedBox(
                     width: 20,
                     height: 20,
@@ -507,7 +679,7 @@ class _ShippingAddressSectionWidgetState
                       child: CircularProgressIndicator(strokeWidth: 2),
                     ),
                   )
-                : const Icon(Icons.apartment_outlined, size: 20),
+                : null,
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
             errorText: widget.errors['shippingDistrict_$index'],
             hintText: 'Pilih Kecamatan',
