@@ -23,11 +23,6 @@ class BranchModel {
   }
 
   Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'name': name,
-      'address': address,
-      'daerah': daerah,
-    };
+    return {'id': id, 'name': name, 'address': address, 'daerah': daerah};
   }
 }

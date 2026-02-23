@@ -1,4 +1,4 @@
-// lib/features/home/presentation/pages/splash_screen_page.dart
+﻿// lib/features/home/presentation/pages/splash_screen_page.dart
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -54,16 +54,12 @@ class _SplashScreenPageState extends State<SplashScreenPage>
           Center(
             child: Column(
               mainAxisSize: MainAxisSize.min,
-              children: [
-                /// LOGO
-                FadeTransition(
-                  opacity: _controller,
-                  child: Image.asset(
-                    'assets/icons/icon_app.png', // GANTI sesuai asset logo
-                    width: 180,
-                    height: 180,
-                    fit: BoxFit.contain,
-                  ),
+              children: [                /// LOGO (langsung tampil agar seamless dengan iOS launch screen)
+                Image.asset(
+                  'assets/icons/icon_app.png',
+                  width: 180,
+                  height: 180,
+                  fit: BoxFit.contain,
                 ),
 
                 const SizedBox(height: 16),
@@ -135,3 +131,4 @@ class _SplashScreenPageState extends State<SplashScreenPage>
     );
   }
 }
+
