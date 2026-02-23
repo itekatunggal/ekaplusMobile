@@ -1,4 +1,4 @@
-﻿// lib/features/home/presentation/pages/splash_screen_page.dart
+// lib/features/home/presentation/pages/splash_screen_page.dart
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -43,9 +43,11 @@ class _SplashScreenPageState extends State<SplashScreenPage>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Color(0xFFBF0000),
       body: Stack(
         children: [
-          /// Background
+          /// Background (warna fallback dulu agar tidak flash putih saat image decode)
+          Positioned.fill(child: ColoredBox(color: Color(0xFFBF0000))),
           Positioned.fill(
             child: Image.asset('assets/images/splash.png', fit: BoxFit.cover),
           ),
@@ -54,7 +56,8 @@ class _SplashScreenPageState extends State<SplashScreenPage>
           Center(
             child: Column(
               mainAxisSize: MainAxisSize.min,
-              children: [                /// LOGO (langsung tampil agar seamless dengan iOS launch screen)
+              children: [
+                /// LOGO (langsung tampil agar seamless dengan iOS launch screen)
                 Image.asset(
                   'assets/icons/icon_app.png',
                   width: 180,
@@ -131,4 +134,3 @@ class _SplashScreenPageState extends State<SplashScreenPage>
     );
   }
 }
-
