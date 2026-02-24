@@ -6,6 +6,7 @@ import 'package:ekaplus_ekatunggal/features/auth/domain/entities/user.dart';
 import 'package:ekaplus_ekatunggal/features/auth/presentation/cubit/auth_session_cubit.dart';
 import 'package:ekaplus_ekatunggal/features/auth/presentation/cubit/auth_session_state.dart';
 import 'package:ekaplus_ekatunggal/features/member/domain/usecases/get_member_registrations_by_user_id.dart';
+import 'package:ekaplus_ekatunggal/features/member/domain/usecases/get_active_member_companies_by_user_id.dart';
 import 'package:ekaplus_ekatunggal/features/member/domain/entities/member_registration.dart';
 import 'package:ekaplus_ekatunggal/injection.dart';
 import 'package:flutter/material.dart';
@@ -24,13 +25,18 @@ class AccountLoggedInView extends StatefulWidget {
 class _AccountLoggedInViewState extends State<AccountLoggedInView> {
   final GetMemberRegistrationsByUserId _getMemberRegistrationsByUserId =
       myinjection<GetMemberRegistrationsByUserId>();
+  final GetActiveMemberCompaniesByUserId _getActiveMemberCompaniesByUserId =
+      myinjection<GetActiveMemberCompaniesByUserId>();
   MemberRegistration? _latestRegistration;
   bool _isLoadingRegistration = true;
+  String? _activeBcName;
+  bool _isLoadingBcName = true;
 
   @override
   void initState() {
     super.initState();
     _loadMemberRegistration();
+    _loadActiveCompanyName();
   }
 
   Future<void> _loadMemberRegistration() async {
@@ -55,6 +61,29 @@ class _AccountLoggedInViewState extends State<AccountLoggedInView> {
         setState(() {
           _latestRegistration = latest;
           _isLoadingRegistration = false;
+        });
+      },
+    );
+  }
+
+  Future<void> _loadActiveCompanyName() async {
+    if (!mounted) return;
+    setState(() => _isLoadingBcName = true);
+
+    final result = await _getActiveMemberCompaniesByUserId.execute();
+    if (!mounted) return;
+
+    result.fold(
+      (_) {
+        setState(() {
+          _activeBcName = null;
+          _isLoadingBcName = false;
+        });
+      },
+      (companies) {
+        setState(() {
+          _activeBcName = companies.isNotEmpty ? companies.first.displayName : null;
+          _isLoadingBcName = false;
         });
       },
     );
@@ -307,7 +336,11 @@ class _AccountLoggedInViewState extends State<AccountLoggedInView> {
             color: const Color(0x33A7A7A7),
           ),
           child: Text(
-            'Belum terhubung dengan perusahaan',
+            _isLoadingBcName
+                ? 'Memuat perusahaan...'
+                : (_activeBcName?.isNotEmpty == true
+                      ? _activeBcName!
+                      : 'Belum terhubung dengan perusahaan'),
             style: TextStyle(
               fontFamily: AppFonts.primaryFont,
               fontSize: statusTextSize,

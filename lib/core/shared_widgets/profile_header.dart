@@ -4,15 +4,54 @@ import 'package:ekaplus_ekatunggal/constant.dart';
 import 'package:ekaplus_ekatunggal/core/config/api_config.dart';
 import 'package:ekaplus_ekatunggal/features/auth/presentation/cubit/auth_session_cubit.dart';
 import 'package:ekaplus_ekatunggal/features/auth/presentation/cubit/auth_session_state.dart';
+import 'package:ekaplus_ekatunggal/features/member/domain/usecases/get_active_member_companies_by_user_id.dart';
+import 'package:ekaplus_ekatunggal/injection.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
-class ProfileHeader extends StatelessWidget {
+class ProfileHeader extends StatefulWidget {
   final VoidCallback? onCompanyTap;
 
   const ProfileHeader({super.key, this.onCompanyTap});
+
+  @override
+  State<ProfileHeader> createState() => _ProfileHeaderState();
+}
+
+class _ProfileHeaderState extends State<ProfileHeader> {
+  final GetActiveMemberCompaniesByUserId _getActiveMemberCompaniesByUserId =
+      myinjection<GetActiveMemberCompaniesByUserId>();
+  String? _bcName;
+  bool _isLoadingBcName = false;
+  String? _loadedUserKey;
+
+  Future<void> _loadBcNameForUser(String userKey) async {
+    if (!mounted) return;
+    setState(() {
+      _isLoadingBcName = true;
+      _loadedUserKey = userKey;
+    });
+
+    final result = await _getActiveMemberCompaniesByUserId.execute();
+    if (!mounted) return;
+
+    result.fold(
+      (_) {
+        setState(() {
+          _bcName = null;
+          _isLoadingBcName = false;
+        });
+      },
+      (companies) {
+        setState(() {
+          _bcName = companies.isNotEmpty ? companies.first.displayName : null;
+          _isLoadingBcName = false;
+        });
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -23,7 +62,24 @@ class ProfileHeader extends StatelessWidget {
       data: media.copyWith(
         textScaler: TextScaler.linear(media.textScaleFactor.clamp(0.8, 1.0)),
       ),
-      child: BlocBuilder<AuthSessionCubit, AuthSessionState>(
+      child: BlocConsumer<AuthSessionCubit, AuthSessionState>(
+        listener: (context, authState) {
+          if (authState is AuthSessionAuthenticated &&
+              authState.status == UserStatus.member) {
+            final userKey = authState.user.phone;
+            if (_loadedUserKey != userKey) {
+              _loadBcNameForUser(userKey);
+            }
+          } else {
+            if (_bcName != null || _isLoadingBcName || _loadedUserKey != null) {
+              setState(() {
+                _bcName = null;
+                _isLoadingBcName = false;
+                _loadedUserKey = null;
+              });
+            }
+          }
+        },
         builder: (context, authState) {
           Widget buildAvatar() {
             if (authState is AuthSessionAuthenticated) {
@@ -151,7 +207,7 @@ class ProfileHeader extends StatelessWidget {
                     const SizedBox(height: 2),
                     GestureDetector(
                       onTap:
-                          onCompanyTap ??
+                          widget.onCompanyTap ??
                           () {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
@@ -165,7 +221,11 @@ class ProfileHeader extends StatelessWidget {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Text(
-                            'PT Nama Perusahaan',
+                            _isLoadingBcName
+                                ? 'Memuat perusahaan...'
+                                : ((_bcName?.isNotEmpty == true)
+                                      ? _bcName!
+                                      : 'Belum terhubung dengan perusahaan'),
                             style: TextStyle(
                               color: AppColors.primaryColor,
                               fontSize: isIOS ? 12 : 10,

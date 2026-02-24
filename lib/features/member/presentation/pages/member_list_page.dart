@@ -390,12 +390,17 @@ class _MemberListPageState extends State<MemberListPage>
     );
   }
 
-  void _showActiveCompanyDetail(ActiveMemberCompany company) {
+  Future<void> _showActiveCompanyDetail(ActiveMemberCompany company) async {
+    final shippingAddresses = company.customerRegisterId == null
+        ? const <Map<String, dynamic>>[]
+        : await _loadShippingAddresses(company.customerRegisterId!);
+    if (!mounted) return;
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (dialogContext) => ActiveCompanyDetailDialog(
         company: company,
+        shippingAddresses: shippingAddresses,
         onClose: () => Navigator.of(dialogContext).pop(),
       ),
     );
