@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:dartz/dartz.dart';
 import 'package:ekaplus_ekatunggal/core/error/failure.dart';
+import 'package:ekaplus_ekatunggal/features/member/domain/entities/active_member_company.dart';
 import 'package:ekaplus_ekatunggal/features/member/domain/entities/member_registration.dart';
 
 abstract class MemberRepository {
@@ -39,4 +40,8 @@ abstract class MemberRepository {
   Future<Either<Failure, List<MemberRegistration>>> getApprovedGCIDsByUserId(
     int userId,
   );
+
+  /// Get active companies (member_of hierarchy) by current user
+  Future<Either<Failure, List<ActiveMemberCompany>>>
+  getActiveMemberCompaniesByUserId();
 }

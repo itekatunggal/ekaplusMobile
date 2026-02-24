@@ -6,6 +6,7 @@ import 'dart:io';
 import 'package:ekaplus_ekatunggal/core/config/api_config.dart';
 import 'package:ekaplus_ekatunggal/core/utils/session_manager.dart';
 import 'package:ekaplus_ekatunggal/features/auth/data/models/user_model.dart';
+import 'package:ekaplus_ekatunggal/features/member/domain/entities/active_member_company.dart';
 import 'package:ekaplus_ekatunggal/features/member/domain/entities/member_registration.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -29,6 +30,7 @@ abstract class MemberRemoteDataSource {
   Future<List<MemberRegistration>> getRegistrationsByUserId();
   Future<List<MemberRegistration>> getRegistrationsByStatus(String status);
   Future<List<MemberRegistration>> getApprovedGCIDsByUserId(int userId);
+  Future<List<ActiveMemberCompany>> getActiveMemberCompaniesByUserId();
 }
 
 class MemberRemoteDataSourceImpl implements MemberRemoteDataSource {
@@ -86,6 +88,147 @@ class MemberRemoteDataSourceImpl implements MemberRemoteDataSource {
     return Exception(
       'Failed to save registration${statusCode != null ? ' ($statusCode)' : ''}: ${responseBody.toString()}',
     );
+  }
+
+  int _safeInt(dynamic v) {
+    if (v == null) return 0;
+    if (v is int) return v;
+    return int.tryParse(v.toString()) ?? 0;
+  }
+
+  int? _safeNullableInt(dynamic v) {
+    if (v == null) return null;
+    if (v is int) return v;
+    return int.tryParse(v.toString());
+  }
+
+  String? _safeNullableString(dynamic v) {
+    if (v == null) return null;
+    final s = v.toString();
+    return s.isEmpty ? null : s;
+  }
+
+  DateTime? _safeNullableDate(dynamic v) {
+    if (v == null) return null;
+    return DateTime.tryParse(v.toString());
+  }
+
+  Future<List<Map<String, dynamic>>> _getResourceList(
+    String resource, {
+    required List<String> fields,
+    List<List<dynamic>>? filters,
+    List<List<dynamic>>? orderBy,
+  }) async {
+    final token = await SessionManager.getToken();
+    final spec = <String, dynamic>{
+      'fields': fields,
+    };
+    if (filters != null && filters.isNotEmpty) spec['filters'] = filters;
+    if (orderBy != null && orderBy.isNotEmpty) spec['order_by'] = orderBy;
+
+    final uri = Uri.parse(
+      '${ApiConfig.baseUrl}/api/resource/$resource'
+      '?spec=${Uri.encodeComponent(jsonEncode(spec))}',
+    );
+
+    final response = await client.get(
+      uri,
+      headers: {...ApiConfig.headers, 'Authorization': 'Bearer $token'},
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception('Failed to load $resource (${response.statusCode})');
+    }
+
+    final body = jsonDecode(response.body);
+    final data = body['data'];
+    if (data is List) {
+      return data.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
+    }
+    if (data is Map) {
+      return [Map<String, dynamic>.from(data)];
+    }
+    return [];
+  }
+
+  Future<List<Map<String, dynamic>>> _getByIds(
+    String resource,
+    List<int> ids, {
+    required List<String> fields,
+    List<List<dynamic>>? extraFilters,
+  }) async {
+    final uniqueIds = ids.where((e) => e > 0).toSet().toList();
+    if (uniqueIds.isEmpty) return [];
+
+    final inFilters = <List<dynamic>>[
+      ['id', 'in', uniqueIds],
+      ...?extraFilters,
+    ];
+
+    try {
+      return await _getResourceList(
+        resource,
+        fields: fields,
+        filters: inFilters,
+      );
+    } catch (_) {
+      final all = <Map<String, dynamic>>[];
+      for (final id in uniqueIds) {
+        final rows = await _getResourceList(
+          resource,
+          fields: fields,
+          filters: [
+            ['id', '=', '$id'],
+            ...?extraFilters,
+          ],
+        );
+        all.addAll(rows);
+      }
+      final byId = <int, Map<String, dynamic>>{};
+      for (final row in all) {
+        byId[_safeInt(row['id'])] = row;
+      }
+      return byId.values.toList();
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> _getByFieldValues(
+    String resource,
+    String field,
+    List<int> values, {
+    required List<String> fields,
+    List<List<dynamic>>? extraFilters,
+    List<List<dynamic>>? orderBy,
+  }) async {
+    final uniqueValues = values.where((e) => e > 0).toSet().toList();
+    if (uniqueValues.isEmpty) return [];
+
+    try {
+      return await _getResourceList(
+        resource,
+        fields: fields,
+        filters: [
+          [field, 'in', uniqueValues],
+          ...?extraFilters,
+        ],
+        orderBy: orderBy,
+      );
+    } catch (_) {
+      final all = <Map<String, dynamic>>[];
+      for (final value in uniqueValues) {
+        final rows = await _getResourceList(
+          resource,
+          fields: fields,
+          filters: [
+            [field, '=', '$value'],
+            ...?extraFilters,
+          ],
+          orderBy: orderBy,
+        );
+        all.addAll(rows);
+      }
+      return all;
+    }
   }
   // ============================================
   Future<List<Map<String, dynamic>>> _loadRegistrationsFromAssets() async {
@@ -400,12 +543,30 @@ class MemberRemoteDataSourceImpl implements MemberRemoteDataSource {
       final userData = await SessionManager.getCurrentUser();
 
       final user = UserModel.fromLocalJson(userData!);
-      final registrations = await loadAllRegistrations(
+      final ownerRegistrations = await loadAllRegistrations(
         filters: [
           ["owner", "=", "${user.id}"],
         ],
       );
-      return registrations;
+
+      final ekaplusUserRegistrations = await loadAllRegistrations(
+        filters: [
+          ["ekaplus_user", "=", "${user.id}"],
+        ],
+      );
+
+      final mergedById = <int, MemberRegistration>{};
+      for (final reg in ownerRegistrations) {
+        mergedById[reg.id] = reg;
+      }
+      for (final reg in ekaplusUserRegistrations) {
+        mergedById[reg.id] = reg;
+      }
+
+      final merged = mergedById.values.toList()
+        ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+      return merged;
     } catch (e) {
       throw '❌ Error getting registrations by user ID: $e';
     }
@@ -440,5 +601,194 @@ class MemberRemoteDataSourceImpl implements MemberRemoteDataSource {
     } catch (e) {
       return [];
     }
+  }
+
+  @override
+  Future<List<ActiveMemberCompany>> getActiveMemberCompaniesByUserId() async {
+    final userData = await SessionManager.getCurrentUser();
+    final user = UserModel.fromLocalJson(userData!);
+
+    final memberOfRows = await _getResourceList(
+      'member_of',
+      fields: ['*'],
+      filters: [
+        ['user', '=', '${user.id}'],
+        ['ref_type', '=', 'bcid'],
+      ],
+    );
+
+    if (memberOfRows.isEmpty) return [];
+
+    final branchCustomerIds = memberOfRows
+        .map((e) => _safeInt(e['ref_id']))
+        .where((e) => e > 0)
+        .toList();
+
+    final branchCustomerRows = await _getByIds(
+      'branch_customer',
+      branchCustomerIds,
+      fields: ['*', 'branch.branch_name', 'branch.city'],
+    );
+    final branchCustomerById = {
+      for (final row in branchCustomerRows) _safeInt(row['id']): row,
+    };
+
+    final gcids = branchCustomerRows
+        .map((e) => _safeInt(e['gcid']))
+        .where((e) => e > 0)
+        .toList();
+    final groupCustomerRows = await _getByIds(
+      'group_customer',
+      gcids,
+      fields: ['*'],
+    );
+    final groupCustomerById = {
+      for (final row in groupCustomerRows) _safeInt(row['id']): row,
+    };
+
+    final gpids = groupCustomerRows
+        .map((e) => _safeInt(e['gpid']))
+        .where((e) => e > 0)
+        .toList();
+    final groupParentRows = await _getByIds(
+      'group_parent',
+      gpids,
+      fields: ['*'],
+    );
+    final groupParentById = {
+      for (final row in groupParentRows) _safeInt(row['id']): row,
+    };
+
+    final nbids = groupParentRows
+        .map((e) => _safeInt(e['nbid']))
+        .where((e) => e > 0)
+        .toList();
+    final nationalBrandRows = await _getByIds(
+      'national_brand',
+      nbids,
+      fields: ['*'],
+    );
+    final nationalBrandById = {
+      for (final row in nationalBrandRows) _safeInt(row['id']): row,
+    };
+
+    final customerRegisterRows = await _getByFieldValues(
+      'customer_register',
+      'bcid',
+      branchCustomerIds,
+      fields: [
+        '*',
+        'branch_id.id',
+        'branch_id.branch_name',
+        'branch_id.city',
+      ],
+      extraFilters: [
+        ['ekaplus_user', '=', '${user.id}'],
+      ],
+      orderBy: [
+        ['updated_at', 'desc'],
+        ['created_at', 'desc'],
+      ],
+    );
+    if (customerRegisterRows.isEmpty) {
+      customerRegisterRows.addAll(
+        await _getByFieldValues(
+          'customer_register',
+          'bcid',
+          branchCustomerIds,
+          fields: [
+            '*',
+            'branch_id.id',
+            'branch_id.branch_name',
+            'branch_id.city',
+          ],
+          extraFilters: [
+            ['owner', '=', '${user.id}'],
+          ],
+          orderBy: [
+            ['updated_at', 'desc'],
+            ['created_at', 'desc'],
+          ],
+        ),
+      );
+    }
+    final customerRegisterByBcid = <int, Map<String, dynamic>>{};
+    for (final row in customerRegisterRows) {
+      final bcid = _safeInt(row['bcid']);
+      if (bcid <= 0) continue;
+      customerRegisterByBcid.putIfAbsent(bcid, () => row);
+    }
+
+    final result = <ActiveMemberCompany>[];
+    for (final mo in memberOfRows) {
+      final refId = _safeInt(mo['ref_id']);
+      final bc = branchCustomerById[refId];
+      final gcid = bc == null ? 0 : _safeInt(bc['gcid']);
+      final gc = groupCustomerById[gcid];
+      final gpid = gc == null ? 0 : _safeInt(gc['gpid']);
+      final gp = groupParentById[gpid];
+      final nbid = gp == null ? 0 : _safeInt(gp['nbid']);
+      final nb = nationalBrandById[nbid];
+      final cr = customerRegisterByBcid[refId];
+
+      final branchObj = bc?['branch'];
+      final branchName = branchObj is Map
+          ? _safeNullableString(branchObj['branch_name'])
+          : _safeNullableString(bc?['branch.branch_name']);
+      final branchCity = branchObj is Map
+          ? _safeNullableString(branchObj['city'])
+          : _safeNullableString(bc?['branch.city']);
+
+      result.add(
+        ActiveMemberCompany(
+          memberOfId: _safeInt(mo['id']),
+          refType: (mo['ref_type'] ?? 'bcid').toString(),
+          refId: refId,
+          userId: _safeInt(mo['user']),
+          memberOfStatus: _safeNullableString(mo['status']),
+          branchCustomerId: bc == null ? null : _safeNullableInt(bc['id']),
+          branchCustomerCode: _safeNullableString(bc?['name']),
+          branchId: bc == null ? null : _safeNullableInt(bc['branch_id']),
+          branchName: branchName,
+          branchCity: branchCity,
+          gcidId: gc == null ? null : _safeNullableInt(gc['id']),
+          gcName: _safeNullableString(gc?['gc_name']),
+          gpidId: gp == null ? null : _safeNullableInt(gp['id']),
+          gpCode: _safeNullableString(gp?['name']),
+          gpName: _safeNullableString(gp?['gp_name']),
+          nbidId: nbid > 0 ? nbid : null,
+          nbName: _safeNullableString(nb?['nb_name']),
+          customerRegisterId: cr == null ? null : _safeNullableInt(cr['id']),
+          customerRegisterStatus: _safeNullableString(cr?['status']),
+          customerOwnerName: _safeNullableString(cr?['owner_full_name']),
+          customerOwnerEmail: _safeNullableString(cr?['owner_email']),
+          customerOwnerPhone: _safeNullableString(cr?['owner_phone']),
+          customerCompanyName: _safeNullableString(cr?['company_name']),
+          customerCompanyType: _safeNullableString(cr?['company_type']),
+          customerCompanyTitle: _safeNullableString(cr?['company_title']),
+          customerProductNeed: _safeNullableString(cr?['product_need']),
+          customerCompanyAddress: _safeNullableString(cr?['company_address']),
+          customerCompanyProvince: _safeNullableString(cr?['company_province']),
+          customerCompanyCity: _safeNullableString(cr?['company_city']),
+          customerCompanyDistrict: _safeNullableString(cr?['company_district']),
+          customerCompanyPostalCode: _safeNullableString(
+            cr?['company_postal_code'],
+          ),
+          createdAt: _safeNullableDate(mo['created_at']),
+        ),
+      );
+    }
+
+    result.sort((a, b) {
+      final gcCmp = (a.gcName ?? '').toLowerCase().compareTo(
+        (b.gcName ?? '').toLowerCase(),
+      );
+      if (gcCmp != 0) return gcCmp;
+      return (a.branchCity ?? '').toLowerCase().compareTo(
+        (b.branchCity ?? '').toLowerCase(),
+      );
+    });
+
+    return result;
   }
 }

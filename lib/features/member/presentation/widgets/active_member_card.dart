@@ -2,23 +2,25 @@
 
 import 'package:flutter/material.dart';
 import '../../../../constant.dart';
+import '../../domain/entities/active_member_company.dart';
 
 class ActiveMemberCard extends StatelessWidget {
-  final Map<String, dynamic> registration;
+  final ActiveMemberCompany company;
   final VoidCallback onTap;
 
   const ActiveMemberCard({
     super.key,
-    required this.registration,
+    required this.company,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    final companyName = registration['company_name'] ?? '-';
-    final branchName = registration['branch_name'] ?? '-';
-    final companyType = registration['company_type'] ?? '-';
-    final memberId = registration['member_id'] ?? '-';
+    final companyName = company.displayName;
+    final branchName = company.branchName ?? '-';
+    final nationalBrand = company.nbName ?? '-';
+    final groupParent = company.gpCode ?? '-';
+    final memberId = company.branchCustomerCode ?? 'BCID #${company.refId}';
 
     return GestureDetector(
       onTap: onTap,
@@ -115,11 +117,10 @@ class ActiveMemberCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Company Type
-                  _buildInfoRow(
-                    Icons.account_balance_outlined,
-                    'Jenis',
-                    companyType,
-                  ),
+                  _buildInfoRow(Icons.workspace_premium_outlined, 'NB', nationalBrand),
+
+                  const SizedBox(height: 8),
+                  _buildInfoRow(Icons.hub_outlined, 'GP', groupParent),
 
                   const SizedBox(height: 8),
 

@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:dartz/dartz.dart';
 import 'package:ekaplus_ekatunggal/core/error/failure.dart';
 import 'package:ekaplus_ekatunggal/features/member/data/datasources/member_remote_datasource.dart';
+import 'package:ekaplus_ekatunggal/features/member/domain/entities/active_member_company.dart';
 import 'package:ekaplus_ekatunggal/features/member/domain/entities/member_registration.dart';
 import 'package:ekaplus_ekatunggal/features/member/domain/repositories/member_repository.dart';
 
@@ -114,6 +115,17 @@ class MemberRepositoryImplementation implements MemberRepository {
       // );
       // return Right(registrations);
       return Left(CacheFailure(message: ""));
+    } catch (e) {
+      return Left(CacheFailure(message: e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, List<ActiveMemberCompany>>>
+  getActiveMemberCompaniesByUserId() async {
+    try {
+      final companies = await remoteDataSource.getActiveMemberCompaniesByUserId();
+      return Right(companies);
     } catch (e) {
       return Left(CacheFailure(message: e.toString()));
     }

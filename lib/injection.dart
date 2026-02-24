@@ -58,6 +58,7 @@ import 'package:ekaplus_ekatunggal/features/member/domain/usecases/delete_member
 import 'package:ekaplus_ekatunggal/features/member/domain/usecases/get_member_registrations_by_user_id.dart';
 import 'package:ekaplus_ekatunggal/features/member/domain/usecases/get_member_registrations_by_status.dart';
 import 'package:ekaplus_ekatunggal/features/member/domain/usecases/get_approved_gcids.dart';
+import 'package:ekaplus_ekatunggal/features/member/domain/usecases/get_active_member_companies_by_user_id.dart';
 import 'package:ekaplus_ekatunggal/features/member/presentation/cubit/member_registration_cubit.dart';
 
 // CATEGORY
@@ -315,6 +316,9 @@ Future<void> init() async {
     () => GetMemberRegistrationsByStatus(myinjection()),
   );
   myinjection.registerLazySingleton(() => GetApprovedGCIDs(myinjection()));
+  myinjection.registerLazySingleton(
+    () => GetActiveMemberCompaniesByUserId(myinjection()),
+  );
 
   // ============================================
   // FACTORY BLOCS (Per Widget - Short-lived)
@@ -365,6 +369,7 @@ Future<void> init() async {
       updateMemberRegistration: myinjection(),
       getMemberRegistrationsByUserId: myinjection(),
       getApprovedGCIDs: myinjection(),
+      getActiveMemberCompaniesByUserId: myinjection(),
     ),
   );
 }

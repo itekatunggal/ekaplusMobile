@@ -83,6 +83,22 @@ class MemberRegistrationAllRegistrationsLoaded extends MemberRegistrationState {
   const MemberRegistrationAllRegistrationsLoaded(this.registrations);
 }
 
+class MemberRegistrationActiveCompaniesLoading extends MemberRegistrationState {
+  const MemberRegistrationActiveCompaniesLoading();
+}
+
+class MemberRegistrationActiveCompaniesLoaded extends MemberRegistrationState {
+  final List<ActiveMemberCompany> companies;
+
+  const MemberRegistrationActiveCompaniesLoaded(this.companies);
+}
+
+class MemberRegistrationActiveCompaniesError extends MemberRegistrationState {
+  final String message;
+
+  const MemberRegistrationActiveCompaniesError(this.message);
+}
+
 // === SHIPPING ADDRESS STATES ===
 
 // Shipping Provinces Loaded

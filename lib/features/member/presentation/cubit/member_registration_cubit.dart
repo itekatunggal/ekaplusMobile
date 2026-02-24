@@ -3,6 +3,7 @@
 import 'dart:io';
 
 import 'package:bloc/bloc.dart';
+import 'package:ekaplus_ekatunggal/features/member/domain/entities/active_member_company.dart';
 import 'package:ekaplus_ekatunggal/features/member/domain/entities/member_registration.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -22,6 +23,7 @@ import '../../domain/usecases/save_member_registration.dart';
 import '../../domain/usecases/update_member_registration.dart';
 import '../../domain/usecases/get_member_registrations_by_user_id.dart';
 import '../../domain/usecases/get_approved_gcids.dart';
+import '../../domain/usecases/get_active_member_companies_by_user_id.dart';
 
 part 'member_registration_state.dart';
 
@@ -31,6 +33,7 @@ class MemberRegistrationCubit extends Cubit<MemberRegistrationState> {
   final UpdateMemberRegistration updateMemberRegistration;
   final GetMemberRegistrationsByUserId getMemberRegistrationsByUserId;
   final GetApprovedGCIDs getApprovedGCIDs;
+  final GetActiveMemberCompaniesByUserId getActiveMemberCompaniesByUserId;
 
   MemberRegistrationCubit({
     required this.getAllMemberRegistrations,
@@ -38,6 +41,7 @@ class MemberRegistrationCubit extends Cubit<MemberRegistrationState> {
     required this.updateMemberRegistration,
     required this.getMemberRegistrationsByUserId,
     required this.getApprovedGCIDs,
+    required this.getActiveMemberCompaniesByUserId,
   }) : super(const MemberRegistrationInitial());
 
   static const String _wilayahApiBase = 'https://wilayah.id/api';
@@ -248,6 +252,24 @@ class MemberRegistrationCubit extends Cubit<MemberRegistrationState> {
       );
     } catch (e) {
       emit(MemberRegistrationError('Error refreshing data: $e'));
+    }
+  }
+
+  Future<void> getActiveMemberCompanies() async {
+    try {
+      emit(const MemberRegistrationActiveCompaniesLoading());
+
+      final result = await getActiveMemberCompaniesByUserId.execute();
+      result.fold(
+        (failure) => emit(
+          MemberRegistrationActiveCompaniesError(
+            failure.message ?? 'Gagal memuat perusahaan aktif',
+          ),
+        ),
+        (data) => emit(MemberRegistrationActiveCompaniesLoaded(data)),
+      );
+    } catch (e) {
+      emit(MemberRegistrationActiveCompaniesError('Error loading active companies: $e'));
     }
   }
 
