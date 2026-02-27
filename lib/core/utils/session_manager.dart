@@ -9,6 +9,7 @@ class SessionManager {
   static const _tokenKey = 'auth_token';
   static const _refreshTokenKey = 'refresh_token';
   static const _userKey = 'current_user';
+  static const _activeBcidKey = 'active_branch_customer_id';
 
   static final _secure = FlutterSecureStorage();
 
@@ -53,6 +54,25 @@ class SessionManager {
     await _secure.delete(key: _refreshTokenKey);
     final box = Hive.box('auth_user_box');
     await box.delete(_userKey);
+    await box.delete(_activeBcidKey);
+  }
+
+  static Future<void> saveActiveBranchCustomerId(int bcid) async {
+    final box = Hive.box('auth_user_box');
+    await box.put(_activeBcidKey, bcid);
+  }
+
+  static Future<int?> getActiveBranchCustomerId() async {
+    final box = Hive.box('auth_user_box');
+    final raw = box.get(_activeBcidKey);
+    if (raw == null) return null;
+    if (raw is int) return raw;
+    return int.tryParse(raw.toString());
+  }
+
+  static Future<void> clearActiveBranchCustomerId() async {
+    final box = Hive.box('auth_user_box');
+    await box.delete(_activeBcidKey);
   }
 
   static Future<bool> refreshToken() {

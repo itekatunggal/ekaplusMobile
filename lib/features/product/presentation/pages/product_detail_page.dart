@@ -974,7 +974,7 @@ class _WishlistButton extends StatelessWidget {
   void _showSnackbar(BuildContext context, bool isInWishlist) {
     final bool isIOS = io.Platform.isIOS;
 
-    ScaffoldMessenger.of(context).showSnackBar(
+    AppSnackbar.showRaw(context, 
       SnackBar(
         content: Text(
           isInWishlist ? 'Dihapus dari wishlist' : 'Ditambahkan ke wishlist',

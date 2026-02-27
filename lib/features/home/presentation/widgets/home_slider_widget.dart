@@ -32,7 +32,7 @@ class HomeSliderWidget extends StatelessWidget {
       }
     } catch (_) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        AppSnackbar.showRaw(context, 
           const SnackBar(content: Text('Tidak dapat membuka link')),
         );
       }
@@ -48,16 +48,17 @@ class HomeSliderWidget extends StatelessWidget {
     if (type == 'Link') {
       final link = banner.link?.trim() ?? '';
       if (link.isEmpty) {
-        ScaffoldMessenger.of(
+        AppSnackbar.showRaw(
           context,
-        ).showSnackBar(const SnackBar(content: Text('Link tidak tersedia')));
+          const SnackBar(content: Text('Link tidak tersedia')),
+        );
         return;
       }
       _openLink(context, link);
     } else if (type == 'Page') {
       final pageName = banner.pages?.trim() ?? '';
       if (pageName.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        AppSnackbar.showRaw(context, 
           const SnackBar(content: Text('Halaman tujuan tidak tersedia')),
         );
         return;

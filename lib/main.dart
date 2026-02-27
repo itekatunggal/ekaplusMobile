@@ -3,6 +3,7 @@
 import 'package:ekaplus_ekatunggal/features/banner/presentation/cubit/banner_cubit.dart';
 import 'package:ekaplus_ekatunggal/features/branch/presentation/cubit/branch_cubit.dart';
 import 'package:ekaplus_ekatunggal/features/member/presentation/cubit/member_registration_cubit.dart';
+import 'package:ekaplus_ekatunggal/features/member/presentation/cubit/active_company_cubit.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -67,6 +68,9 @@ class _EkaplusAppState extends State<EkaplusApp> {
         ),
         BlocProvider(
           create: (_) => myinjection<AuthSessionCubit>()..refreshUser(),
+        ),
+        BlocProvider(
+          create: (_) => myinjection<ActiveCompanyCubit>()..loadCompaniesAndResolveActive(),
         ),
         BlocProvider(
           create: (_) {
@@ -142,6 +146,21 @@ class _EkaplusAppState extends State<EkaplusApp> {
             fontFamily: AppFonts.primaryFont,
             colorScheme: ColorScheme.fromSeed(
               seedColor: AppColors.primaryColor,
+            ).copyWith(
+              surface: Colors.white,
+            ),
+            dialogTheme: const DialogThemeData(
+              backgroundColor: Colors.white,
+              surfaceTintColor: Colors.transparent,
+            ),
+            bottomSheetTheme: const BottomSheetThemeData(
+              backgroundColor: Colors.white,
+              modalBackgroundColor: Colors.white,
+              surfaceTintColor: Colors.transparent,
+            ),
+            popupMenuTheme: const PopupMenuThemeData(
+              color: Colors.white,
+              surfaceTintColor: Colors.transparent,
             ),
           ),
         ),

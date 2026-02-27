@@ -6,8 +6,8 @@ import 'package:ekaplus_ekatunggal/features/auth/domain/entities/user.dart';
 import 'package:ekaplus_ekatunggal/features/auth/presentation/cubit/auth_session_cubit.dart';
 import 'package:ekaplus_ekatunggal/features/auth/presentation/cubit/auth_session_state.dart';
 import 'package:ekaplus_ekatunggal/features/member/domain/usecases/get_member_registrations_by_user_id.dart';
-import 'package:ekaplus_ekatunggal/features/member/domain/usecases/get_active_member_companies_by_user_id.dart';
 import 'package:ekaplus_ekatunggal/features/member/domain/entities/member_registration.dart';
+import 'package:ekaplus_ekatunggal/features/member/presentation/cubit/active_company_cubit.dart';
 import 'package:ekaplus_ekatunggal/injection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -25,18 +25,13 @@ class AccountLoggedInView extends StatefulWidget {
 class _AccountLoggedInViewState extends State<AccountLoggedInView> {
   final GetMemberRegistrationsByUserId _getMemberRegistrationsByUserId =
       myinjection<GetMemberRegistrationsByUserId>();
-  final GetActiveMemberCompaniesByUserId _getActiveMemberCompaniesByUserId =
-      myinjection<GetActiveMemberCompaniesByUserId>();
   MemberRegistration? _latestRegistration;
   bool _isLoadingRegistration = true;
-  String? _activeBcName;
-  bool _isLoadingBcName = true;
 
   @override
   void initState() {
     super.initState();
     _loadMemberRegistration();
-    _loadActiveCompanyName();
   }
 
   Future<void> _loadMemberRegistration() async {
@@ -61,29 +56,6 @@ class _AccountLoggedInViewState extends State<AccountLoggedInView> {
         setState(() {
           _latestRegistration = latest;
           _isLoadingRegistration = false;
-        });
-      },
-    );
-  }
-
-  Future<void> _loadActiveCompanyName() async {
-    if (!mounted) return;
-    setState(() => _isLoadingBcName = true);
-
-    final result = await _getActiveMemberCompaniesByUserId.execute();
-    if (!mounted) return;
-
-    result.fold(
-      (_) {
-        setState(() {
-          _activeBcName = null;
-          _isLoadingBcName = false;
-        });
-      },
-      (companies) {
-        setState(() {
-          _activeBcName = companies.isNotEmpty ? companies.first.displayName : null;
-          _isLoadingBcName = false;
         });
       },
     );
@@ -115,6 +87,15 @@ class _AccountLoggedInViewState extends State<AccountLoggedInView> {
         final currentUser = sessionState is AuthSessionAuthenticated
             ? sessionState.user
             : widget.user;
+        final activeState = context.watch<ActiveCompanyCubit>().state;
+        if (sessionState is AuthSessionAuthenticated &&
+            activeState is! ActiveCompanyReady &&
+            activeState is! ActiveCompanyLoading) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
+            context.read<ActiveCompanyCubit>().loadCompaniesAndResolveActive();
+          });
+        }
 
         return Container(
           width: double.infinity,
@@ -315,39 +296,52 @@ class _AccountLoggedInViewState extends State<AccountLoggedInView> {
 
         const SizedBox(height: 4),
 
-        Container(
-          padding: EdgeInsets.symmetric(
-            horizontal: _getResponsiveValue(
-              context,
-              mobile: 14,
-              tablet: 16,
-              desktop: 18,
-            ),
-            vertical: _getResponsiveValue(
-              context,
-              mobile: 5,
-              tablet: 6,
-              desktop: 7,
-            ),
-          ),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: const Color(0x65A7A7A7), width: 1),
-            color: const Color(0x33A7A7A7),
-          ),
-          child: Text(
-            _isLoadingBcName
+        BlocBuilder<ActiveCompanyCubit, ActiveCompanyState>(
+          builder: (context, state) {
+            final label = state is ActiveCompanyLoading
                 ? 'Memuat perusahaan...'
-                : (_activeBcName?.isNotEmpty == true
-                      ? _activeBcName!
-                      : 'Belum terhubung dengan perusahaan'),
-            style: TextStyle(
-              fontFamily: AppFonts.primaryFont,
-              fontSize: statusTextSize,
-              color: AppColors.blackColor,
-            ),
-            textAlign: TextAlign.center,
-          ),
+                : state is ActiveCompanyReady
+                ? (state.activeCompany?.displayName ??
+                      'Belum terhubung dengan perusahaan')
+                : 'Belum terhubung dengan perusahaan';
+
+            return Container(
+              padding: EdgeInsets.symmetric(
+                horizontal: _getResponsiveValue(
+                  context,
+                  mobile: 14,
+                  tablet: 16,
+                  desktop: 18,
+                ),
+                vertical: _getResponsiveValue(
+                  context,
+                  mobile: 5,
+                  tablet: 6,
+                  desktop: 7,
+                ),
+              ),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: const Color(0x65A7A7A7), width: 1),
+                color: const Color(0x33A7A7A7),
+              ),
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 180),
+                switchInCurve: Curves.easeOutCubic,
+                switchOutCurve: Curves.easeInCubic,
+                child: Text(
+                  label,
+                  key: ValueKey(label),
+                  style: TextStyle(
+                    fontFamily: AppFonts.primaryFont,
+                    fontSize: statusTextSize,
+                    color: AppColors.blackColor,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            );
+          },
         ),
       ],
     );
@@ -804,7 +798,10 @@ class _AccountLoggedInViewState extends State<AccountLoggedInView> {
 
     String buttonText;
     VoidCallback onPressed;
-    final hasActiveCompany = (_activeBcName?.trim().isNotEmpty ?? false);
+    final activeState = context.read<ActiveCompanyCubit>().state;
+    final hasActiveCompany =
+        activeState is ActiveCompanyReady &&
+        (activeState.activeCompany?.displayName.trim().isNotEmpty ?? false);
 
     if (hasActiveCompany) {
       buttonText = 'Tambah Perusahaan / Cabang';

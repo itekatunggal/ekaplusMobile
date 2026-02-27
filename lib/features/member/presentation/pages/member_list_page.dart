@@ -4,6 +4,7 @@ import 'dart:convert';
 
 import 'package:ekaplus_ekatunggal/features/member/domain/entities/active_member_company.dart';
 import 'package:ekaplus_ekatunggal/features/member/presentation/cubit/member_registration_cubit.dart';
+import 'package:ekaplus_ekatunggal/features/member/presentation/cubit/active_company_cubit.dart';
 import 'package:ekaplus_ekatunggal/core/config/api_config.dart';
 import 'package:ekaplus_ekatunggal/core/utils/session_manager.dart';
 import 'package:flutter/material.dart';
@@ -60,6 +61,7 @@ class _MemberListPageState extends State<MemberListPage>
     rBlok = context.read<MemberRegistrationCubit>();
     rBlok.getUserRegistrations();
     rBlok.getActiveMemberCompanies();
+    context.read<ActiveCompanyCubit>().loadCompaniesAndResolveActive();
   }
 
   @override
@@ -71,6 +73,14 @@ class _MemberListPageState extends State<MemberListPage>
   Future<void> _refreshAll() async {
     rBlok.getUserRegistrations();
     rBlok.getActiveMemberCompanies();
+  }
+
+  void _showFloatingToast(String message, {bool isError = false}) {
+    AppSnackbar.show(
+      context,
+      message: message,
+      type: isError ? AppSnackbarType.error : AppSnackbarType.success,
+    );
   }
 
   @override
@@ -107,6 +117,7 @@ class _MemberListPageState extends State<MemberListPage>
               _isActiveCompaniesLoading = false;
               _activeCompaniesError = null;
             });
+            context.read<ActiveCompanyCubit>().loadCompaniesAndResolveActive(force: true);
           } else if (state is MemberRegistrationActiveCompaniesError) {
             setState(() {
               _isActiveCompaniesLoading = false;
@@ -234,17 +245,31 @@ class _MemberListPageState extends State<MemberListPage>
     }
 
     return RefreshIndicator(
-      onRefresh: () async => _refreshAll(),
-      child: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: _activeCompanies.length,
-        itemBuilder: (context, index) {
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: ActiveMemberCard(
-              company: _activeCompanies[index],
-              onTap: () => _showActiveCompanyDetail(_activeCompanies[index]),
-            ),
+      onRefresh: () async {
+        await _refreshAll();
+        if (!mounted) return;
+        await context.read<ActiveCompanyCubit>().refreshCompanies();
+      },
+      child: BlocBuilder<ActiveCompanyCubit, ActiveCompanyState>(
+        builder: (context, activeState) {
+          final activeBcid = activeState is ActiveCompanyReady
+              ? activeState.activeBcid
+              : null;
+          return ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: _activeCompanies.length,
+            itemBuilder: (context, index) {
+              final company = _activeCompanies[index];
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: ActiveMemberCard(
+                  company: company,
+                  isActiveSelected: company.branchCustomerId == activeBcid,
+                  onTap: () => _showActiveCompanyDetail(company),
+                  onLongPress: () => _confirmSetActiveCompany(company),
+                ),
+              );
+            },
           );
         },
       ),
@@ -396,15 +421,59 @@ class _MemberListPageState extends State<MemberListPage>
         ? const <Map<String, dynamic>>[]
         : await _loadActiveCompanyAddresses(bcid);
     if (!mounted) return;
+    final activeState = context.read<ActiveCompanyCubit>().state;
+    final isSelected = activeState is ActiveCompanyReady &&
+        activeState.activeBcid == company.branchCustomerId;
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (dialogContext) => ActiveCompanyDetailDialog(
         company: company,
         shippingAddresses: shippingAddresses,
+        isActiveSelected: isSelected,
+        onSetActive: () => _setActiveCompany(company),
         onClose: () => Navigator.of(dialogContext).pop(),
       ),
     );
+  }
+
+  Future<void> _setActiveCompany(ActiveMemberCompany company) async {
+    final changed = await context.read<ActiveCompanyCubit>().setActiveCompany(company);
+    if (!mounted) return;
+    if (changed) {
+      _showFloatingToast('${company.displayName} menjadi perusahaan aktif');
+    } else {
+      _showFloatingToast(
+        'Perusahaan ini belum memiliki BCID valid',
+        isError: true,
+      );
+    }
+  }
+
+  Future<void> _confirmSetActiveCompany(ActiveMemberCompany company) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Pilih Perusahaan Aktif'),
+        content: Text(
+          'Jadikan ${company.displayName} sebagai perusahaan aktif?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Batal'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Pilih'),
+          ),
+        ],
+      ),
+    );
+    if (!mounted) return;
+    if (ok == true) {
+      await _setActiveCompany(company);
+    }
   }
 
   Future<List<Map<String, dynamic>>> _loadActiveCompanyAddresses(int bcid) async {

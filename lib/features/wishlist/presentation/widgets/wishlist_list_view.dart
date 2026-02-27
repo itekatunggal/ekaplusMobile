@@ -336,7 +336,7 @@ class _WishlistListViewState extends State<WishlistListView>
                         Navigator.pop(dialogContext);
 
                         if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
+                          AppSnackbar.showRaw(context, 
                             SnackBar(
                               content: Text(
                                 '$selectedCount item dihapus dari wishlist',

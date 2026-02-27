@@ -269,7 +269,7 @@ class _RegisterFormPageState extends State<RegisterFormPage> {
     if (!_formKey.currentState!.validate()) return;
 
     if (_selectedGender == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      AppSnackbar.showRaw(context, 
         const SnackBar(
           content: Text('Silakan pilih jenis kelamin'),
           backgroundColor: AppColors.primaryColor,
@@ -337,7 +337,7 @@ class _RegisterFormPageState extends State<RegisterFormPage> {
             _autoCopyJsonToClipboard();
 
             if (mounted && !_isDisposed) {
-              ScaffoldMessenger.of(context).showSnackBar(
+              AppSnackbar.showRaw(context, 
                 const SnackBar(
                   content: Text('Registrasi berhasil — mengarahkan ke login'),
                   backgroundColor: Colors.green,
@@ -369,7 +369,7 @@ class _RegisterFormPageState extends State<RegisterFormPage> {
             // Re-enable button so user can retry
             if (mounted && !_isDisposed) {
               setState(() => _isNavigating = false);
-              ScaffoldMessenger.of(context).showSnackBar(
+              AppSnackbar.showRaw(context, 
                 SnackBar(
                   content: Text(state.message),
                   backgroundColor: AppColors.primaryColor,

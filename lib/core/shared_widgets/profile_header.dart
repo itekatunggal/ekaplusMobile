@@ -4,8 +4,9 @@ import 'package:ekaplus_ekatunggal/constant.dart';
 import 'package:ekaplus_ekatunggal/core/config/api_config.dart';
 import 'package:ekaplus_ekatunggal/features/auth/presentation/cubit/auth_session_cubit.dart';
 import 'package:ekaplus_ekatunggal/features/auth/presentation/cubit/auth_session_state.dart';
-import 'package:ekaplus_ekatunggal/features/member/domain/usecases/get_active_member_companies_by_user_id.dart';
-import 'package:ekaplus_ekatunggal/injection.dart';
+import 'package:ekaplus_ekatunggal/features/member/domain/entities/active_member_company.dart';
+import 'package:ekaplus_ekatunggal/features/member/presentation/cubit/active_company_cubit.dart';
+import 'package:ekaplus_ekatunggal/features/member/presentation/widgets/company_picker_sheet.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -21,35 +22,63 @@ class ProfileHeader extends StatefulWidget {
 }
 
 class _ProfileHeaderState extends State<ProfileHeader> {
-  final GetActiveMemberCompaniesByUserId _getActiveMemberCompaniesByUserId =
-      myinjection<GetActiveMemberCompaniesByUserId>();
-  String? _bcName;
-  bool _isLoadingBcName = false;
-  String? _loadedUserKey;
+  void _showActiveCompanyToast(String message) {
+    AppSnackbar.show(
+      context,
+      message: message,
+      type: AppSnackbarType.success,
+    );
+  }
 
-  Future<void> _loadBcNameForUser(String userKey) async {
-    if (!mounted) return;
-    setState(() {
-      _isLoadingBcName = true;
-      _loadedUserKey = userKey;
-    });
+  Future<void> _showCompanyPicker() async {
+    final activeCubit = context.read<ActiveCompanyCubit>();
+    final state = activeCubit.state;
+    final companies = state is ActiveCompanyReady
+        ? state.companies
+        : const <ActiveMemberCompany>[];
+    final activeBcid = state is ActiveCompanyReady ? state.activeBcid : null;
 
-    final result = await _getActiveMemberCompaniesByUserId.execute();
-    if (!mounted) return;
-
-    result.fold(
-      (_) {
-        setState(() {
-          _bcName = null;
-          _isLoadingBcName = false;
-        });
-      },
-      (companies) {
-        setState(() {
-          _bcName = companies.isNotEmpty ? companies.first.displayName : null;
-          _isLoadingBcName = false;
-        });
-      },
+    await showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (dialogContext) => CompanyPickerSheet(
+        companies: companies,
+        activeBcid: activeBcid,
+        onSelectCompany: (selected) async {
+          try {
+            final changed = await activeCubit.setActiveCompany(selected);
+            if (dialogContext.mounted) {
+              Navigator.of(dialogContext).pop();
+            }
+            if (!mounted) return;
+            if (changed) {
+              _showActiveCompanyToast(
+                '${selected.displayName} menjadi perusahaan aktif',
+              );
+            } else {
+              AppSnackbar.show(
+                context,
+                message: 'Perusahaan belum memiliki BCID valid',
+                type: AppSnackbarType.error,
+              );
+            }
+          } catch (e) {
+            if (dialogContext.mounted) {
+              Navigator.of(dialogContext).pop();
+            }
+            if (!mounted) return;
+            AppSnackbar.show(
+              context,
+              message: 'Gagal memilih perusahaan aktif: $e',
+              type: AppSnackbarType.error,
+            );
+          }
+        },
+        onAddCompany: () {
+          Navigator.of(dialogContext).pop();
+          context.pushNamed('companySelection');
+        },
+      ),
     );
   }
 
@@ -62,39 +91,18 @@ class _ProfileHeaderState extends State<ProfileHeader> {
       data: media.copyWith(
         textScaler: TextScaler.linear(media.textScaleFactor.clamp(0.8, 1.0)),
       ),
-      child: BlocConsumer<AuthSessionCubit, AuthSessionState>(
-        listener: (context, authState) {
-          if (authState is AuthSessionAuthenticated) {
-            final userKey = authState.user.phone;
-            if (_loadedUserKey != userKey) {
-              _loadBcNameForUser(userKey);
-            }
-          } else {
-            if (_bcName != null || _isLoadingBcName || _loadedUserKey != null) {
-              setState(() {
-                _bcName = null;
-                _isLoadingBcName = false;
-                _loadedUserKey = null;
-              });
-            }
-          }
-        },
+      child: BlocBuilder<AuthSessionCubit, AuthSessionState>(
         builder: (context, authState) {
           if (authState is AuthSessionAuthenticated) {
-            final userKey = authState.user.phone;
-            if (_loadedUserKey != userKey && !_isLoadingBcName) {
+            final activeState = context.read<ActiveCompanyCubit>().state;
+            if (activeState is! ActiveCompanyReady &&
+                activeState is! ActiveCompanyLoading) {
               WidgetsBinding.instance.addPostFrameCallback((_) {
                 if (!mounted) return;
-                final currentState = context.read<AuthSessionCubit>().state;
-                if (currentState is AuthSessionAuthenticated &&
-                    _loadedUserKey != currentState.user.phone &&
-                    !_isLoadingBcName) {
-                  _loadBcNameForUser(currentState.user.phone);
-                }
+                context.read<ActiveCompanyCubit>().loadCompaniesAndResolveActive();
               });
             }
           }
-
           Widget buildAvatar() {
             if (authState is AuthSessionAuthenticated) {
               final user = authState.user;
@@ -202,61 +210,6 @@ class _ProfileHeaderState extends State<ProfileHeader> {
 
             if (authState is AuthSessionAuthenticated) {
               final user = authState.user;
-              final showCompanyLine =
-                  _isLoadingBcName || (_bcName?.trim().isNotEmpty ?? false);
-
-              if (showCompanyLine) {
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Halo, ${user.firstName}',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontFamily: AppFonts.primaryFont,
-                        color: AppColors.blackColor,
-                        fontSize: isIOS ? 16 : 14,
-                        letterSpacing: -0.3,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    GestureDetector(
-                      onTap:
-                          widget.onCompanyTap ??
-                          () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                  'Pilih perusahaan (segera hadir)',
-                                ),
-                              ),
-                            );
-                          },
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            _isLoadingBcName
-                                ? 'Memuat perusahaan...'
-                                : ((_bcName?.isNotEmpty == true)
-                                      ? _bcName!
-                                      : 'Belum terhubung dengan perusahaan'),
-                            style: TextStyle(
-                              color: AppColors.primaryColor,
-                              fontSize: isIOS ? 12 : 10,
-                              fontWeight: FontWeight.w500,
-                              fontFamily: AppFonts.primaryFont,
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          Icon(Icons.expand_more, size: isIOS ? 18 : 16),
-                        ],
-                      ),
-                    ),
-                  ],
-                );
-              }
-
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -269,6 +222,42 @@ class _ProfileHeaderState extends State<ProfileHeader> {
                       fontSize: isIOS ? 16 : 14,
                       letterSpacing: -0.3,
                     ),
+                  ),
+                  const SizedBox(height: 2),
+                  BlocBuilder<ActiveCompanyCubit, ActiveCompanyState>(
+                    builder: (context, state) {
+                      final companyLabel = state is ActiveCompanyLoading
+                          ? 'Memuat perusahaan...'
+                          : state is ActiveCompanyReady
+                          ? (state.activeCompany?.displayName ??
+                                'Belum terhubung dengan perusahaan')
+                          : 'Belum terhubung dengan perusahaan';
+                      return GestureDetector(
+                        onTap: widget.onCompanyTap ?? _showCompanyPicker,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 180),
+                              switchInCurve: Curves.easeOutCubic,
+                              switchOutCurve: Curves.easeInCubic,
+                              child: Text(
+                                companyLabel,
+                                key: ValueKey(companyLabel),
+                                style: TextStyle(
+                                  color: AppColors.primaryColor,
+                                  fontSize: isIOS ? 12 : 10,
+                                  fontWeight: FontWeight.w500,
+                                  fontFamily: AppFonts.primaryFont,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Icon(Icons.expand_more, size: isIOS ? 18 : 16),
+                          ],
+                        ),
+                      );
+                    },
                   ),
                 ],
               );
@@ -318,7 +307,7 @@ class _ProfileHeaderState extends State<ProfileHeader> {
               ),
               // IconButton(
               //   onPressed: () {
-              //     ScaffoldMessenger.of(context).showSnackBar(
+              //     AppSnackbar.showRaw(context, 
               //       const SnackBar(content: Text('Notifikasi (segera hadir)')),
               //     );
               //   },

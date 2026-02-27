@@ -87,7 +87,7 @@ class _LoginPageState extends State<LoginPage> {
 
     final bool isIOS = io.Platform.isIOS;
 
-    ScaffoldMessenger.of(context).showSnackBar(
+    AppSnackbar.showRaw(context, 
       SnackBar(
         content: Row(
           children: [
@@ -122,7 +122,7 @@ class _LoginPageState extends State<LoginPage> {
 
     final bool isIOS = io.Platform.isIOS;
 
-    ScaffoldMessenger.of(context).showSnackBar(
+    AppSnackbar.showRaw(context, 
       SnackBar(
         content: Row(
           children: [

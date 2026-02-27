@@ -110,7 +110,7 @@ class _WishlistItemCardState extends State<WishlistItemCard>
         _isLoading = false;
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
+      AppSnackbar.showRaw(context, 
         SnackBar(
           content: Row(
             children: [
@@ -901,7 +901,7 @@ class _WishlistItemCardState extends State<WishlistItemCard>
                           ToggleWishlistItem(productId: widget.productId),
                         );
                         Navigator.pop(c);
-                        ScaffoldMessenger.of(context).showSnackBar(
+                        AppSnackbar.showRaw(context, 
                           SnackBar(
                             content: Row(
                               children: [

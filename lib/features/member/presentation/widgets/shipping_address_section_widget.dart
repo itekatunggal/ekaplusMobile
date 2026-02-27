@@ -120,7 +120,7 @@ class _ShippingAddressSectionWidgetState
 
   void _onSameAsCompanyToggled(ShippingAddressModel address, bool value) {
     if (value && !_isCompanyAddressComplete()) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      AppSnackbar.showRaw(context, 
         const SnackBar(
           content: Text('Lengkapi alamat perusahaan terlebih dahulu'),
           backgroundColor: Colors.red,
@@ -183,7 +183,7 @@ class _ShippingAddressSectionWidgetState
 
   void _addNewAddress() {
     if (widget.formState.shippingAddresses.length >= _maxShippingAddresses) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      AppSnackbar.showRaw(context, 
         const SnackBar(
           content: Text('Maksimal 3 alamat pengiriman'),
           backgroundColor: Colors.orange,

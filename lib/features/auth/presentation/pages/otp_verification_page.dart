@@ -57,7 +57,7 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
     if (messenger == null) return;
 
     messenger.clearSnackBars();
-    messenger.showSnackBar(snackBar);
+    AppSnackbar.showRaw(context, snackBar);
   }
 
   bool _hasError = false;

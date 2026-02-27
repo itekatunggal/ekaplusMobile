@@ -7,11 +7,17 @@ import '../../domain/entities/active_member_company.dart';
 class ActiveMemberCard extends StatelessWidget {
   final ActiveMemberCompany company;
   final VoidCallback onTap;
+  final VoidCallback? onLongPress;
+  final VoidCallback? onInfoTap;
+  final bool isActiveSelected;
 
   const ActiveMemberCard({
     super.key,
     required this.company,
     required this.onTap,
+    this.onLongPress,
+    this.onInfoTap,
+    this.isActiveSelected = false,
   });
 
   @override
@@ -28,14 +34,21 @@ class ActiveMemberCard extends StatelessWidget {
 
     return GestureDetector(
       onTap: onTap,
-      child: Container(
+      onLongPress: onLongPress,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOutCubic,
         decoration: BoxDecoration(
           color: AppColors.whiteColor,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.green[200]!),
+          border: Border.all(
+            color: isActiveSelected ? Colors.green[300]! : Colors.grey[200]!,
+          ),
           boxShadow: [
             BoxShadow(
-              color: Colors.green.withOpacity(0.1),
+              color: (isActiveSelected ? Colors.green : Colors.black).withOpacity(
+                isActiveSelected ? 0.12 : 0.05,
+              ),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),
@@ -48,7 +61,7 @@ class ActiveMemberCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.green[50],
+                color: isActiveSelected ? Colors.green[50] : Colors.grey[50],
                 borderRadius: const BorderRadius.only(
                   topLeft: Radius.circular(12),
                   topRight: Radius.circular(12),
@@ -65,7 +78,7 @@ class ActiveMemberCard extends StatelessWidget {
                     child: Icon(
                       Icons.business,
                       size: 24,
-                      color: Colors.green[700],
+                      color: isActiveSelected ? Colors.green[700] : Colors.grey[700],
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -85,31 +98,41 @@ class ActiveMemberCard extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                         ),
                         const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            Container(
-                              width: 8,
-                              height: 8,
-                              decoration: BoxDecoration(
-                                color: Colors.green[600],
-                                shape: BoxShape.circle,
+                        AnimatedOpacity(
+                          duration: const Duration(milliseconds: 180),
+                          opacity: isActiveSelected ? 1 : 0,
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 8,
+                                height: 8,
+                                decoration: BoxDecoration(
+                                  color: Colors.green[600],
+                                  shape: BoxShape.circle,
+                                ),
                               ),
-                            ),
-                            const SizedBox(width: 6),
-                            Text(
-                              'Aktif',
-                              style: TextStyle(
-                                fontFamily: AppFonts.primaryFont,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.green[700],
+                              const SizedBox(width: 6),
+                              Text(
+                                'Aktif',
+                                style: TextStyle(
+                                  fontFamily: AppFonts.primaryFont,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.green[700],
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ],
                     ),
                   ),
+                  if (onInfoTap != null)
+                    IconButton(
+                      onPressed: onInfoTap,
+                      icon: const Icon(Icons.info_outline),
+                      tooltip: 'Detail',
+                    ),
                 ],
               ),
             ),

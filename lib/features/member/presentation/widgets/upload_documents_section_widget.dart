@@ -59,7 +59,7 @@ class _UploadDocumentsSectionWidgetState
         });
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      AppSnackbar.showRaw(context, 
         SnackBar(
           content: Text('Gagal memilih gambar: $e'),
           backgroundColor: Colors.red,

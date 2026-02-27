@@ -6,12 +6,16 @@ import '../../domain/entities/active_member_company.dart';
 class ActiveCompanyDetailDialog extends StatelessWidget {
   final ActiveMemberCompany company;
   final List<Map<String, dynamic>> shippingAddresses;
+  final bool isActiveSelected;
+  final Future<void> Function()? onSetActive;
   final VoidCallback onClose;
 
   const ActiveCompanyDetailDialog({
     super.key,
     required this.company,
     this.shippingAddresses = const [],
+    this.isActiveSelected = false,
+    this.onSetActive,
     required this.onClose,
   });
 
@@ -46,142 +50,165 @@ class ActiveCompanyDetailDialog extends StatelessWidget {
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Detail Perusahaan Aktif',
-                      style: TextStyle(
-                        fontFamily: AppFonts.primaryFont,
-                        fontSize: 24,
-                        fontWeight: FontWeight.w800,
-                        color: const Color(0xFF111827),
+                child: TweenAnimationBuilder<double>(
+                  tween: Tween(begin: 0, end: 1),
+                  duration: const Duration(milliseconds: 220),
+                  curve: Curves.easeOutCubic,
+                  builder: (context, value, child) => Opacity(
+                    opacity: value,
+                    child: Transform.translate(
+                      offset: Offset(0, (1 - value) * 10),
+                      child: child,
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Detail Perusahaan Aktif',
+                        style: TextStyle(
+                          fontFamily: AppFonts.primaryFont,
+                          fontSize: 24,
+                          fontWeight: FontWeight.w800,
+                          color: const Color(0xFF111827),
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Berikut adalah hierarki perusahaan aktif Anda saat ini. Pastikan data yang ditampilkan sudah sesuai.',
-                      style: TextStyle(
-                        fontFamily: AppFonts.primaryFont,
-                        fontSize: 12,
-                        color: const Color(0xFF6B7280),
-                        height: 1.5,
+                      const SizedBox(height: 8),
+                      Text(
+                        'Berikut adalah hierarki perusahaan aktif Anda saat ini. Pastikan data yang ditampilkan sudah sesuai.',
+                        style: TextStyle(
+                          fontFamily: AppFonts.primaryFont,
+                          fontSize: 12,
+                          color: const Color(0xFF6B7280),
+                          height: 1.5,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 18),
-                    _section(
-                      icon: Icons.grid_view_rounded,
-                      title: 'Ringkasan',
-                      children: [
-                        _itemStack('Group Parent', gpName),
-                        const SizedBox(height: 14),
-                        _itemStack('Branch Customer', bcName),
-                      ],
-                    ),
-                    const SizedBox(height: 14),
-                    _section(
-                      icon: Icons.person,
-                      title: 'Detail Pemilik',
-                      children: [
-                        _itemStack('Nama Pemilik', company.customerOwnerName),
-                        const SizedBox(height: 14),
-                        _itemStack('Email', company.customerOwnerEmail),
-                        const SizedBox(height: 14),
-                        _itemStack('No. HP', company.customerOwnerPhone),
-                      ],
-                    ),
-                    const SizedBox(height: 14),
-                    _section(
-                      icon: Icons.description_rounded,
-                      title: 'Detail Perusahaan',
-                      children: [
-                        _itemStack(
-                          'Nama Perusahaan',
-                          company.customerCompanyName,
-                        ),
-                        const SizedBox(height: 14),
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(
-                              child: _itemStack(
-                                'Jenis',
-                                company.customerCompanyType,
+                      const SizedBox(height: 18),
+                      _section(
+                        icon: Icons.grid_view_rounded,
+                        title: 'Ringkasan',
+                        children: [
+                          _itemStack('Group Parent', gpName),
+                          const SizedBox(height: 14),
+                          _itemStack('Branch Customer', bcName),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+                      _section(
+                        icon: Icons.person,
+                        title: 'Detail Pemilik',
+                        children: [
+                          _itemStack('Nama Pemilik', company.customerOwnerName),
+                          const SizedBox(height: 14),
+                          _itemStack('Email', company.customerOwnerEmail),
+                          const SizedBox(height: 14),
+                          _itemStack('No. HP', company.customerOwnerPhone),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+                      _section(
+                        icon: Icons.description_rounded,
+                        title: 'Detail Perusahaan',
+                        children: [
+                          _itemStack(
+                            'Nama Perusahaan',
+                            company.customerCompanyName,
+                          ),
+                          const SizedBox(height: 14),
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: _itemStack(
+                                  'Jenis',
+                                  company.customerCompanyType,
+                                ),
                               ),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: _itemStack(
-                                'Gelar',
-                                company.customerCompanyTitle,
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: _itemStack(
+                                  'Gelar',
+                                  company.customerCompanyTitle,
+                                ),
                               ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 14),
-                        _itemStack('Kebutuhan', company.customerProductNeed),
-                        const SizedBox(height: 14),
-                        _itemStack(
-                          'Alamat Perusahaan',
-                          _joinAddress([
-                            company.customerCompanyAddress,
-                            company.customerCompanyDistrict,
-                            company.customerCompanyCity,
-                            company.customerCompanyProvince,
-                            company.customerCompanyPostalCode,
-                          ]),
-                        ),
-                      ],
-                    ),
-                    // const SizedBox(height: 14),
-                    // _section(
-                    //   icon: Icons.place_outlined,
-                    //   title: 'Alamat BCID',
-                    //   children: [],
-                    // ),
-                    // const SizedBox(height: 14),
-                    // _section(
-                    //   icon: Icons.contacts_outlined,
-                    //   title: 'Kontak BCID',
-                    //   children: [],
-                    // ),
-                    const SizedBox(height: 14),
-                    _section(
-                      icon: Icons.store_outlined,
-                      title: 'Alamat Pengiriman',
-                      children: _buildShippingAddressChildren(),
-                    ),
-                    const SizedBox(height: 14),
-                    _section(
-                      icon: Icons.store_outlined,
-                      title: 'Branch Customer',
-                      children: [
-                        _itemStack('BC Name', bcName),
-                        const SizedBox(height: 14),
-                        _itemStack('Branch Name', company.branchName),
-                        const SizedBox(height: 14),
-                        _itemStack('City', company.branchCity),
-                        const SizedBox(height: 14),
-                        _itemStack('Nama PIC Branch', company.branchOwnerName),
-                        const SizedBox(height: 14),
-                        _itemStack('Nomor PIC Branch', company.branchOwnerPhone),
-                        const SizedBox(height: 14),
-                        _itemStack('Email PIC Branch', company.branchOwnerEmail),
-                      ],
-                    ),
-                    const SizedBox(height: 84),
-                  ],
+                            ],
+                          ),
+                          const SizedBox(height: 14),
+                          _itemStack('Kebutuhan', company.customerProductNeed),
+                          const SizedBox(height: 14),
+                          _itemStack(
+                            'Alamat Perusahaan',
+                            _joinAddress([
+                              company.customerCompanyAddress,
+                              company.customerCompanyDistrict,
+                              company.customerCompanyCity,
+                              company.customerCompanyProvince,
+                              company.customerCompanyPostalCode,
+                            ]),
+                          ),
+                        ],
+                      ),
+
+                      // const SizedBox(height: 14),
+                      // _section(
+                      //   icon: Icons.place_outlined,
+                      //   title: 'Alamat BCID',
+                      //   children: [],
+                      // ),
+                      // const SizedBox(height: 14),
+                      // _section(
+                      //   icon: Icons.contacts_outlined,
+                      //   title: 'Kontak BCID',
+                      //   children: [],
+                      // ),
+                      const SizedBox(height: 14),
+                      _section(
+                        icon: Icons.store_outlined,
+                        title: 'Branch Customer',
+                        children: [
+                          _itemStack('Nama Usaha', bcName),
+                          const SizedBox(height: 14),
+                          _itemStack('Cabang Terdekat', company.branchName),
+                          const SizedBox(height: 14),
+                          _itemStack('Kota', company.branchCity),
+                          const SizedBox(height: 14),
+                          _itemStack(
+                            'Nama PIC Branch',
+                            company.branchOwnerName,
+                          ),
+                          const SizedBox(height: 14),
+                          _itemStack(
+                            'Nomor PIC Branch',
+                            company.branchOwnerPhone,
+                          ),
+                          const SizedBox(height: 14),
+                          _itemStack(
+                            'Email PIC Branch',
+                            company.branchOwnerEmail,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+                      _section(
+                        icon: Icons.store_outlined,
+                        title: 'Alamat Pengiriman',
+                        children: _buildShippingAddressChildren(),
+                      ),
+                      const SizedBox(height: 84),
+                    ],
+                  ),
                 ),
               ),
             ),
-            _footer(),
+            _footer(context),
           ],
         ),
       ),
     );
   }
 
-  Widget _footer() {
+  Widget _footer(BuildContext context) {
+    final canSetActive = !isActiveSelected && onSetActive != null;
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -191,24 +218,56 @@ class ActiveCompanyDetailDialog extends StatelessWidget {
       child: SizedBox(
         width: double.infinity,
         height: 50,
-        child: ElevatedButton(
-          onPressed: onClose,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.primaryColor,
-            foregroundColor: Colors.white,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(14),
+        child: Row(
+          children: [
+            if (canSetActive) ...[
+              Expanded(child: _SetActiveButton(onSetActive: onSetActive!)),
+              const SizedBox(width: 10),
+            ] else
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: null,
+                  style: ElevatedButton.styleFrom(
+                    disabledBackgroundColor: const Color(0xFFE5E7EB),
+                    disabledForegroundColor: const Color(0xFF4B5563),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    elevation: 0,
+                  ),
+                  child: Text(
+                    'Sedang Aktif',
+                    style: TextStyle(
+                      fontFamily: AppFonts.primaryFont,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: ElevatedButton(
+                onPressed: onClose,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primaryColor,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  elevation: 0,
+                ),
+                child: Text(
+                  'Selesai',
+                  style: TextStyle(
+                    fontFamily: AppFonts.primaryFont,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
             ),
-            elevation: 0,
-          ),
-          child: Text(
-            'Selesai',
-            style: TextStyle(
-              fontFamily: AppFonts.primaryFont,
-              fontSize: 15,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
+          ],
         ),
       ),
     );
@@ -351,9 +410,13 @@ class ActiveCompanyDetailDialog extends StatelessWidget {
     final raw = (value ?? '').toString().trim();
     if (raw.isEmpty) return null;
     final digits = raw.replaceAll(RegExp(r'[^0-9]'), '');
-    if (digits.startsWith('62') && digits.length > 2) return '0${digits.substring(2)}';
+    if (digits.startsWith('62') && digits.length > 2) {
+      return '0${digits.substring(2)}';
+    }
     if (digits.startsWith('0')) return digits;
-    if (raw.startsWith('+62') && digits.length > 2) return '0${digits.substring(2)}';
+    if (raw.startsWith('+62') && digits.length > 2) {
+      return '0${digits.substring(2)}';
+    }
     return raw;
   }
 
@@ -469,5 +532,66 @@ class ActiveCompanyDetailDialog extends StatelessWidget {
     }
 
     return widgets;
+  }
+}
+
+class _SetActiveButton extends StatefulWidget {
+  final Future<void> Function() onSetActive;
+
+  const _SetActiveButton({required this.onSetActive});
+
+  @override
+  State<_SetActiveButton> createState() => _SetActiveButtonState();
+}
+
+class _SetActiveButtonState extends State<_SetActiveButton> {
+  bool _loading = false;
+  bool _done = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return ElevatedButton(
+      onPressed: _loading
+          ? null
+          : () async {
+              setState(() => _loading = true);
+              await widget.onSetActive();
+              if (!mounted) return;
+              setState(() {
+                _loading = false;
+                _done = true;
+              });
+            },
+      style: ElevatedButton.styleFrom(
+        backgroundColor: const Color(0xFF0EA5E9),
+        foregroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        elevation: 0,
+      ),
+      child: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 180),
+        switchInCurve: Curves.easeOutCubic,
+        switchOutCurve: Curves.easeInCubic,
+        child: _loading
+            ? const SizedBox(
+                key: ValueKey('loading'),
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              )
+            : Text(
+                _done ? 'Berhasil' : 'Jadikan Perusahaan Aktif',
+                key: ValueKey(_done ? 'done' : 'idle'),
+                style: TextStyle(
+                  fontFamily: AppFonts.primaryFont,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+      ),
+    );
   }
 }

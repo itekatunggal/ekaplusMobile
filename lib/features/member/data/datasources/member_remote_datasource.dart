@@ -930,10 +930,10 @@ class MemberRemoteDataSourceImpl implements MemberRemoteDataSource {
 
       final branchObj = bc['branch'];
       final branchName = branchObj is Map
-          ? (_safeNullableString(branchObj['name']) ??
-              _safeNullableString(branchObj['branch_name']))
-          : (_safeNullableString(bc['branch.name']) ??
-              _safeNullableString(bc['branch.branch_name']));
+          ? (_safeNullableString(branchObj['branch_name']) ??
+              _safeNullableString(branchObj['name']))
+          : (_safeNullableString(bc['branch.branch_name']) ??
+              _safeNullableString(bc['branch.name']));
       final branchCity = branchObj is Map
           ? _safeNullableString(branchObj['city'])
           : _safeNullableString(bc['branch.city']);
@@ -1173,10 +1173,10 @@ class MemberRemoteDataSourceImpl implements MemberRemoteDataSource {
 
     final branchObj = bc['branch'];
     final branchName = branchObj is Map
-        ? (_safeNullableString(branchObj['name']) ??
-            _safeNullableString(branchObj['branch_name']))
-        : (_safeNullableString(bc['branch.name']) ??
-            _safeNullableString(bc['branch.branch_name']));
+        ? (_safeNullableString(branchObj['branch_name']) ??
+            _safeNullableString(branchObj['name']))
+        : (_safeNullableString(bc['branch.branch_name']) ??
+            _safeNullableString(bc['branch.name']));
     final branchCity = branchObj is Map
         ? _safeNullableString(branchObj['city'])
         : _safeNullableString(bc['branch.city']);

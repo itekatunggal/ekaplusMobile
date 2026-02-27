@@ -26,7 +26,7 @@ class _ExitConfirmationWrapperState extends State<ExitConfirmationWrapper> {
   void _showExitSnackbar() {
     final bool isIOS = io.Platform.isIOS;
 
-    ScaffoldMessenger.of(context).showSnackBar(
+    AppSnackbar.showRaw(context, 
       SnackBar(
         content: Text(
           'Klik sekali lagi untuk keluar aplikasi',

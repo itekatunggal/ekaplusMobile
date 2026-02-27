@@ -625,7 +625,7 @@ class _MemberRegistrationPageState extends State<MemberRegistrationPage> {
     if (errors.isNotEmpty) {
       setState(() => _errors = errors);
 
-      ScaffoldMessenger.of(context).showSnackBar(
+      AppSnackbar.showRaw(context, 
         SnackBar(
           content: Text(
             'Masih ada field wajib diisi atau error (${errors.length})!',
@@ -661,7 +661,7 @@ class _MemberRegistrationPageState extends State<MemberRegistrationPage> {
     if (needsOwnerPermission &&
         hierarchySource != null &&
         !hierarchySource.memberIsOwner) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      AppSnackbar.showRaw(context, 
         const SnackBar(
           content: Text(
             'Akun sharing tidak memiliki hak untuk menambah cabang (BCID)',
@@ -833,7 +833,7 @@ class _MemberRegistrationPageState extends State<MemberRegistrationPage> {
       child: BlocConsumer<MemberRegistrationCubit, MemberRegistrationState>(
         listener: (context, state) {
           if (state is MemberRegistrationSuccess) {
-            ScaffoldMessenger.of(context).showSnackBar(
+            AppSnackbar.showRaw(context, 
               SnackBar(
                 content: Text(
                   _isEditMode
@@ -849,7 +849,7 @@ class _MemberRegistrationPageState extends State<MemberRegistrationPage> {
           }
 
           if (state is MemberRegistrationError) {
-            ScaffoldMessenger.of(context).showSnackBar(
+            AppSnackbar.showRaw(context, 
               SnackBar(
                 content: Text(state.message),
                 backgroundColor: Colors.red,

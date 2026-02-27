@@ -57,7 +57,7 @@ class _AddBCIDPageState extends State<AddBCIDPage> {
 
   void _continueToForm() {
     if (_selectedParent == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      AppSnackbar.showRaw(context, 
         const SnackBar(
           content: Text('Pilih Group Customer terlebih dahulu'),
           backgroundColor: Colors.red,

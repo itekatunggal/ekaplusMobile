@@ -62,8 +62,8 @@ final getIt = GetIt.instance;
 class MyRouter {
   GoRouter get router => GoRouter(
     navigatorKey: globalNavigatorKey,
-    // initialLocation: "/splash",
-    initialLocation: "/account",
+    initialLocation: "/splash",
+    // initialLocation: "/account",
     routes: [
       // ********** Splash Screen (tanpa bottom nav) **********
       GoRoute(
@@ -212,12 +212,12 @@ class MyRouter {
         builder: (context, state) {
           final extra = state.extra as Map<String, dynamic>?;
           return MemberRegistrationPage(
-            initialRegistration:
-                extra?['registration'] as MemberRegistration?,
+            initialRegistration: extra?['registration'] as MemberRegistration?,
             intent: memberRegistrationIntentFromRouteValue(extra?['intent']),
             parentGcidId: extra?['selectedGcidId'] as int?,
             parentGcName: extra?['selectedGcName'] as String?,
-            parentActiveCompany: extra?['selectedActiveCompany'] as ActiveMemberCompany?,
+            parentActiveCompany:
+                extra?['selectedActiveCompany'] as ActiveMemberCompany?,
           );
         },
       ),
@@ -661,5 +661,3 @@ class AppShell extends StatelessWidget {
     );
   }
 }
-
-

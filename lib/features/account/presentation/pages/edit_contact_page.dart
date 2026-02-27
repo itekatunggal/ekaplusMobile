@@ -88,7 +88,7 @@ class _EditContactPageState extends State<EditContactPage> {
       body: BlocListener<ProfileUpdateCubit, ProfileUpdateState>(
         listener: (context, state) {
           if (state is ProfileUpdateAwaitingVerification) {
-            ScaffoldMessenger.of(context).showSnackBar(
+            AppSnackbar.showRaw(context, 
               SnackBar(
                 content: Text(state.message),
                 backgroundColor: Colors.green,
@@ -118,7 +118,7 @@ class _EditContactPageState extends State<EditContactPage> {
               },
             );
           } else if (state is ProfileUpdateError) {
-            ScaffoldMessenger.of(context).showSnackBar(
+            AppSnackbar.showRaw(context, 
               SnackBar(
                 content: Text(state.message),
                 backgroundColor: Colors.red,

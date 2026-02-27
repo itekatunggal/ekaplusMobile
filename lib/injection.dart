@@ -60,6 +60,7 @@ import 'package:ekaplus_ekatunggal/features/member/domain/usecases/get_member_re
 import 'package:ekaplus_ekatunggal/features/member/domain/usecases/get_approved_gcids.dart';
 import 'package:ekaplus_ekatunggal/features/member/domain/usecases/get_active_member_companies_by_user_id.dart';
 import 'package:ekaplus_ekatunggal/features/member/presentation/cubit/member_registration_cubit.dart';
+import 'package:ekaplus_ekatunggal/features/member/presentation/cubit/active_company_cubit.dart';
 
 // CATEGORY
 import 'package:ekaplus_ekatunggal/features/category/data/datasources/category_remote_datasource.dart';
@@ -122,6 +123,10 @@ Future<void> init() async {
       getUserInfo: myinjection(),
       getActiveMemberCompaniesByUserId: myinjection(),
     ),
+  );
+
+  myinjection.registerLazySingleton<ActiveCompanyCubit>(
+    () => ActiveCompanyCubit(getActiveMemberCompaniesByUserId: myinjection()),
   );
 
   // ProductBloc as Singleton
