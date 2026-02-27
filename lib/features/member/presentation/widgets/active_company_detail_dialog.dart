@@ -133,6 +133,18 @@ class ActiveCompanyDetailDialog extends StatelessWidget {
                         ),
                       ],
                     ),
+                    // const SizedBox(height: 14),
+                    // _section(
+                    //   icon: Icons.place_outlined,
+                    //   title: 'Alamat BCID',
+                    //   children: [],
+                    // ),
+                    // const SizedBox(height: 14),
+                    // _section(
+                    //   icon: Icons.contacts_outlined,
+                    //   title: 'Kontak BCID',
+                    //   children: [],
+                    // ),
                     const SizedBox(height: 14),
                     _section(
                       icon: Icons.store_outlined,
@@ -149,6 +161,12 @@ class ActiveCompanyDetailDialog extends StatelessWidget {
                         _itemStack('Branch Name', company.branchName),
                         const SizedBox(height: 14),
                         _itemStack('City', company.branchCity),
+                        const SizedBox(height: 14),
+                        _itemStack('Nama PIC Branch', company.branchOwnerName),
+                        const SizedBox(height: 14),
+                        _itemStack('Nomor PIC Branch', company.branchOwnerPhone),
+                        const SizedBox(height: 14),
+                        _itemStack('Email PIC Branch', company.branchOwnerEmail),
                       ],
                     ),
                     const SizedBox(height: 84),
@@ -329,6 +347,16 @@ class ActiveCompanyDetailDialog extends StatelessWidget {
     return values.join(', ');
   }
 
+  String? _displayPhone(dynamic value) {
+    final raw = (value ?? '').toString().trim();
+    if (raw.isEmpty) return null;
+    final digits = raw.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digits.startsWith('62') && digits.length > 2) return '0${digits.substring(2)}';
+    if (digits.startsWith('0')) return digits;
+    if (raw.startsWith('+62') && digits.length > 2) return '0${digits.substring(2)}';
+    return raw;
+  }
+
   List<Widget> _buildShippingAddressChildren() {
     if (shippingAddresses.isEmpty) {
       return [_itemStack('Data', '-')];
@@ -338,8 +366,19 @@ class ActiveCompanyDetailDialog extends StatelessWidget {
     for (var i = 0; i < shippingAddresses.length; i++) {
       final row = shippingAddresses[i];
       final label = (row['label'] ?? '').toString().trim();
-      final picName = (row['pic_name'] ?? '').toString().trim();
-      final picPhone = (row['pic_phone'] ?? '').toString().trim();
+      final type = (row['type'] ?? '').toString().trim();
+      final rowPicName = (row['pic_name'] ?? '').toString().trim();
+      final rowPicPhone = (row['pic_phone'] ?? '').toString().trim();
+      final picName = rowPicName.isNotEmpty
+          ? rowPicName
+          : (type.toLowerCase() == 'office'
+                ? (company.branchOwnerName ?? '').trim()
+                : '');
+      final picPhone = rowPicPhone.isNotEmpty
+          ? (_displayPhone(rowPicPhone) ?? rowPicPhone)
+          : (type.toLowerCase() == 'office'
+                ? (_displayPhone(company.branchOwnerPhone) ?? '')
+                : '');
       final isDefault = row['is_default'] == 1 || row['is_default'] == true;
       final address = _joinAddress([
         row['address']?.toString(),
@@ -370,6 +409,28 @@ class ActiveCompanyDetailDialog extends StatelessWidget {
                       label.isEmpty ? 'Alamat ${i + 1}' : label,
                     ),
                   ),
+                  if (type.isNotEmpty)
+                    Container(
+                      margin: const EdgeInsets.only(right: 8),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFEFF6FF),
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(color: const Color(0xFFBFDBFE)),
+                      ),
+                      child: Text(
+                        type.toUpperCase(),
+                        style: TextStyle(
+                          fontFamily: AppFonts.primaryFont,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: const Color(0xFF1D4ED8),
+                        ),
+                      ),
+                    ),
                   if (isDefault)
                     Container(
                       padding: const EdgeInsets.symmetric(

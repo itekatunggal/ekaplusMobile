@@ -14,6 +14,14 @@ class IdentityModel {
       name: json['name'] ?? json['gpid_name'] ?? json['gcid_name'] ?? '',
     );
   }
+
+  static Identity? fromDynamic(dynamic value, {String fallbackName = ''}) {
+    if (value is Map<String, dynamic>) return fromJson(value);
+    if (value == null) return null;
+    final id = value is int ? value : int.tryParse(value.toString());
+    if (id == null || id == 0) return null;
+    return Identity(id: id, name: fallbackName);
+  }
 }
 
 class BranchModel {
@@ -33,9 +41,20 @@ class BranchModel {
       area: json['area']?.toString(),
     );
   }
+
 }
 
 class MemberRegistrationModel {
+  static String _displayPhone(dynamic v) {
+    final raw = _safeString(v).trim();
+    if (raw.isEmpty) return raw;
+    final digits = raw.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digits.startsWith('62') && digits.length > 2) {
+      return '0${digits.substring(2)}';
+    }
+    if (digits.startsWith('0')) return digits;
+    return raw.startsWith('+62') ? '0${digits.substring(2)}' : raw;
+  }
   static int _safeInt(dynamic v) {
     if (v == null) return 0;
     if (v is int) return v;
@@ -59,6 +78,22 @@ class MemberRegistrationModel {
     final s = v.toString().trim();
     if (s.isEmpty) return DateTime.now();
     return DateTime.tryParse(s) ?? DateTime.now();
+  }
+
+  static DateTime? _safeDateOnlyNullable(dynamic v) {
+    final s = _safeString(v).trim();
+    if (s.isEmpty) return null;
+    final datePart = s.split('T').first;
+    final parts = datePart.split('-');
+    if (parts.length == 3) {
+      final y = int.tryParse(parts[0]);
+      final m = int.tryParse(parts[1]);
+      final d = int.tryParse(parts[2]);
+      if (y != null && m != null && d != null) {
+        return DateTime(y, m, d);
+      }
+    }
+    return DateTime.tryParse(s);
   }
 
   static Branch _branchFromJson(Map<String, dynamic> json) {
@@ -98,13 +133,13 @@ class MemberRegistrationModel {
       fullName: _safeString(json['owner_full_name']),
       username: '',
       email: _safeString(json['owner_email']),
-      phone: _safeString(json['owner_phone']),
+      phone: _displayPhone(json['owner_phone']),
       isEmailVerified: false,
       isPhoneVerified: false,
       isSystem: false,
       gender: '',
       password: '',
-      dateOfBirth: DateTime.tryParse(_safeString(json['owner_date_of_birth'])),
+      dateOfBirth: _safeDateOnlyNullable(json['owner_date_of_birth']),
       placeOfBirth: _safeString(json['owner_place_of_birth']),
       profilePic: '',
       referralCode: '',
@@ -180,6 +215,21 @@ class MemberRegistrationModel {
               ? null
               : _safeString(json['owner_full_name']))
           : _safeString(json['contact_person']),
+      branchOwnerName: _safeString(json['branch_owner']).isEmpty
+          ? null
+          : _safeString(json['branch_owner']),
+      branchOwnerPhone: _safeString(json['branch_owner_phone']).isEmpty
+          ? null
+          : _displayPhone(json['branch_owner_phone']),
+      branchOwnerEmail: _safeString(json['branch_owner_email']).isEmpty
+          ? null
+          : _safeString(json['branch_owner_email']),
+      branchOwnerPlaceOfBirth: _safeString(json['branch_owner_place_of_birth']).isEmpty
+          ? null
+          : _safeString(json['branch_owner_place_of_birth']),
+      branchOwnerDateOfBirth: _safeString(json['branch_owner_date_of_birth']).isEmpty
+          ? null
+          : _safeString(json['branch_owner_date_of_birth']),
       nik: _safeString(json['nik']),
       npwp: _safeString(json['npwp']).isEmpty ? null : _safeString(json['npwp']),
       ktpImage: _safeString(json['ktp_image']).isEmpty ? null : _safeString(json['ktp_image']),
@@ -190,15 +240,9 @@ class MemberRegistrationModel {
       user: (json['user'] is Map<String, dynamic>)
           ? UserModel.fromApiJson(json['user'] as Map<String, dynamic>)
           : _emptyUser(json),
-      gpid: json['gpid'] is Map<String, dynamic>
-          ? IdentityModel.fromJson(json['gpid'] as Map<String, dynamic>)
-          : null,
-      gcid: json['gcid'] is Map<String, dynamic>
-          ? IdentityModel.fromJson(json['gcid'] as Map<String, dynamic>)
-          : null,
-      bcid: json['bcid'] is Map<String, dynamic>
-          ? IdentityModel.fromJson(json['bcid'] as Map<String, dynamic>)
-          : null,
+      gpid: IdentityModel.fromDynamic(json['gpid']),
+      gcid: IdentityModel.fromDynamic(json['gcid']),
+      bcid: IdentityModel.fromDynamic(json['bcid']),
       owner: _safeInt(json['owner']),
       createdBy: _safeNullableInt(json['created_by']),
       updatedBy: _safeNullableInt(json['updated_by']),
@@ -232,6 +276,11 @@ class MemberRegistrationModel {
       'gcid_id': entity.gcid?.id,
       'bcid_id': entity.bcid?.id,
       'contact_person': entity.contactPerson,
+      'branch_owner': entity.branchOwnerName,
+      'branch_owner_phone': entity.branchOwnerPhone,
+      'branch_owner_email': entity.branchOwnerEmail,
+      'branch_owner_place_of_birth': entity.branchOwnerPlaceOfBirth,
+      'branch_owner_date_of_birth': entity.branchOwnerDateOfBirth,
       'factory_address': entity.factoryAddress,
       'email': entity.email,
       'fax': entity.fax,
@@ -251,6 +300,11 @@ class MemberRegistrationModel {
       'postal_code': entity.postalCode,
       'branch_id': entity.branch.id,
       'contact_person': entity.contactPerson,
+      'branch_owner': entity.branchOwnerName,
+      'branch_owner_phone': entity.branchOwnerPhone,
+      'branch_owner_email': entity.branchOwnerEmail,
+      'branch_owner_place_of_birth': entity.branchOwnerPlaceOfBirth,
+      'branch_owner_date_of_birth': entity.branchOwnerDateOfBirth,
       'factory_address': entity.factoryAddress,
       'email': entity.email,
       'fax': entity.fax,

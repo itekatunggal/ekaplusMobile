@@ -7,6 +7,8 @@ import 'package:ekaplus_ekatunggal/core/config/api_config.dart';
 import 'package:ekaplus_ekatunggal/core/utils/session_manager.dart';
 import 'package:ekaplus_ekatunggal/features/auth/data/models/user_model.dart';
 import 'package:ekaplus_ekatunggal/features/member/domain/entities/active_member_company.dart';
+import 'package:ekaplus_ekatunggal/features/member/domain/entities/active_member_company_detail.dart';
+import 'package:ekaplus_ekatunggal/features/member/domain/entities/customer_contact_option.dart';
 import 'package:ekaplus_ekatunggal/features/member/domain/entities/member_registration.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -31,6 +33,32 @@ abstract class MemberRemoteDataSource {
   Future<List<MemberRegistration>> getRegistrationsByStatus(String status);
   Future<List<MemberRegistration>> getApprovedGCIDsByUserId(int userId);
   Future<List<ActiveMemberCompany>> getActiveMemberCompaniesByUserId();
+  Future<ActiveMemberCompanyDetail> getActiveMemberCompanyDetailByBcid(
+    int bcidId, {
+    ActiveMemberCompany? membershipSource,
+  });
+  Future<List<CustomerContactOption>> searchContacts(String query);
+  Future<List<Map<String, dynamic>>> getCustomerPositions();
+  Future<Map<String, dynamic>> createCustomerAddress(Map<String, dynamic> payload);
+  Future<Map<String, dynamic>> updateCustomerAddress(
+    int addressId,
+    Map<String, dynamic> payload,
+  );
+  Future<void> deleteCustomerAddress(int addressId);
+  Future<Map<String, dynamic>> createContact(Map<String, dynamic> payload);
+  Future<Map<String, dynamic>> updateContact(int contactId, Map<String, dynamic> payload);
+  Future<Map<String, dynamic>> createCustomerContact(Map<String, dynamic> payload);
+  Future<Map<String, dynamic>> updateCustomerContact(
+    int customerContactId,
+    Map<String, dynamic> payload,
+  );
+  Future<void> deleteCustomerContact(int customerContactId);
+  Future<Map<String, dynamic>> createContactIdentity(Map<String, dynamic> payload);
+  Future<Map<String, dynamic>> updateContactIdentity(
+    int identityId,
+    Map<String, dynamic> payload,
+  );
+  Future<void> deleteContactIdentity(int identityId);
 }
 
 class MemberRemoteDataSourceImpl implements MemberRemoteDataSource {
@@ -38,20 +66,51 @@ class MemberRemoteDataSourceImpl implements MemberRemoteDataSource {
 
   MemberRemoteDataSourceImpl({required this.client});
 
+  String _normalizePhoneForDb(String raw) {
+    final digits = raw.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digits.isEmpty) return raw.trim();
+    if (digits.startsWith('0')) return '62${digits.substring(1)}';
+    if (digits.startsWith('62')) return digits;
+    return digits;
+  }
+
+  String? _displayPhone(dynamic v) {
+    final s = _safeNullableString(v)?.trim();
+    if (s == null || s.isEmpty) return null;
+    final digits = s.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digits.startsWith('62') && digits.length > 2) {
+      return '0${digits.substring(2)}';
+    }
+    if (digits.startsWith('0')) return digits;
+    if (s.startsWith('+62') && digits.length > 2) return '0${digits.substring(2)}';
+    return s;
+  }
+
   Map<String, dynamic> _sanitizeCustomerRegisterPayload(
     Map<String, dynamic> raw,
   ) {
     const allowedKeys = <String>{
       'source',
+      'ekaplus_user',
       'owner_full_name',
       'owner_phone',
       'owner_email',
       'owner_place_of_birth',
       'owner_date_of_birth',
+      'branch_owner',
+      'branch_owner_phone',
+      'branch_owner_email',
+      'branch_owner_place_of_birth',
+      'branch_owner_date_of_birth',
       'company_type',
       'company_title',
       'company_name',
       'product_need',
+      'nbid',
+      'gpid',
+      'gcid',
+      'registration_mode',
+      'request_type',
       'branch_id',
       'company_address',
       'company_province',
@@ -67,6 +126,25 @@ class MemberRemoteDataSourceImpl implements MemberRemoteDataSource {
       if (!allowedKeys.contains(key) || value == null) return;
       payload[key] = value;
     });
+    if (payload['owner_phone'] != null) {
+      payload['owner_phone'] = _normalizePhoneForDb(payload['owner_phone'].toString());
+    }
+    if (payload['branch_owner_phone'] != null) {
+      payload['branch_owner_phone'] = _normalizePhoneForDb(
+        payload['branch_owner_phone'].toString(),
+      );
+    }
+    final shipping = payload['customer_shipping_address'];
+    if (shipping is List) {
+      payload['customer_shipping_address'] = shipping.map((e) {
+        if (e is! Map) return e;
+        final row = Map<String, dynamic>.from(e);
+        if ((row['pic_phone'] ?? '').toString().trim().isNotEmpty) {
+          row['pic_phone'] = _normalizePhoneForDb(row['pic_phone'].toString());
+        }
+        return row;
+      }).toList();
+    }
 
     return payload;
   }
@@ -228,6 +306,60 @@ class MemberRemoteDataSourceImpl implements MemberRemoteDataSource {
         all.addAll(rows);
       }
       return all;
+    }
+  }
+
+  bool _isTruthy(dynamic v) {
+    if (v == null) return false;
+    if (v is bool) return v;
+    if (v is num) return v != 0;
+    final s = v.toString().trim().toLowerCase();
+    return s == '1' || s == 'true' || s == 'yes';
+  }
+
+  Future<String> _authToken() async => (await SessionManager.getToken()) ?? '';
+
+  Uri _resourceUri(String resource, [int? id]) => Uri.parse(
+    id == null
+        ? '${ApiConfig.baseUrl}/api/resource/$resource'
+        : '${ApiConfig.baseUrl}/api/resource/$resource/$id',
+  );
+
+  Future<Map<String, dynamic>> _saveResource(
+    String resource,
+    Map<String, dynamic> payload, {
+    int? id,
+  }) async {
+    final token = await _authToken();
+    final response = id == null
+        ? await client.post(
+            _resourceUri(resource),
+            headers: {...ApiConfig.headers, 'Authorization': 'Bearer $token'},
+            body: jsonEncode(payload),
+          )
+        : await client.put(
+            _resourceUri(resource, id),
+            headers: {...ApiConfig.headers, 'Authorization': 'Bearer $token'},
+            body: jsonEncode(payload),
+          );
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception('Failed to save $resource (${response.statusCode}): ${response.body}');
+    }
+    final body = jsonDecode(response.body);
+    final data = body is Map ? body['data'] : null;
+    if (data is Map<String, dynamic>) return data;
+    return <String, dynamic>{};
+  }
+
+  Future<void> _deleteResource(String resource, int id) async {
+    final token = await _authToken();
+    final response = await client.delete(
+      _resourceUri(resource, id),
+      headers: {...ApiConfig.headers, 'Authorization': 'Bearer $token'},
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception('Failed to delete $resource ($id): ${response.statusCode}');
     }
   }
   // ============================================
@@ -608,51 +740,112 @@ class MemberRemoteDataSourceImpl implements MemberRemoteDataSource {
     final userData = await SessionManager.getCurrentUser();
     final user = UserModel.fromLocalJson(userData!);
 
-    final memberOfRows = await _getResourceList(
-      'member_of',
-      fields: ['*'],
-      filters: [
-        ['user', '=', '${user.id}'],
-        ['ref_type', '=', 'bcid'],
-      ],
-    );
+    Future<List<Map<String, dynamic>>> loadMemberOfByRefType(String refType) =>
+        _getResourceList(
+          'member_of',
+          fields: ['*'],
+          filters: [
+            ['user_id', '=', '${user.id}'],
+            ['ref_type', '=', refType],
+          ],
+        );
 
-    if (memberOfRows.isEmpty) return [];
+    List<Map<String, dynamic>> memberOfRows;
+    try {
+      memberOfRows = await loadMemberOfByRefType('gpid');
+    } catch (_) {
+      // Compatibility for legacy API field name.
+      memberOfRows = await _getResourceList(
+        'member_of',
+        fields: ['*'],
+        filters: [
+          ['user', '=', '${user.id}'],
+          ['ref_type', '=', 'gpid'],
+        ],
+      );
+    }
 
-    final branchCustomerIds = memberOfRows
-        .map((e) => _safeInt(e['ref_id']))
-        .where((e) => e > 0)
-        .toList();
+    List<Map<String, dynamic>> legacyBcidMembershipRows = const [];
+    if (memberOfRows.isEmpty) {
+      try {
+        legacyBcidMembershipRows = await _getResourceList(
+          'member_of',
+          fields: ['*'],
+          filters: [
+            ['user_id', '=', '${user.id}'],
+            ['ref_type', '=', 'bcid'],
+          ],
+        );
+      } catch (_) {
+        legacyBcidMembershipRows = await _getResourceList(
+          'member_of',
+          fields: ['*'],
+          filters: [
+            ['user', '=', '${user.id}'],
+            ['ref_type', '=', 'bcid'],
+          ],
+        );
+      }
+    }
 
-    final branchCustomerRows = await _getByIds(
-      'branch_customer',
-      branchCustomerIds,
-      fields: ['*', 'branch.branch_name', 'branch.city'],
-    );
-    final branchCustomerById = {
-      for (final row in branchCustomerRows) _safeInt(row['id']): row,
+    if (memberOfRows.isEmpty && legacyBcidMembershipRows.isEmpty) return [];
+
+    final gpidMemberById = <int, Map<String, dynamic>>{
+      for (final row in memberOfRows)
+        if (_safeInt(row['ref_id']) > 0) _safeInt(row['ref_id']): row,
     };
 
-    final gcids = branchCustomerRows
-        .map((e) => _safeInt(e['gcid']))
-        .where((e) => e > 0)
-        .toList();
-    final groupCustomerRows = await _getByIds(
+    final gpids = gpidMemberById.keys.toList();
+    final groupCustomerRows = await _getByFieldValues(
       'group_customer',
-      gcids,
+      'gpid',
+      gpids,
       fields: ['*'],
     );
     final groupCustomerById = {
       for (final row in groupCustomerRows) _safeInt(row['id']): row,
     };
 
-    final gpids = groupCustomerRows
+    final gcids = groupCustomerRows
+        .map((e) => _safeInt(e['id']))
+        .where((e) => e > 0)
+        .toList();
+
+    final branchCustomerRowsFromGp = await _getByFieldValues(
+      'branch_customer',
+      'gcid',
+      gcids,
+      fields: ['*', 'branch.name', 'branch.branch_name', 'branch.city'],
+    );
+
+    final legacyBranchCustomerIds = legacyBcidMembershipRows
+        .map((e) => _safeInt(e['ref_id']))
+        .where((e) => e > 0)
+        .toList();
+    final branchCustomerRowsFromLegacy = await _getByIds(
+      'branch_customer',
+      legacyBranchCustomerIds,
+      fields: ['*', 'branch.name', 'branch.branch_name', 'branch.city'],
+    );
+
+    final branchCustomerRows = <Map<String, dynamic>>[
+      ...branchCustomerRowsFromGp,
+      ...branchCustomerRowsFromLegacy,
+    ];
+    final branchCustomerById = <int, Map<String, dynamic>>{};
+    for (final row in branchCustomerRows) {
+      final id = _safeInt(row['id']);
+      if (id > 0) branchCustomerById[id] = row;
+    }
+
+    final allGpids = groupCustomerRows
         .map((e) => _safeInt(e['gpid']))
+        .followedBy(gpids)
         .where((e) => e > 0)
         .toList();
     final groupParentRows = await _getByIds(
       'group_parent',
-      gpids,
+      allGpids,
       fields: ['*'],
     );
     final groupParentById = {
@@ -672,107 +865,126 @@ class MemberRemoteDataSourceImpl implements MemberRemoteDataSource {
       for (final row in nationalBrandRows) _safeInt(row['id']): row,
     };
 
-    final customerRegisterRows = await _getByFieldValues(
-      'customer_register',
-      'bcid',
-      branchCustomerIds,
-      fields: [
-        '*',
-        'branch_id.id',
-        'branch_id.branch_name',
-        'branch_id.city',
-      ],
-      extraFilters: [
-        ['ekaplus_user', '=', '${user.id}'],
-      ],
-      orderBy: [
-        ['updated_at', 'desc'],
-        ['created_at', 'desc'],
-      ],
-    );
-    if (customerRegisterRows.isEmpty) {
-      customerRegisterRows.addAll(
-        await _getByFieldValues(
-          'customer_register',
-          'bcid',
-          branchCustomerIds,
-          fields: [
-            '*',
-            'branch_id.id',
-            'branch_id.branch_name',
-            'branch_id.city',
-          ],
+    final allBcidIds = branchCustomerById.keys.toList();
+    List<Map<String, dynamic>> addressRows = [];
+    if (allBcidIds.isNotEmpty) {
+      try {
+        addressRows = await _getByFieldValues(
+          'customer_address',
+          'parent_id',
+          allBcidIds,
+          fields: ['*'],
           extraFilters: [
-            ['owner', '=', '${user.id}'],
+            ['parent_type', '=', 'branch_customer'],
           ],
           orderBy: [
-            ['updated_at', 'desc'],
-            ['created_at', 'desc'],
+            ['is_default', 'desc'],
+            ['idx', 'asc'],
+            ['id', 'asc'],
           ],
-        ),
-      );
+        );
+      } catch (_) {
+        // Fallback for alternative schema.
+        addressRows = await _getByFieldValues(
+          'customer_address',
+          'bcid',
+          allBcidIds,
+          fields: ['*'],
+          orderBy: [
+            ['is_default', 'desc'],
+            ['idx_row', 'asc'],
+            ['id', 'asc'],
+          ],
+        );
+      }
     }
-    final customerRegisterByBcid = <int, Map<String, dynamic>>{};
-    for (final row in customerRegisterRows) {
-      final bcid = _safeInt(row['bcid']);
-      if (bcid <= 0) continue;
-      customerRegisterByBcid.putIfAbsent(bcid, () => row);
+    final defaultAddressByBcid = <int, Map<String, dynamic>>{};
+    for (final row in addressRows) {
+      final parentId = _safeInt(row['parent_id'] ?? row['bcid'] ?? row['bcid_id']);
+      if (parentId <= 0) continue;
+      final existing = defaultAddressByBcid[parentId];
+      if (existing == null ||
+          (!_isTruthy(existing['is_default']) && _isTruthy(row['is_default']))) {
+        defaultAddressByBcid[parentId] = row;
+      }
     }
 
     final result = <ActiveMemberCompany>[];
-    for (final mo in memberOfRows) {
-      final refId = _safeInt(mo['ref_id']);
-      final bc = branchCustomerById[refId];
-      final gcid = bc == null ? 0 : _safeInt(bc['gcid']);
+    final addedBcid = <int>{};
+
+    for (final bc in branchCustomerById.values) {
+      final bcid = _safeInt(bc['id']);
+      if (bcid <= 0 || !addedBcid.add(bcid)) continue;
+      final gcid = _safeInt(bc['gcid']);
       final gc = groupCustomerById[gcid];
       final gpid = gc == null ? 0 : _safeInt(gc['gpid']);
       final gp = groupParentById[gpid];
       final nbid = gp == null ? 0 : _safeInt(gp['nbid']);
       final nb = nationalBrandById[nbid];
-      final cr = customerRegisterByBcid[refId];
 
-      final branchObj = bc?['branch'];
+      final mo = gpidMemberById[gpid] ??
+          legacyBcidMembershipRows.firstWhere(
+            (e) => _safeInt(e['ref_id']) == bcid,
+            orElse: () => const <String, dynamic>{},
+          );
+
+      final branchObj = bc['branch'];
       final branchName = branchObj is Map
-          ? _safeNullableString(branchObj['branch_name'])
-          : _safeNullableString(bc?['branch.branch_name']);
+          ? (_safeNullableString(branchObj['name']) ??
+              _safeNullableString(branchObj['branch_name']))
+          : (_safeNullableString(bc['branch.name']) ??
+              _safeNullableString(bc['branch.branch_name']));
       final branchCity = branchObj is Map
           ? _safeNullableString(branchObj['city'])
-          : _safeNullableString(bc?['branch.city']);
+          : _safeNullableString(bc['branch.city']);
+      final defaultAddress = defaultAddressByBcid[bcid];
 
       result.add(
         ActiveMemberCompany(
           memberOfId: _safeInt(mo['id']),
-          refType: (mo['ref_type'] ?? 'bcid').toString(),
-          refId: refId,
-          userId: _safeInt(mo['user']),
+          refType: (mo['ref_type'] ?? 'gpid').toString(),
+          refId: _safeInt(mo['ref_id']),
+          userId: _safeInt(mo['user_id'] ?? mo['user']),
           memberOfStatus: _safeNullableString(mo['status']),
-          branchCustomerId: bc == null ? null : _safeNullableInt(bc['id']),
-          branchCustomerCode: _safeNullableString(bc?['name']),
-          branchId: bc == null ? null : _safeNullableInt(bc['branch_id']),
+          memberIsOwner: _isTruthy(mo['is_owner']),
+          memberIsSharing: _isTruthy(mo['is_sharing']),
+          shareFromUserId: _safeNullableInt(mo['share_from']),
+          branchCustomerId: _safeNullableInt(bc['id']),
+          branchCustomerCode: _safeNullableString(bc['name']),
+          branchId: _safeNullableInt(bc['branch_id'] ?? bc['branch']),
           branchName: branchName,
           branchCity: branchCity,
+          branchOwnerName: _safeNullableString(bc['branch_owner']),
+          branchOwnerPhone: _displayPhone(bc['branch_owner_phone']),
+          branchOwnerEmail: _safeNullableString(bc['branch_owner_email']),
+          branchOwnerPlaceOfBirth: _safeNullableString(bc['branch_owner_place_of_birth']),
+          branchOwnerDateOfBirth: _safeNullableString(bc['branch_owner_date_of_birth']),
           gcidId: gc == null ? null : _safeNullableInt(gc['id']),
-          gcName: _safeNullableString(gc?['gc_name']),
+          gcName: _safeNullableString(gc == null ? null : gc['gc_name']),
           gpidId: gp == null ? null : _safeNullableInt(gp['id']),
-          gpCode: _safeNullableString(gp?['name']),
-          gpName: _safeNullableString(gp?['gp_name']),
+          gpCode: _safeNullableString(gp == null ? null : gp['name']),
+          gpName: _safeNullableString(gp == null ? null : gp['gp_name']),
           nbidId: nbid > 0 ? nbid : null,
-          nbName: _safeNullableString(nb?['nb_name']),
-          customerRegisterId: cr == null ? null : _safeNullableInt(cr['id']),
-          customerRegisterStatus: _safeNullableString(cr?['status']),
-          customerOwnerName: _safeNullableString(cr?['owner_full_name']),
-          customerOwnerEmail: _safeNullableString(cr?['owner_email']),
-          customerOwnerPhone: _safeNullableString(cr?['owner_phone']),
-          customerCompanyName: _safeNullableString(cr?['company_name']),
-          customerCompanyType: _safeNullableString(cr?['company_type']),
-          customerCompanyTitle: _safeNullableString(cr?['company_title']),
-          customerProductNeed: _safeNullableString(cr?['product_need']),
-          customerCompanyAddress: _safeNullableString(cr?['company_address']),
-          customerCompanyProvince: _safeNullableString(cr?['company_province']),
-          customerCompanyCity: _safeNullableString(cr?['company_city']),
-          customerCompanyDistrict: _safeNullableString(cr?['company_district']),
+          nbName: _safeNullableString(nb == null ? null : (nb['nb_name'] ?? nb['name'])),
+          customerRegisterId: null,
+          customerRegisterStatus: null,
+          customerOwnerName: _safeNullableString(gc == null ? null : gc['owner_full_name']),
+          customerOwnerEmail: _safeNullableString(gc == null ? null : gc['owner_email']),
+          customerOwnerPhone: _displayPhone(gc == null ? null : gc['owner_phone']),
+          customerOwnerPlaceOfBirth: _safeNullableString(
+            gc == null ? null : gc['owner_place_of_birth'],
+          ),
+          customerOwnerDateOfBirth: _safeNullableString(gc == null ? null : gc['owner_date_of_birth']),
+          customerCompanyName: _safeNullableString(gc == null ? null : gc['company_name']),
+          customerCompanyType: _safeNullableString(gc == null ? null : gc['company_type']),
+          customerCompanyTitle: _safeNullableString(gc == null ? null : gc['company_title']),
+          customerProductNeed: _safeNullableString(bc['product_need']),
+          customerCompanyAddress: _safeNullableString(defaultAddress == null ? null : defaultAddress['address']),
+          customerCompanyProvince: _safeNullableString(defaultAddress == null ? null : defaultAddress['province']),
+          customerCompanyCity: _safeNullableString(defaultAddress == null ? null : defaultAddress['city']),
+          customerCompanyDistrict: _safeNullableString(defaultAddress == null ? null : defaultAddress['district']),
           customerCompanyPostalCode: _safeNullableString(
-            cr?['company_postal_code'],
+            defaultAddress == null ? null : defaultAddress['postal_code'],
           ),
           createdAt: _safeNullableDate(mo['created_at']),
         ),
@@ -790,5 +1002,429 @@ class MemberRemoteDataSourceImpl implements MemberRemoteDataSource {
     });
 
     return result;
+  }
+
+  ActiveCompanyAddress _mapAddressRow(Map<String, dynamic> row) {
+    return ActiveCompanyAddress(
+      id: _safeInt(row['id']),
+      type: _safeNullableString(row['type']),
+      label: _safeNullableString(row['label']),
+      address: _safeNullableString(row['address']),
+      city: _safeNullableString(row['city']),
+      district: _safeNullableString(row['district']),
+      province: _safeNullableString(row['province']),
+      postalCode: _safeNullableString(row['postal_code']),
+      isDefault: _isTruthy(row['is_default']),
+      picContactId: _safeNullableInt(row['pic_contact_id']),
+      picName: _safeNullableString(row['pic_name']),
+      picPhone: _displayPhone(row['pic_phone']),
+      idxRow: _safeNullableInt(row['idx_row']),
+    );
+  }
+
+  Future<List<Map<String, dynamic>>> _getByBcidWithFallback(
+    String resource,
+    int bcidId, {
+    required List<String> fields,
+    List<List<dynamic>>? orderBy,
+  }) async {
+    try {
+      return await _getByFieldValues(
+        resource,
+        'bcid',
+        [bcidId],
+        fields: fields,
+        orderBy: orderBy,
+      );
+    } catch (_) {
+      try {
+        return await _getByFieldValues(
+          resource,
+          'bcid_id',
+          [bcidId],
+          fields: fields,
+          orderBy: orderBy,
+        );
+      } catch (_) {
+        return const [];
+      }
+    }
+  }
+
+  @override
+  Future<ActiveMemberCompanyDetail> getActiveMemberCompanyDetailByBcid(
+    int bcidId, {
+    ActiveMemberCompany? membershipSource,
+  }) async {
+    final bcRows = await _getByIds(
+      'branch_customer',
+      [bcidId],
+      fields: ['*', 'branch.name', 'branch.branch_name', 'branch.city'],
+    );
+    if (bcRows.isEmpty) {
+      throw Exception('BCID tidak ditemukan');
+    }
+    final bc = bcRows.first;
+    final gcid = _safeInt(bc['gcid']);
+    final gcRows = await _getByIds('group_customer', [gcid], fields: ['*']);
+    final gc = gcRows.isEmpty ? null : gcRows.first;
+    final gpid = gc == null ? 0 : _safeInt(gc['gpid']);
+    final gpRows = await _getByIds('group_parent', [gpid], fields: ['*']);
+    final gp = gpRows.isEmpty ? null : gpRows.first;
+    final nbid = gp == null ? 0 : _safeInt(gp['nbid']);
+    final nbRows = await _getByIds('national_brand', [nbid], fields: ['*']);
+    final nb = nbRows.isEmpty ? null : nbRows.first;
+
+    final addressRows = await _getByBcidWithFallback(
+      'customer_address',
+      bcidId,
+      fields: ['*'],
+      orderBy: [
+        ['is_default', 'desc'],
+        ['idx_row', 'asc'],
+        ['id', 'asc'],
+      ],
+    );
+
+    final customerContactRows = await _getByBcidWithFallback(
+      'customer_contact',
+      bcidId,
+      fields: ['*'],
+      orderBy: [
+        ['is_primary', 'desc'],
+        ['idx_row', 'asc'],
+        ['id', 'asc'],
+      ],
+    );
+    final contactIds = customerContactRows
+        .map((e) => _safeInt(e['contact_id']))
+        .where((e) => e > 0)
+        .toList();
+    final positionIds = customerContactRows
+        .map((e) => _safeInt(e['position_id']))
+        .where((e) => e > 0)
+        .toList();
+    final contacts = contactIds.isEmpty
+        ? const <Map<String, dynamic>>[]
+        : await _getByIds('contact', contactIds, fields: ['*']);
+    final positions = positionIds.isEmpty
+        ? const <Map<String, dynamic>>[]
+        : await _getByIds(
+            'customer_position',
+            positionIds,
+            fields: ['*'],
+          );
+    final identities = contactIds.isEmpty
+        ? const <Map<String, dynamic>>[]
+        : await _getByFieldValues(
+            'contact_identities',
+            'contact_id',
+            contactIds,
+            fields: ['*'],
+            orderBy: [
+              ['id', 'asc'],
+            ],
+          );
+
+    final contactById = {for (final row in contacts) _safeInt(row['id']): row};
+    final positionById = {
+      for (final row in positions) _safeInt(row['id']): row,
+    };
+    final identityByContact = <int, List<ActiveCompanyContactIdentity>>{};
+    for (final row in identities) {
+      final cid = _safeInt(row['contact_id']);
+      if (cid <= 0) continue;
+      identityByContact.putIfAbsent(cid, () => []).add(
+        ActiveCompanyContactIdentity(
+          id: _safeInt(row['id']),
+          contactId: cid,
+          channel: _safeNullableString(row['channel']),
+          handle: (((row['channel'] ?? '').toString() == 'phone') ||
+                  ((row['channel'] ?? '').toString() == 'whatsapp'))
+              ? _displayPhone(row['handle'])
+              : _safeNullableString(row['handle']),
+          externalId: _safeNullableString(row['external_id']),
+          isVerified: _isTruthy(row['is_verified']),
+        ),
+      );
+    }
+
+    final detailContacts = customerContactRows.map((row) {
+      final contactId = _safeInt(row['contact_id']);
+      final contact = contactById[contactId];
+      final position = positionById[_safeInt(row['position_id'])];
+      return ActiveCompanyContact(
+        customerContactId: _safeInt(row['id']),
+        contactId: contactId,
+        name: _safeNullableString(contact?['name']),
+        fullName: _safeNullableString(contact?['full_name']),
+        phone: _displayPhone(contact?['phone']),
+        email: _safeNullableString(contact?['email']),
+        positionId: _safeNullableInt(row['position_id']),
+        positionName: _safeNullableString(
+          position?['position_name'] ?? row['position_name'],
+        ),
+        title: _safeNullableString(row['title']),
+        isPrimary: _isTruthy(row['is_primary']),
+        idxRow: _safeNullableInt(row['idx_row']),
+        identities: identityByContact[contactId] ?? const [],
+      );
+    }).toList();
+
+    final branchObj = bc['branch'];
+    final branchName = branchObj is Map
+        ? (_safeNullableString(branchObj['name']) ??
+            _safeNullableString(branchObj['branch_name']))
+        : (_safeNullableString(bc['branch.name']) ??
+            _safeNullableString(bc['branch.branch_name']));
+    final branchCity = branchObj is Map
+        ? _safeNullableString(branchObj['city'])
+        : _safeNullableString(bc['branch.city']);
+
+    return ActiveMemberCompanyDetail(
+      bcidId: bcidId,
+      bcidCode: _safeNullableString(bc['name']),
+      branchCustomerName: _safeNullableString(bc['name']),
+      gcidId: _safeNullableInt(gc?['id']),
+      gcName: _safeNullableString(gc?['gc_name']),
+      gpidId: _safeNullableInt(gp?['id']),
+      gpCode: _safeNullableString(gp?['name']),
+      gpName: _safeNullableString(gp?['gp_name']),
+      nbidId: nbid > 0 ? nbid : null,
+      nbName: _safeNullableString(nb?['name'] ?? nb?['nb_name']),
+      branchId: _safeNullableInt(bc['branch_id'] ?? bc['branch']),
+      branchName: branchName,
+      branchCity: branchCity,
+      ownerFullName: _safeNullableString(gc?['owner_full_name']),
+      ownerPhone: _displayPhone(gc?['owner_phone']),
+      ownerEmail: _safeNullableString(gc?['owner_email']),
+      ownerPlaceOfBirth: _safeNullableString(gc?['owner_place_of_birth']),
+      ownerDateOfBirth: _safeNullableString(gc?['owner_date_of_birth']),
+      companyType: _safeNullableString(gc?['company_type']),
+      companyTitle: _safeNullableString(gc?['company_title']),
+      companyName: _safeNullableString(gc?['company_name']),
+      productNeed: _safeNullableString(bc['product_need']),
+      memberIsOwner: membershipSource?.memberIsOwner ?? false,
+      memberIsSharing: membershipSource?.memberIsSharing ?? false,
+      addresses: addressRows.map(_mapAddressRow).toList(),
+      contacts: detailContacts,
+    );
+  }
+
+  @override
+  Future<List<CustomerContactOption>> searchContacts(String query) async {
+    final q = query.trim();
+    if (q.length < 2) return const [];
+    List<Map<String, dynamic>> rows = [];
+    for (final field in const ['full_name', 'name', 'phone', 'email']) {
+      try {
+        final partial = await _getResourceList(
+          'contact',
+          fields: ['*'],
+          filters: [
+            [field, 'like', '%$q%'],
+          ],
+        );
+        rows.addAll(partial);
+      } catch (_) {
+        // Try next field/filter style; API compatibility varies.
+      }
+    }
+    if (rows.isEmpty) {
+      rows = await _getResourceList(
+        'contact',
+        fields: ['*'],
+      );
+      rows = rows.where((row) {
+        final hay = [
+          row['name'],
+          row['full_name'],
+          row['phone'],
+          row['email'],
+        ].map((e) => (e ?? '').toString().toLowerCase()).join(' ');
+        return hay.contains(q.toLowerCase());
+      }).toList();
+    }
+    final byId = <int, CustomerContactOption>{};
+    for (final row in rows) {
+      final id = _safeInt(row['id']);
+      if (id <= 0) continue;
+      byId[id] = CustomerContactOption(
+        id: id,
+        name: _safeNullableString(row['name']),
+        fullName: _safeNullableString(row['full_name']),
+        phone: _displayPhone(row['phone']),
+        email: _safeNullableString(row['email']),
+      );
+    }
+    return byId.values.toList()
+      ..sort((a, b) => a.displayLabel.toLowerCase().compareTo(b.displayLabel.toLowerCase()));
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> getCustomerPositions() async {
+    return _getResourceList(
+      'customer_position',
+      fields: ['*'],
+      filters: [
+        ['disabled', '=', '0'],
+      ],
+      orderBy: [
+        ['position_name', 'asc'],
+      ],
+    );
+  }
+
+  Map<String, dynamic> _sanitizeAddressPayload(Map<String, dynamic> raw) {
+    const allowed = {
+      'bcid',
+      'type',
+      'label',
+      'address',
+      'city',
+      'district',
+      'province',
+      'postal_code',
+      'is_default',
+      'pic_contact_id',
+      'pic_name',
+      'pic_phone',
+      'idx_row',
+    };
+    final result = {
+      for (final entry in raw.entries)
+        if (allowed.contains(entry.key) && entry.value != null) entry.key: entry.value,
+    };
+    if (result['pic_phone'] != null &&
+        result['pic_phone'].toString().trim().isNotEmpty) {
+      result['pic_phone'] = _normalizePhoneForDb(result['pic_phone'].toString());
+    }
+    return result;
+  }
+
+  Map<String, dynamic> _sanitizeContactPayload(Map<String, dynamic> raw) {
+    const allowed = {'name', 'full_name', 'phone', 'email'};
+    final result = {
+      for (final entry in raw.entries)
+        if (allowed.contains(entry.key) && entry.value != null) entry.key: entry.value,
+    };
+    if (result['phone'] != null && result['phone'].toString().trim().isNotEmpty) {
+      result['phone'] = _normalizePhoneForDb(result['phone'].toString());
+    }
+    return result;
+  }
+
+  Map<String, dynamic> _sanitizeCustomerContactPayload(Map<String, dynamic> raw) {
+    const allowed = {
+      'bcid',
+      'contact_id',
+      'position_id',
+      'title',
+      'is_primary',
+      'idx_row',
+    };
+    return {
+      for (final entry in raw.entries)
+        if (allowed.contains(entry.key) && entry.value != null) entry.key: entry.value,
+    };
+  }
+
+  Map<String, dynamic> _sanitizeIdentityPayload(Map<String, dynamic> raw) {
+    const allowed = {
+      'contact_id',
+      'channel',
+      'handle',
+      'external_id',
+      'is_verified',
+    };
+    final result = {
+      for (final entry in raw.entries)
+        if (allowed.contains(entry.key) && entry.value != null) entry.key: entry.value,
+    };
+    final channel = (result['channel'] ?? '').toString().trim();
+    if ((channel == 'phone' || channel == 'whatsapp') &&
+        result['handle'] != null &&
+        result['handle'].toString().trim().isNotEmpty) {
+      result['handle'] = _normalizePhoneForDb(result['handle'].toString());
+    }
+    return result;
+  }
+
+  @override
+  Future<Map<String, dynamic>> createCustomerAddress(Map<String, dynamic> payload) {
+    return _saveResource('customer_address', _sanitizeAddressPayload(payload));
+  }
+
+  @override
+  Future<Map<String, dynamic>> updateCustomerAddress(
+    int addressId,
+    Map<String, dynamic> payload,
+  ) {
+    return _saveResource('customer_address', _sanitizeAddressPayload(payload), id: addressId);
+  }
+
+  @override
+  Future<void> deleteCustomerAddress(int addressId) {
+    return _deleteResource('customer_address', addressId);
+  }
+
+  @override
+  Future<Map<String, dynamic>> createContact(Map<String, dynamic> payload) {
+    return _saveResource('contact', _sanitizeContactPayload(payload));
+  }
+
+  @override
+  Future<Map<String, dynamic>> updateContact(int contactId, Map<String, dynamic> payload) {
+    return _saveResource('contact', _sanitizeContactPayload(payload), id: contactId);
+  }
+
+  @override
+  Future<Map<String, dynamic>> createCustomerContact(Map<String, dynamic> payload) {
+    return _saveResource(
+      'customer_contact',
+      _sanitizeCustomerContactPayload(payload),
+    );
+  }
+
+  @override
+  Future<Map<String, dynamic>> updateCustomerContact(
+    int customerContactId,
+    Map<String, dynamic> payload,
+  ) {
+    return _saveResource(
+      'customer_contact',
+      _sanitizeCustomerContactPayload(payload),
+      id: customerContactId,
+    );
+  }
+
+  @override
+  Future<void> deleteCustomerContact(int customerContactId) {
+    return _deleteResource('customer_contact', customerContactId);
+  }
+
+  @override
+  Future<Map<String, dynamic>> createContactIdentity(Map<String, dynamic> payload) {
+    return _saveResource(
+      'contact_identities',
+      _sanitizeIdentityPayload(payload),
+    );
+  }
+
+  @override
+  Future<Map<String, dynamic>> updateContactIdentity(
+    int identityId,
+    Map<String, dynamic> payload,
+  ) {
+    return _saveResource(
+      'contact_identities',
+      _sanitizeIdentityPayload(payload),
+      id: identityId,
+    );
+  }
+
+  @override
+  Future<void> deleteContactIdentity(int identityId) {
+    return _deleteResource('contact_identities', identityId);
   }
 }

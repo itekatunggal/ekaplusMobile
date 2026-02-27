@@ -64,8 +64,7 @@ class _ProfileHeaderState extends State<ProfileHeader> {
       ),
       child: BlocConsumer<AuthSessionCubit, AuthSessionState>(
         listener: (context, authState) {
-          if (authState is AuthSessionAuthenticated &&
-              authState.status == UserStatus.member) {
+          if (authState is AuthSessionAuthenticated) {
             final userKey = authState.user.phone;
             if (_loadedUserKey != userKey) {
               _loadBcNameForUser(userKey);
@@ -81,6 +80,21 @@ class _ProfileHeaderState extends State<ProfileHeader> {
           }
         },
         builder: (context, authState) {
+          if (authState is AuthSessionAuthenticated) {
+            final userKey = authState.user.phone;
+            if (_loadedUserKey != userKey && !_isLoadingBcName) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (!mounted) return;
+                final currentState = context.read<AuthSessionCubit>().state;
+                if (currentState is AuthSessionAuthenticated &&
+                    _loadedUserKey != currentState.user.phone &&
+                    !_isLoadingBcName) {
+                  _loadBcNameForUser(currentState.user.phone);
+                }
+              });
+            }
+          }
+
           Widget buildAvatar() {
             if (authState is AuthSessionAuthenticated) {
               final user = authState.user;
@@ -188,9 +202,10 @@ class _ProfileHeaderState extends State<ProfileHeader> {
 
             if (authState is AuthSessionAuthenticated) {
               final user = authState.user;
-              final status = authState.status;
+              final showCompanyLine =
+                  _isLoadingBcName || (_bcName?.trim().isNotEmpty ?? false);
 
-              if (status == UserStatus.member) {
+              if (showCompanyLine) {
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [

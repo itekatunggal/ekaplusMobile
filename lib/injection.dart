@@ -120,6 +120,7 @@ Future<void> init() async {
     () => AuthSessionCubit(
       saveLoginUser: myinjection(),
       getUserInfo: myinjection(),
+      getActiveMemberCompaniesByUserId: myinjection(),
     ),
   );
 

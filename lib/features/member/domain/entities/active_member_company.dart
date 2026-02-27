@@ -6,12 +6,20 @@ class ActiveMemberCompany extends Equatable {
   final int refId;
   final int userId;
   final String? memberOfStatus;
+  final bool memberIsOwner;
+  final bool memberIsSharing;
+  final int? shareFromUserId;
 
   final int? branchCustomerId;
   final String? branchCustomerCode;
   final int? branchId;
   final String? branchName;
   final String? branchCity;
+  final String? branchOwnerName;
+  final String? branchOwnerPhone;
+  final String? branchOwnerEmail;
+  final String? branchOwnerPlaceOfBirth;
+  final String? branchOwnerDateOfBirth;
 
   final int? gcidId;
   final String? gcName;
@@ -28,6 +36,8 @@ class ActiveMemberCompany extends Equatable {
   final String? customerOwnerName;
   final String? customerOwnerEmail;
   final String? customerOwnerPhone;
+  final String? customerOwnerPlaceOfBirth;
+  final String? customerOwnerDateOfBirth;
   final String? customerCompanyName;
   final String? customerCompanyType;
   final String? customerCompanyTitle;
@@ -46,11 +56,19 @@ class ActiveMemberCompany extends Equatable {
     required this.refId,
     required this.userId,
     this.memberOfStatus,
+    this.memberIsOwner = false,
+    this.memberIsSharing = false,
+    this.shareFromUserId,
     this.branchCustomerId,
     this.branchCustomerCode,
     this.branchId,
     this.branchName,
     this.branchCity,
+    this.branchOwnerName,
+    this.branchOwnerPhone,
+    this.branchOwnerEmail,
+    this.branchOwnerPlaceOfBirth,
+    this.branchOwnerDateOfBirth,
     this.gcidId,
     this.gcName,
     this.gpidId,
@@ -63,6 +81,8 @@ class ActiveMemberCompany extends Equatable {
     this.customerOwnerName,
     this.customerOwnerEmail,
     this.customerOwnerPhone,
+    this.customerOwnerPlaceOfBirth,
+    this.customerOwnerDateOfBirth,
     this.customerCompanyName,
     this.customerCompanyType,
     this.customerCompanyTitle,
@@ -84,6 +104,14 @@ class ActiveMemberCompany extends Equatable {
     return 'BCID #$refId';
   }
 
+  String get bcidDisplayLabel {
+    final code = (branchCustomerCode ?? '').trim();
+    if (code.isNotEmpty) return code;
+    final id = branchCustomerId;
+    if (id != null && id > 0) return 'BCID #$id';
+    return 'BCID';
+  }
+
   @override
   List<Object?> get props => [
     memberOfId,
@@ -91,11 +119,19 @@ class ActiveMemberCompany extends Equatable {
     refId,
     userId,
     memberOfStatus,
+    memberIsOwner,
+    memberIsSharing,
+    shareFromUserId,
     branchCustomerId,
     branchCustomerCode,
     branchId,
     branchName,
     branchCity,
+    branchOwnerName,
+    branchOwnerPhone,
+    branchOwnerEmail,
+    branchOwnerPlaceOfBirth,
+    branchOwnerDateOfBirth,
     gcidId,
     gcName,
     gpidId,
@@ -108,6 +144,8 @@ class ActiveMemberCompany extends Equatable {
     customerOwnerName,
     customerOwnerEmail,
     customerOwnerPhone,
+    customerOwnerPlaceOfBirth,
+    customerOwnerDateOfBirth,
     customerCompanyName,
     customerCompanyType,
     customerCompanyTitle,

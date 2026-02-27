@@ -8,15 +8,35 @@ import '../utils/member_registration_form_state.dart';
 class IdentitySectionWidget extends StatelessWidget {
   final MemberRegistrationFormState formState;
   final VoidCallback onSelectBirthDate;
+  final VoidCallback onStateChanged;
   final String? birthPlaceError;
   final String? dateOfBirthError;
+  final String? ownerNameError;
+  final String? ownerPhoneError;
+  final String? ownerEmailError;
+  final String? branchPicNameError;
+  final String? branchPicPhoneError;
+  final String? branchPicEmailError;
+  final VoidCallback? onSelectBranchPicBirthDate;
+  final String? branchPicDateOfBirthError;
+  final bool birthFieldsReadOnly;
 
   const IdentitySectionWidget({
     super.key,
     required this.formState,
     required this.onSelectBirthDate,
+    required this.onStateChanged,
     this.birthPlaceError,
     this.dateOfBirthError,
+    this.ownerNameError,
+    this.ownerPhoneError,
+    this.ownerEmailError,
+    this.branchPicNameError,
+    this.branchPicPhoneError,
+    this.branchPicEmailError,
+    this.onSelectBranchPicBirthDate,
+    this.branchPicDateOfBirthError,
+    this.birthFieldsReadOnly = false,
   });
 
   @override
@@ -30,6 +50,35 @@ class IdentitySectionWidget extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Text(
+              'Identitas User',
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 10),
+            _buildReadOnlyField(
+              context: context,
+              label: 'Nama User',
+              controller: formState.userNamaController,
+              icon: Icons.person_outline,
+            ),
+            const SizedBox(height: 8),
+            _buildReadOnlyField(
+              context: context,
+              label: 'No. Handphone User',
+              controller: formState.userPhoneController,
+              icon: Icons.phone_android_outlined,
+            ),
+            const SizedBox(height: 8),
+            _buildReadOnlyField(
+              context: context,
+              label: 'Email User',
+              controller: formState.userEmailController,
+              icon: Icons.alternate_email,
+            ),
+
+            const SizedBox(height: 16),
+            const Divider(height: 1),
+            const SizedBox(height: 12),
             // Section Title
             Row(
               children: [
@@ -42,30 +91,42 @@ class IdentitySectionWidget extends StatelessWidget {
             const SizedBox(height: 12),
             // const Divider(height: 24),
 
-            // Nama (Read-only)
-            _buildReadOnlyField(
+            // Nama Pemilik (Editable)
+            _buildEditableField(
               context: context,
-              label: 'Nama Lengkap',
+              label: 'Nama Pemilik/Pimpinan *',
               controller: formState.namaController,
               icon: Icons.badge_outlined,
+              hint: 'Masukkan nama pemilik perusahaan',
+              textCapitalization: TextCapitalization.words,
+              errorText: ownerNameError,
+              enabled: !birthFieldsReadOnly,
             ),
             const SizedBox(height: 8),
 
-            // Phone (Read-only)
-            _buildReadOnlyField(
+            // Phone Pemilik (Editable)
+            _buildEditableField(
               context: context,
-              label: 'No. Handphone',
+              label: 'No. Handphone Pemilik *',
               controller: formState.phoneController,
               icon: Icons.phone_outlined,
+              hint: 'Masukkan no. HP pemilik',
+              keyboardType: TextInputType.phone,
+              errorText: ownerPhoneError,
+              enabled: !birthFieldsReadOnly,
             ),
             const SizedBox(height: 8),
 
-            // Email (Read-only)
-            _buildReadOnlyField(
+            // Email Pemilik (Editable)
+            _buildEditableField(
               context: context,
-              label: 'Email',
+              label: 'Email Pemilik *',
               controller: formState.emailController,
               icon: Icons.email_outlined,
+              hint: 'Masukkan email pemilik',
+              keyboardType: TextInputType.emailAddress,
+              errorText: ownerEmailError,
+              enabled: !birthFieldsReadOnly,
             ),
             const SizedBox(height: 8),
 
@@ -78,11 +139,89 @@ class IdentitySectionWidget extends StatelessWidget {
               hint: 'Masukkan tempat lahir',
               textCapitalization: TextCapitalization.words,
               errorText: birthPlaceError,
+              enabled: !birthFieldsReadOnly,
             ),
             const SizedBox(height: 8),
 
             // Tanggal Lahir (Editable via date picker)
             _buildDateField(context, dateOfBirthError),
+            const SizedBox(height: 12),
+            const Divider(height: 1),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Text(
+                  'Identitas PIC Branch',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            CheckboxListTile(
+              contentPadding: EdgeInsets.zero,
+              value: formState.branchPicSameAsOwner,
+              title: const Text('Sama dengan identitas pemilik'),
+              controlAffinity: ListTileControlAffinity.leading,
+              onChanged: (val) {
+                formState.branchPicSameAsOwner = val ?? false;
+                if (formState.branchPicSameAsOwner) {
+                  formState.syncBranchPicWithOwner();
+                }
+                onStateChanged();
+              },
+            ),
+            _buildEditableField(
+              context: context,
+              label: 'Nama PIC Branch *',
+              controller: formState.branchPicNameController,
+              icon: Icons.badge_outlined,
+              hint: 'Masukkan nama PIC branch',
+              textCapitalization: TextCapitalization.words,
+              errorText: branchPicNameError,
+              enabled: !formState.branchPicSameAsOwner,
+            ),
+            const SizedBox(height: 8),
+            _buildEditableField(
+              context: context,
+              label: 'Nomor PIC Branch *',
+              controller: formState.branchPicPhoneController,
+              icon: Icons.phone_outlined,
+              hint: 'Masukkan nomor PIC branch',
+              keyboardType: TextInputType.phone,
+              errorText: branchPicPhoneError,
+              enabled: !formState.branchPicSameAsOwner,
+            ),
+            const SizedBox(height: 8),
+            _buildEditableField(
+              context: context,
+              label: 'Email PIC Branch *',
+              controller: formState.branchPicEmailController,
+              icon: Icons.email_outlined,
+              hint: 'Masukkan email PIC branch',
+              keyboardType: TextInputType.emailAddress,
+              errorText: branchPicEmailError,
+              enabled: !formState.branchPicSameAsOwner,
+            ),
+            const SizedBox(height: 8),
+            _buildEditableField(
+              context: context,
+              label: 'Tempat Lahir PIC Branch',
+              controller: formState.branchPicBirthPlaceController,
+              icon: Icons.location_on,
+              hint: 'Masukkan tempat lahir PIC branch',
+              textCapitalization: TextCapitalization.words,
+              enabled: !formState.branchPicSameAsOwner,
+            ),
+            const SizedBox(height: 8),
+            _buildDateField(
+              context,
+              branchPicDateOfBirthError,
+              label: 'Tanggal Lahir PIC Branch',
+              controller: formState.branchPicDateOfBirthController,
+              enabled: !formState.branchPicSameAsOwner,
+              onTap: onSelectBranchPicBirthDate,
+              respectBirthReadOnly: false,
+            ),
 
             // Info text
             const SizedBox(height: 12),
@@ -99,13 +238,10 @@ class IdentitySectionWidget extends StatelessWidget {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Nama, No. Handphone, dan Email diambil dari akun Anda '
-                      'dan tidak dapat diubah. Tempat lahir dan tanggal lahir '
-                      'bisa diperbarui sesuai KTP.',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.blue[700],
-                      ),
+                      birthFieldsReadOnly
+                          ? 'Data identitas pemilik diambil dari perusahaan induk dan tidak dapat diubah pada pengajuan cabang.'
+                          : 'Identitas pemilik perusahaan dapat diisi sesuai data pemilik yang sebenarnya. Identitas user adalah akun yang digunakan untuk mengajukan dan akan di-link ke data registrasi.',
+                      style: TextStyle(fontSize: 12, color: Colors.blue[700]),
                     ),
                   ),
                 ],
@@ -175,6 +311,7 @@ class IdentitySectionWidget extends StatelessWidget {
     TextCapitalization? textCapitalization,
     TextInputType? keyboardType,
     String? errorText,
+    bool enabled = true,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -190,6 +327,8 @@ class IdentitySectionWidget extends StatelessWidget {
         const SizedBox(height: 8),
         TextFormField(
           controller: controller,
+          readOnly: !enabled,
+          enabled: enabled,
           keyboardType: keyboardType,
           textCapitalization: textCapitalization ?? TextCapitalization.none,
           decoration: InputDecoration(
@@ -197,7 +336,7 @@ class IdentitySectionWidget extends StatelessWidget {
             hintText: hint,
             hintStyle: const TextStyle(fontSize: 14, color: Colors.grey),
             filled: true,
-            fillColor: AppColors.whiteColor,
+            fillColor: enabled ? AppColors.whiteColor : Colors.grey[100],
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
               borderSide: BorderSide(color: AppColors.blackColor),
@@ -229,12 +368,20 @@ class IdentitySectionWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildDateField(BuildContext context, String? errorText) {
+  Widget _buildDateField(
+    BuildContext context,
+    String? errorText, {
+    String label = 'Tanggal Lahir *',
+    TextEditingController? controller,
+    bool enabled = true,
+    VoidCallback? onTap,
+    bool respectBirthReadOnly = true,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Tanggal Lahir *',
+        Text(
+          label,
           style: TextStyle(
             fontSize: 12,
             color: Colors.black54,
@@ -243,15 +390,20 @@ class IdentitySectionWidget extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         TextFormField(
-          controller: formState.dateOfBirthController,
+          controller: controller ?? formState.dateOfBirthController,
           readOnly: true,
-          onTap: onSelectBirthDate,
+          enabled: enabled && (!respectBirthReadOnly || !birthFieldsReadOnly),
+          onTap: (enabled && (!respectBirthReadOnly || !birthFieldsReadOnly))
+              ? (onTap ?? onSelectBirthDate)
+              : null,
           decoration: InputDecoration(
             prefixIcon: const Icon(Icons.calendar_today, size: 20),
             hintText: 'Pilih tanggal lahir',
             hintStyle: const TextStyle(fontSize: 14, color: Colors.grey),
             filled: true,
-            fillColor: AppColors.whiteColor,
+            fillColor: (respectBirthReadOnly && birthFieldsReadOnly)
+                ? Colors.grey[100]
+                : AppColors.whiteColor,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
               borderSide: BorderSide(color: AppColors.blackColor),

@@ -4,11 +4,17 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../constant.dart';
 import '../../../../core/shared_widgets/custom_header.dart';
+import '../enums/member_registration_intent.dart';
 
 /// Page untuk memilih tipe registrasi: GCID (perusahaan baru) atau BCID (cabang)
-class CompanySelectionPage extends StatelessWidget {
+class CompanySelectionPage extends StatefulWidget {
   const CompanySelectionPage({super.key});
 
+  @override
+  State<CompanySelectionPage> createState() => _CompanySelectionPageState();
+}
+
+class _CompanySelectionPageState extends State<CompanySelectionPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -55,8 +61,12 @@ class CompanySelectionPage extends StatelessWidget {
                 description:
                     'Pilih opsi ini untuk mendaftarkan perusahaan yang benar-benar baru. Anda perlu mengisi semua data perusahaan.',
                 onTap: () {
-                  // Navigate to member registration page with GCID mode
-                  context.pushNamed('memberRegistration');
+                  context.pushNamed(
+                    'memberRegistration',
+                    extra: {
+                      'intent': MemberRegistrationIntent.newCompany.routeValue,
+                    },
+                  );
                 },
               ),
 
@@ -200,3 +210,5 @@ class CompanySelectionPage extends StatelessWidget {
     );
   }
 }
+
+

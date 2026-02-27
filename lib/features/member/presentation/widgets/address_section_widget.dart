@@ -305,6 +305,7 @@ class _AddressSectionWidgetState extends State<AddressSectionWidget> {
         const SizedBox(height: 8),
         DropdownButtonFormField<ProvinceModel>(
           initialValue: widget.formState.selectedProvince,
+          isDense: true,
           decoration: InputDecoration(
             prefixIcon: const Icon(Icons.map_outlined, size: 20),
             suffixIcon: _isLoadingProvinces
@@ -328,9 +329,23 @@ class _AddressSectionWidgetState extends State<AddressSectionWidget> {
           items: widget.formState.provinces.map((province) {
             return DropdownMenuItem(
               value: province,
-              child: Text(province.name),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: Text(province.name),
+              ),
             );
           }).toList(),
+          selectedItemBuilder: (context) => widget.formState.provinces
+              .map(
+                (province) => Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: Text(
+                    province.name,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              )
+              .toList(),
           onChanged: _isLoadingProvinces ? null : _onProvinceChanged,
           isExpanded: true,
         ),
@@ -353,6 +368,7 @@ class _AddressSectionWidgetState extends State<AddressSectionWidget> {
         const SizedBox(height: 8),
         DropdownButtonFormField<RegencyModel>(
           initialValue: widget.formState.selectedRegency,
+          isDense: true,
           decoration: InputDecoration(
             prefixIcon: const Icon(Icons.location_city_outlined, size: 20),
             suffixIcon: _isLoadingRegencies
@@ -374,8 +390,25 @@ class _AddressSectionWidgetState extends State<AddressSectionWidget> {
             ),
           ),
           items: widget.formState.regencies.map((regency) {
-            return DropdownMenuItem(value: regency, child: Text(regency.name));
+            return DropdownMenuItem(
+              value: regency,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: Text(regency.name),
+              ),
+            );
           }).toList(),
+          selectedItemBuilder: (context) => widget.formState.regencies
+              .map(
+                (regency) => Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: Text(
+                    regency.name,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              )
+              .toList(),
           onChanged:
               widget.formState.selectedProvince == null || _isLoadingRegencies
               ? null
@@ -409,6 +442,7 @@ class _AddressSectionWidgetState extends State<AddressSectionWidget> {
         const SizedBox(height: 8),
         DropdownButtonFormField<DistrictModel>(
           initialValue: widget.formState.selectedDistrict,
+          isDense: true,
           decoration: InputDecoration(
             prefixIcon: const Icon(Icons.apartment_outlined, size: 20),
             suffixIcon: _isLoadingDistricts
@@ -432,9 +466,23 @@ class _AddressSectionWidgetState extends State<AddressSectionWidget> {
           items: widget.formState.districts.map((district) {
             return DropdownMenuItem(
               value: district,
-              child: Text(district.name),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: Text(district.name),
+              ),
             );
           }).toList(),
+          selectedItemBuilder: (context) => widget.formState.districts
+              .map(
+                (district) => Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: Text(
+                    district.name,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              )
+              .toList(),
           onChanged:
               widget.formState.selectedRegency == null || _isLoadingDistricts
               ? null

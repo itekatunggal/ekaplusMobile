@@ -19,8 +19,12 @@ class ActiveMemberCard extends StatelessWidget {
     final companyName = company.displayName;
     final branchName = company.branchName ?? '-';
     final nationalBrand = company.nbName ?? '-';
-    final groupParent = company.gpCode ?? '-';
-    final memberId = company.branchCustomerCode ?? 'BCID #${company.refId}';
+    final ownerName = (company.customerOwnerName ?? '').trim().isEmpty
+        ? '-'
+        : company.customerOwnerName!.trim();
+    final ownerPhone = (company.customerOwnerPhone ?? '').trim().isEmpty
+        ? '-'
+        : company.customerOwnerPhone!.trim();
 
     return GestureDetector(
       onTap: onTap,
@@ -120,7 +124,10 @@ class ActiveMemberCard extends StatelessWidget {
                   _buildInfoRow(Icons.workspace_premium_outlined, 'NB', nationalBrand),
 
                   const SizedBox(height: 8),
-                  _buildInfoRow(Icons.hub_outlined, 'GP', groupParent),
+                  _buildInfoRow(Icons.person_outline, 'Owner', ownerName),
+
+                  const SizedBox(height: 8),
+                  _buildInfoRow(Icons.phone_outlined, 'No. HP Owner', ownerPhone),
 
                   const SizedBox(height: 8),
 
@@ -130,11 +137,6 @@ class ActiveMemberCard extends StatelessWidget {
                     'Cabang',
                     branchName,
                   ),
-
-                  const SizedBox(height: 8),
-
-                  // Member ID
-                  _buildInfoRow(Icons.badge_outlined, 'Member ID', memberId),
                 ],
               ),
             ),

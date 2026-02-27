@@ -21,6 +21,7 @@ class CompanyInfoSectionWidget extends StatefulWidget {
   final String? companySuffixError;
   final String? productNeedError;
   final String? branchError;
+  final bool lockCompanyIdentityFields;
 
   const CompanyInfoSectionWidget({
     super.key,
@@ -35,6 +36,7 @@ class CompanyInfoSectionWidget extends StatefulWidget {
     this.companySuffixError,
     this.productNeedError,
     this.branchError,
+    this.lockCompanyIdentityFields = false,
   });
 
   @override
@@ -158,7 +160,9 @@ class _CompanyInfoSectionWidgetState extends State<CompanyInfoSectionWidget> {
               label: 'Jenis Perusahaan',
               value: widget.formState.companyType,
               items: _companyTypes,
+              enabled: !widget.lockCompanyIdentityFields,
               onChanged: (value) {
+                if (widget.lockCompanyIdentityFields) return;
                 widget.onCompanyTypeChanged(value);
                 setState(() {
                   _selectedTitle = null;
@@ -177,7 +181,9 @@ class _CompanyInfoSectionWidgetState extends State<CompanyInfoSectionWidget> {
               label: 'Gelar Perusahaan *',
               value: _selectedTitle,
               items: _currentTitles,
+              enabled: !widget.lockCompanyIdentityFields,
               onChanged: (value) {
+                if (widget.lockCompanyIdentityFields) return;
                 setState(() {
                   _selectedTitle = value;
                   widget.formState.companyTitle = value; // Save to formState
@@ -208,7 +214,9 @@ class _CompanyInfoSectionWidgetState extends State<CompanyInfoSectionWidget> {
                 errorText: widget.companyNameError,
                 textCapitalization: TextCapitalization.characters,
                 icon: Icons.business_outlined,
+                enabled: !widget.lockCompanyIdentityFields,
                 onChanged: (value) {
+                  if (widget.lockCompanyIdentityFields) return;
                   widget.formState.companyNameController.value = widget
                       .formState
                       .companyNameController
@@ -324,12 +332,16 @@ class _CompanyInfoSectionWidgetState extends State<CompanyInfoSectionWidget> {
             Expanded(
               child: TextFormField(
                 controller: widget.formState.companyNameController,
+                readOnly: widget.lockCompanyIdentityFields,
+                enabled: !widget.lockCompanyIdentityFields,
                 decoration: InputDecoration(
                   prefixIcon: const Icon(Icons.business_outlined, size: 20),
                   hintText: 'Nama Usaha',
                   hintStyle: const TextStyle(fontSize: 14, color: Colors.grey),
                   filled: true,
-                  fillColor: AppColors.whiteColor,
+                  fillColor: widget.lockCompanyIdentityFields
+                      ? Colors.grey[100]
+                      : AppColors.whiteColor,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
                     borderSide: BorderSide(color: AppColors.blackColor),
@@ -353,6 +365,7 @@ class _CompanyInfoSectionWidgetState extends State<CompanyInfoSectionWidget> {
                 ),
                 textCapitalization: TextCapitalization.characters,
                 onChanged: (value) {
+                  if (widget.lockCompanyIdentityFields) return;
                   widget.formState.companyNameController.value = widget
                       .formState
                       .companyNameController
@@ -418,27 +431,30 @@ class _CompanyInfoSectionWidgetState extends State<CompanyInfoSectionWidget> {
                       items: const [
                         DropdownMenuItem(
                           value: 'IBU',
-                          child: Padding(
-                            padding: EdgeInsets.symmetric(horizontal: 8.0),
-                            child: Text('IBU', style: TextStyle(fontSize: 14)),
-                          ),
+                          // child: Padding(
+                          //   padding: EdgeInsets.symmetric(horizontal: 8.0),
+                          child: Text('IBU', style: TextStyle(fontSize: 14)),
+                          // ),
                         ),
                         DropdownMenuItem(
                           value: 'BP',
-                          child: Padding(
-                            padding: EdgeInsets.symmetric(horizontal: 8.0),
-                            child: Text('BP', style: TextStyle(fontSize: 14)),
-                          ),
+                          // child: Padding(
+                          // padding: EdgeInsets.symmetric(horizontal: 8.0),
+                          child: Text('BP', style: TextStyle(fontSize: 14)),
+                          // ),
                         ),
                       ],
-                      onChanged: (value) {
-                        _setSuffix(value);
-                      },
+                      onChanged: widget.lockCompanyIdentityFields
+                          ? null
+                          : (value) {
+                              _setSuffix(value);
+                            },
                       dropdownColor: AppColors.whiteColor,
                     )
                   : TextFormField(
                       controller: _suffixController,
                       readOnly: true,
+                      enabled: !widget.lockCompanyIdentityFields,
                       enableInteractiveSelection: false,
                       decoration: InputDecoration(
                         hintText: 'Singkatan',
@@ -447,7 +463,9 @@ class _CompanyInfoSectionWidgetState extends State<CompanyInfoSectionWidget> {
                           color: Colors.grey,
                         ),
                         filled: true,
-                        fillColor: AppColors.whiteColor,
+                        fillColor: widget.lockCompanyIdentityFields
+                            ? Colors.grey[100]
+                            : AppColors.whiteColor,
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
                           borderSide: BorderSide(color: AppColors.blackColor),
@@ -511,6 +529,7 @@ class _CompanyInfoSectionWidgetState extends State<CompanyInfoSectionWidget> {
               return DropdownButtonFormField<Branch>(
                 initialValue: selectedBranch,
                 menuMaxHeight: 250,
+                isDense: true,
                 dropdownColor: AppColors.whiteColor,
                 borderRadius: BorderRadius.circular(8),
                 decoration: InputDecoration(
@@ -542,17 +561,30 @@ class _CompanyInfoSectionWidgetState extends State<CompanyInfoSectionWidget> {
                 items: state.branches.map((branch) {
                   return DropdownMenuItem<Branch>(
                     value: branch,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                      child: Text(
-                        '${branch.branchName} - ${branch.city}',
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontSize: 14),
-                      ),
+                    // child: Padding(
+                    // padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: Text(
+                      '${branch.branchName} - ${branch.city}',
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 14),
                     ),
+                    // ),
                   );
                 }).toList(),
+                selectedItemBuilder: (context) => state.branches
+                    .map(
+                      (branch) => Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        child: Text(
+                          '${branch.branchName} - ${branch.city}',
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontSize: 14),
+                        ),
+                      ),
+                    )
+                    .toList(),
                 onChanged: widget.onBranchChanged,
+                // onChanged stays enabled in BC mode
                 isExpanded: true,
                 // onChanged: (value) {},
               );
@@ -576,9 +608,10 @@ class _CompanyInfoSectionWidgetState extends State<CompanyInfoSectionWidget> {
     required String label,
     required String? value,
     required List<String> items,
-    required Function(String?) onChanged,
+    required Function(String?)? onChanged,
     String? errorText,
     required IconData icon,
+    bool enabled = true,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -594,13 +627,15 @@ class _CompanyInfoSectionWidgetState extends State<CompanyInfoSectionWidget> {
         const SizedBox(height: 6),
         DropdownButtonFormField<String>(
           value: value,
+          onChanged: enabled ? onChanged : null,
+          isDense: true,
           menuMaxHeight: 200, // Limit height to show ~5 items
           decoration: InputDecoration(
             prefixIcon: Icon(icon, size: 20),
             hintText: 'Pilih $label',
             hintStyle: const TextStyle(fontSize: 14, color: Colors.grey),
             filled: true,
-            fillColor: AppColors.whiteColor,
+            fillColor: enabled ? AppColors.whiteColor : Colors.grey[100],
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
               borderSide: BorderSide(color: AppColors.blackColor),
@@ -626,13 +661,24 @@ class _CompanyInfoSectionWidgetState extends State<CompanyInfoSectionWidget> {
             return DropdownMenuItem(
               value: item,
               // PERBAIKAN 2: Padding kiri kanan 8
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                child: Text(item, style: const TextStyle(fontSize: 14)),
-              ),
+              // child: Padding(
+              //   padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Text(item, style: const TextStyle(fontSize: 14)),
+              // ),
             );
           }).toList(),
-          onChanged: onChanged,
+          selectedItemBuilder: (context) => items
+              .map(
+                (item) => Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: Text(
+                    item,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 14),
+                  ),
+                ),
+              )
+              .toList(),
           dropdownColor: AppColors.whiteColor,
         ),
       ],
@@ -649,6 +695,7 @@ class _CompanyInfoSectionWidgetState extends State<CompanyInfoSectionWidget> {
     TextCapitalization? textCapitalization,
     Function(String)? onChanged,
     required IconData icon,
+    bool enabled = true,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -664,6 +711,8 @@ class _CompanyInfoSectionWidgetState extends State<CompanyInfoSectionWidget> {
         const SizedBox(height: 6),
         TextFormField(
           controller: controller,
+          readOnly: !enabled,
+          enabled: enabled,
           keyboardType: keyboardType,
           maxLength: maxLength,
           inputFormatters: inputFormatters,
@@ -695,7 +744,7 @@ class _CompanyInfoSectionWidgetState extends State<CompanyInfoSectionWidget> {
               vertical: 12,
             ),
           ),
-          onChanged: onChanged,
+          onChanged: enabled ? onChanged : null,
         ),
       ],
     );

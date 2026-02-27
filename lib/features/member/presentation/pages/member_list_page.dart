@@ -391,9 +391,10 @@ class _MemberListPageState extends State<MemberListPage>
   }
 
   Future<void> _showActiveCompanyDetail(ActiveMemberCompany company) async {
-    final shippingAddresses = company.customerRegisterId == null
+    final bcid = company.branchCustomerId;
+    final shippingAddresses = (bcid == null || bcid <= 0)
         ? const <Map<String, dynamic>>[]
-        : await _loadShippingAddresses(company.customerRegisterId!);
+        : await _loadActiveCompanyAddresses(bcid);
     if (!mounted) return;
     showDialog(
       context: context,
@@ -404,6 +405,62 @@ class _MemberListPageState extends State<MemberListPage>
         onClose: () => Navigator.of(dialogContext).pop(),
       ),
     );
+  }
+
+  Future<List<Map<String, dynamic>>> _loadActiveCompanyAddresses(int bcid) async {
+    try {
+      final token = await SessionManager.getToken();
+
+      Future<http.Response> fetch(Map<String, dynamic> spec) {
+        final uri = Uri.parse(
+          '${ApiConfig.baseUrl}/api/resource/customer_address'
+          '?spec=${Uri.encodeComponent(jsonEncode(spec))}',
+        );
+        return http.get(
+          uri,
+          headers: {...ApiConfig.headers, 'Authorization': 'Bearer $token'},
+        );
+      }
+
+      http.Response response = await fetch({
+        'fields': ['*'],
+        'filters': [
+          ['parent_type', '=', 'branch_customer'],
+          ['parent_id', '=', bcid.toString()],
+        ],
+        'order_by': [
+          ['is_default', 'desc'],
+          ['idx', 'asc'],
+          ['id', 'asc'],
+        ],
+      });
+
+      if (response.statusCode != 200) {
+        response = await fetch({
+          'fields': ['*'],
+          'filters': [
+            ['bcid', '=', bcid.toString()],
+          ],
+          'order_by': [
+            ['is_default', 'desc'],
+            ['idx_row', 'asc'],
+            ['id', 'asc'],
+          ],
+        });
+      }
+
+      if (response.statusCode != 200) return const [];
+
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
+      final data = body['data'];
+      if (data is! List) return const [];
+      return data
+          .whereType<Map>()
+          .map((e) => Map<String, dynamic>.from(e))
+          .toList();
+    } catch (_) {
+      return const [];
+    }
   }
 
   Map<String, dynamic> _toConfirmationFormData(
@@ -419,6 +476,11 @@ class _MemberListPageState extends State<MemberListPage>
       'owner_date_of_birth': dob == null
           ? ''
           : '${dob.year.toString().padLeft(4, '0')}-${dob.month.toString().padLeft(2, '0')}-${dob.day.toString().padLeft(2, '0')}',
+      'branch_owner': registration.branchOwnerName,
+      'branch_owner_phone': registration.branchOwnerPhone,
+      'branch_owner_email': registration.branchOwnerEmail,
+      'branch_owner_place_of_birth': registration.branchOwnerPlaceOfBirth,
+      'branch_owner_date_of_birth': registration.branchOwnerDateOfBirth,
       'company_type': registration.entity,
       'company_title': registration.companyTitle,
       'company_name': registration.businessName,
@@ -438,26 +500,40 @@ class _MemberListPageState extends State<MemberListPage>
   Future<List<Map<String, dynamic>>> _loadShippingAddresses(int parentId) async {
     try {
       final token = await SessionManager.getToken();
-      final spec = {
+      Future<http.Response> fetchWithSpec(Map<String, dynamic> spec) async {
+        final uri = Uri.parse(
+          '${ApiConfig.baseUrl}/api/resource/customer_register_address'
+          '?spec=${Uri.encodeComponent(jsonEncode(spec))}',
+        );
+        return http.get(
+          uri,
+          headers: {...ApiConfig.headers, 'Authorization': 'Bearer $token'},
+        );
+      }
+
+      http.Response response = await fetchWithSpec({
         'fields': ['*'],
         'filters': [
-          ['parent_id', '=', parentId.toString()],
-          ['parent_type', '=', 'customer_register'],
+          ['customer_register_id', '=', parentId.toString()],
         ],
         'order_by': [
-          ['idx', 'asc'],
+          ['idx_row', 'asc'],
+          ['id', 'asc'],
         ],
-      };
-
-      final uri = Uri.parse(
-        '${ApiConfig.baseUrl}/api/resource/customer_register_address'
-        '?spec=${Uri.encodeComponent(jsonEncode(spec))}',
-      );
-
-      final response = await http.get(
-        uri,
-        headers: {...ApiConfig.headers, 'Authorization': 'Bearer $token'},
-      );
+      });
+      if (response.statusCode != 200) {
+        response = await fetchWithSpec({
+          'fields': ['*'],
+          'filters': [
+            ['parent_id', '=', parentId.toString()],
+            ['parent_type', '=', 'customer_register'],
+          ],
+          'order_by': [
+            ['idx', 'asc'],
+            ['id', 'asc'],
+          ],
+        });
+      }
       if (response.statusCode != 200) return const [];
 
       final body = jsonDecode(response.body) as Map<String, dynamic>;
@@ -466,7 +542,19 @@ class _MemberListPageState extends State<MemberListPage>
 
       return data
           .whereType<Map>()
-          .map((e) => Map<String, dynamic>.from(e))
+          .map((e) {
+            final row = Map<String, dynamic>.from(e);
+            final picPhone = (row['pic_phone'] ?? '').toString().trim();
+            if (picPhone.isNotEmpty) {
+              final digits = picPhone.replaceAll(RegExp(r'[^0-9]'), '');
+              if (digits.startsWith('62') && digits.length > 2) {
+                row['pic_phone'] = '0${digits.substring(2)}';
+              } else if (picPhone.startsWith('+62') && digits.length > 2) {
+                row['pic_phone'] = '0${digits.substring(2)}';
+              }
+            }
+            return row;
+          })
           .toList();
     } catch (_) {
       return const [];

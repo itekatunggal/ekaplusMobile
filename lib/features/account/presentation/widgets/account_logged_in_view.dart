@@ -804,8 +804,14 @@ class _AccountLoggedInViewState extends State<AccountLoggedInView> {
 
     String buttonText;
     VoidCallback onPressed;
+    final hasActiveCompany = (_activeBcName?.trim().isNotEmpty ?? false);
 
-    if (_latestRegistration == null) {
+    if (hasActiveCompany) {
+      buttonText = 'Tambah Perusahaan / Cabang';
+      onPressed = () {
+        context.pushNamed('companySelection');
+      };
+    } else if (_latestRegistration == null) {
       buttonText = 'Daftar Member';
       onPressed = () {
         context.pushNamed('memberRegistration');

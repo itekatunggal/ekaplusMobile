@@ -68,14 +68,39 @@ class _MemberConfirmationDialogState extends State<MemberConfirmationDialog> {
     return branchId;
   }
 
+  String? _displayPhone(dynamic value) {
+    final raw = _asString(value)?.trim();
+    if (raw == null || raw.isEmpty) return raw;
+    final digits = raw.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digits.startsWith('62') && digits.length > 2) {
+      return '0${digits.substring(2)}';
+    }
+    if (digits.startsWith('0')) return digits;
+    if (raw.startsWith('+62') && digits.length > 2) {
+      return '0${digits.substring(2)}';
+    }
+    return raw;
+  }
+
   String _displayBirthDate() {
-    final raw = _asString(widget.formData['owner_date_of_birth'])?.trim() ?? '';
+    return _displayDateValue(widget.formData['owner_date_of_birth']);
+  }
+
+  String _displayDateValue(dynamic value) {
+    final raw = _asString(value)?.trim() ?? '';
     if (raw.isEmpty) return '';
 
     try {
-      final date = DateTime.parse(raw);
-      final d = date.toLocal();
-      return DateFormat('dd MMM yyyy', 'id_ID').format(d);
+      final datePart = raw.split('T').first;
+      final parts = datePart.split('-');
+      if (parts.length == 3) {
+        final y = int.tryParse(parts[0]);
+        final m = int.tryParse(parts[1]);
+        final d = int.tryParse(parts[2]);
+        if (y != null && m != null && d != null) {
+          return DateFormat('dd MMM yyyy', 'id_ID').format(DateTime(y, m, d));
+        }
+      }
     } catch (_) {}
 
     final parts = raw.split('-');
@@ -85,7 +110,11 @@ class _MemberConfirmationDialogState extends State<MemberConfirmationDialog> {
       final d = parts[2].split('T').first;
       if (y.length == 4) {
         try {
-          final parsed = DateTime.parse('$y-$m-$d');
+          final parsed = DateTime(
+            int.tryParse(y) ?? 2000,
+            int.tryParse(m) ?? 1,
+            int.tryParse(d) ?? 1,
+          );
           return DateFormat('dd MMM yyyy', 'id_ID').format(parsed);
         } catch (_) {
           return '$d-$m-$y';
@@ -149,6 +178,8 @@ class _MemberConfirmationDialogState extends State<MemberConfirmationDialog> {
 
                     // Data Identitas Section
                     _buildIdentitySection(),
+                    const SizedBox(height: 32),
+                    _buildBranchPicSection(),
                     const SizedBox(height: 32),
 
                     // Informasi Perusahaan Section
@@ -265,7 +296,7 @@ class _MemberConfirmationDialogState extends State<MemberConfirmationDialog> {
       children: [
         _buildSectionHeader(
           icon: Icons.person,
-          title: 'Data Identitas',
+          title: 'Data Identitas Pemilik',
           onEdit: widget.showSectionEditAction ? widget.onEdit : null,
         ),
         _buildDataItem(
@@ -275,7 +306,10 @@ class _MemberConfirmationDialogState extends State<MemberConfirmationDialog> {
         _buildDivider(),
         _buildDataItem(label: 'Email', value: widget.formData['owner_email']),
         _buildDivider(),
-        _buildDataItem(label: 'Telepon', value: widget.formData['owner_phone']),
+        _buildDataItem(
+          label: 'Telepon',
+          value: _displayPhone(widget.formData['owner_phone']),
+        ),
         _buildDivider(),
         Row(
           children: [
@@ -340,8 +374,57 @@ class _MemberConfirmationDialogState extends State<MemberConfirmationDialog> {
           label: 'Nama Perusahaan',
           value: widget.formData['company_name'],
         ),
+        _buildDivider(),
+        _buildDataItem(
+          label: 'Kebutuhan Produk',
+          value: widget.formData['product_need'],
+        ),
         // _buildDivider(),
         // _buildPKPStatus(widget.formData['is_pkp'] == true),
+      ],
+    );
+  }
+
+  Widget _buildBranchPicSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionHeader(
+          icon: Icons.contact_phone_outlined,
+          title: 'Identitas PIC Branch',
+          onEdit: widget.showSectionEditAction ? widget.onEdit : null,
+        ),
+        _buildDataItem(
+          label: 'Nama PIC Branch',
+          value: _asString(widget.formData['branch_owner']),
+        ),
+        _buildDivider(),
+        _buildDataItem(
+          label: 'Nomor PIC Branch',
+          value: _displayPhone(widget.formData['branch_owner_phone']),
+        ),
+        _buildDivider(),
+        _buildDataItem(
+          label: 'Email PIC Branch',
+          value: _asString(widget.formData['branch_owner_email']),
+        ),
+        _buildDivider(),
+        Row(
+          children: [
+            Expanded(
+              child: _buildDataItem(
+                label: 'Tempat Lahir PIC Branch',
+                value: _asString(widget.formData['branch_owner_place_of_birth']),
+              ),
+            ),
+            Expanded(
+              child: _buildDataItem(
+                label: 'Tanggal Lahir PIC Branch',
+                value: _displayDateValue(widget.formData['branch_owner_date_of_birth']),
+              ),
+            ),
+          ],
+        ),
       ],
     );
   }
@@ -567,7 +650,8 @@ class _MemberConfirmationDialogState extends State<MemberConfirmationDialog> {
         address['same_as_company'] == true ||
         address['same_as_company_address'] == true ||
         address['same_as_company_address'] == 1;
-    final isDefault = address['is_default'] == true || address['is_default'] == 1;
+    final isDefault =
+        address['is_default'] == true || address['is_default'] == 1;
 
     return Container(
       margin: EdgeInsets.only(top: index > 0 ? 12 : 0),
@@ -648,7 +732,7 @@ class _MemberConfirmationDialogState extends State<MemberConfirmationDialog> {
               Expanded(
                 child: _buildDataItem(
                   label: 'No HP PIC',
-                  value: _asString(address['pic_phone']),
+                  value: _displayPhone(address['pic_phone']),
                 ),
               ),
             ],

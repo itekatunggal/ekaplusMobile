@@ -31,13 +31,26 @@ import '../widgets/shipping_address_section_widget.dart';
 // import '../widgets/supporting_data_section_widget.dart';
 // import '../widgets/upload_documents_section_widget.dart';
 import '../widgets/member_confirmation_dialog.dart';
-import '../../domain/usecases/get_member_registrations_by_user_id.dart';
 import '../../domain/entities/member_registration.dart';
+import '../../domain/entities/active_member_company.dart';
+import '../../domain/usecases/get_active_member_companies_by_user_id.dart';
+import '../enums/member_registration_intent.dart';
 
 class MemberRegistrationPage extends StatefulWidget {
   final MemberRegistration? initialRegistration;
+  final MemberRegistrationIntent? intent;
+  final int? parentGcidId;
+  final String? parentGcName;
+  final ActiveMemberCompany? parentActiveCompany;
 
-  const MemberRegistrationPage({super.key, this.initialRegistration});
+  const MemberRegistrationPage({
+    super.key,
+    this.initialRegistration,
+    this.intent,
+    this.parentGcidId,
+    this.parentGcName,
+    this.parentActiveCompany,
+  });
 
   @override
   State<MemberRegistrationPage> createState() => _MemberRegistrationPageState();
@@ -50,6 +63,10 @@ class _MemberRegistrationPageState extends State<MemberRegistrationPage> {
   Map<String, String?> _errors = {};
   bool _isSubmitting = false;
   DateTime? _selectedBirthDate;
+  DateTime? _selectedBranchPicBirthDate;
+  ActiveMemberCompany? _defaultHierarchySourceForNewCompany;
+  final GetActiveMemberCompaniesByUserId _getActiveMemberCompaniesByUserId = di
+      .myinjection<GetActiveMemberCompaniesByUserId>();
 
   final ScrollController _scrollController = ScrollController();
 
@@ -62,6 +79,10 @@ class _MemberRegistrationPageState extends State<MemberRegistrationPage> {
 
   bool get _isEditMode => widget.initialRegistration != null;
   int? get _editingRegistrationId => widget.initialRegistration?.id;
+  bool get _isBcidMode =>
+      !_isEditMode &&
+      widget.intent ==
+          MemberRegistrationIntent.addBranchToExistingGroupCustomer;
 
   static const Map<String, String> _companyTitleSuffixMap = {
     'Toko': 'TK',
@@ -82,33 +103,107 @@ class _MemberRegistrationPageState extends State<MemberRegistrationPage> {
     String userName = '';
     String userEmail = '';
     String userPhone = '';
-    String userBirthPlace = '';
-    String userDateOfBirth = '';
-    int userId = 0;
 
     if (authState is AuthSessionAuthenticated) {
       userName = authState.user.fullName;
       userPhone = authState.user.phone;
       userEmail = authState.user.email;
-      userId = authState.user.id;
     }
 
     _formState = MemberRegistrationFormState.fromUserData(
-      nama: userName,
-      phone: userPhone,
-      email: userEmail,
-      birthPlace: userBirthPlace,
-      dateOfBirth: userDateOfBirth,
+      nama: '',
+      phone: '',
+      email: '',
+      birthPlace: '',
+      dateOfBirth: '',
     );
+    _formState.userNamaController.text = userName;
+    _formState.userPhoneController.text = userPhone;
+    _formState.userEmailController.text = userEmail;
 
     _selectedBirthDate = _parseBirthDate(_formState.dateOfBirthController.text);
+    _selectedBranchPicBirthDate = _parseBirthDate(
+      _formState.branchPicDateOfBirthController.text,
+    );
+    _formState.namaController.addListener(_syncBranchPicIfLinked);
+    _formState.phoneController.addListener(_syncBranchPicIfLinked);
+    _formState.emailController.addListener(_syncBranchPicIfLinked);
+    _formState.birthPlaceController.addListener(_syncBranchPicIfLinked);
 
     if (_isEditMode) {
       _prefillFromRegistration(widget.initialRegistration!);
       _loadShippingAddressesForEdit(widget.initialRegistration!.id);
-    } else {
-      _checkExistingRegistration(userId);
+    } else if (_isBcidMode && widget.parentActiveCompany != null) {
+      _prefillFromActiveCompany(widget.parentActiveCompany!);
+    } else if (widget.intent == MemberRegistrationIntent.newCompany) {
+      _loadDefaultHierarchyForNewCompany();
     }
+  }
+
+  Future<void> _loadDefaultHierarchyForNewCompany() async {
+    try {
+      final result = await _getActiveMemberCompaniesByUserId.execute();
+      if (!mounted) return;
+      result.fold((_) {}, (companies) {
+        if (companies.isEmpty) return;
+        final ownerSource = companies.firstWhere(
+          (e) => e.memberIsOwner,
+          orElse: () => companies.first,
+        );
+        setState(() {
+          _defaultHierarchySourceForNewCompany = ownerSource;
+        });
+      });
+    } catch (_) {
+      // Hidden defaults only; form should remain usable if this lookup fails.
+    }
+  }
+
+  void _prefillFromActiveCompany(ActiveMemberCompany company) {
+    _formState.namaController.text =
+        (company.customerOwnerName?.trim().isNotEmpty ?? false)
+        ? company.customerOwnerName!
+        : _formState.namaController.text;
+    _formState.phoneController.text =
+        (company.customerOwnerPhone?.trim().isNotEmpty ?? false)
+        ? company.customerOwnerPhone!
+        : _formState.phoneController.text;
+    _formState.emailController.text =
+        (company.customerOwnerEmail?.trim().isNotEmpty ?? false)
+        ? company.customerOwnerEmail!
+        : _formState.emailController.text;
+    _formState.birthPlaceController.text =
+        (company.customerOwnerPlaceOfBirth?.trim().isNotEmpty ?? false)
+        ? company.customerOwnerPlaceOfBirth!
+        : _formState.birthPlaceController.text;
+
+    final dobRaw = (company.customerOwnerDateOfBirth ?? '').trim();
+    if (dobRaw.isNotEmpty) {
+      final parsed = DateTime.tryParse(dobRaw);
+      if (parsed != null) {
+        _selectedBirthDate = parsed;
+        _formState.dateOfBirthController.text = DateFormat(
+          'dd MMMM yyyy',
+          'id_ID',
+        ).format(parsed.toLocal());
+      }
+    }
+
+    _formState.companyType = company.customerCompanyType;
+    _formState.companyTitle = company.customerCompanyTitle;
+    _prefillCompanyNameAndSuffix(
+      company.customerCompanyName ?? company.gcName ?? '',
+      company.customerCompanyTitle,
+    );
+    _formState.productNeed = null;
+    // BCID flow: PIC Branch should be entered per branch, do not prefill.
+    _formState.branchPicSameAsOwner = false;
+    _formState.branchPicNameController.clear();
+    _formState.branchPicPhoneController.clear();
+    _formState.branchPicEmailController.clear();
+    _formState.branchPicBirthPlaceController.clear();
+    _formState.branchPicDateOfBirthController.clear();
+    _selectedBranchPicBirthDate = null;
   }
 
   void _prefillFromRegistration(MemberRegistration registration) {
@@ -125,11 +220,18 @@ class _MemberRegistrationPageState extends State<MemberRegistrationPage> {
       ).format(dt.toLocal());
     }
 
-    _formState.companyType = registration.entity.isEmpty ? null : registration.entity;
+    _formState.companyType = registration.entity.isEmpty
+        ? null
+        : registration.entity;
     _formState.companyTitle = registration.companyTitle;
     _formState.productNeed = registration.productNeed;
-    _prefillCompanyNameAndSuffix(registration.businessName, registration.companyTitle);
-    _formState.selectedBranch = registration.branch.id == 0 ? null : registration.branch;
+    _prefillCompanyNameAndSuffix(
+      registration.businessName,
+      registration.companyTitle,
+    );
+    _formState.selectedBranch = registration.branch.id == 0
+        ? null
+        : registration.branch;
 
     _formState.addressController.text = registration.address;
     _formState.postalCodeController.text = registration.postalCode;
@@ -142,6 +244,24 @@ class _MemberRegistrationPageState extends State<MemberRegistrationPage> {
     _formState.selectedDistrict = registration.district.isEmpty
         ? null
         : DistrictModel(code: '', name: registration.district, regencyId: '');
+    _formState.branchPicNameController.text =
+        registration.branchOwnerName ?? '';
+    _formState.branchPicPhoneController.text =
+        registration.branchOwnerPhone ?? '';
+    _formState.branchPicEmailController.text =
+        registration.branchOwnerEmail ?? '';
+    _formState.branchPicBirthPlaceController.text =
+        registration.branchOwnerPlaceOfBirth ?? '';
+    final branchPicDob = _parseBirthDate(
+      registration.branchOwnerDateOfBirth ?? '',
+    );
+    if (branchPicDob != null) {
+      _selectedBranchPicBirthDate = branchPicDob;
+      _formState.branchPicDateOfBirthController.text = DateFormat(
+        'dd MMMM yyyy',
+        'id_ID',
+      ).format(branchPicDob.toLocal());
+    }
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -177,8 +297,9 @@ class _MemberRegistrationPageState extends State<MemberRegistrationPage> {
       final suffixToken = ' $suffix';
       if (upper.endsWith(suffixToken)) {
         _formState.companySuffix = suffix;
-        _formState.companyNameController.text =
-            raw.substring(0, raw.length - suffixToken.length).trim();
+        _formState.companyNameController.text = raw
+            .substring(0, raw.length - suffixToken.length)
+            .trim();
         return;
       }
       _formState.companySuffix = suffix;
@@ -190,26 +311,40 @@ class _MemberRegistrationPageState extends State<MemberRegistrationPage> {
   Future<void> _loadShippingAddressesForEdit(int parentId) async {
     try {
       final token = await SessionManager.getToken();
-      final spec = {
+      Future<http.Response> fetchWithSpec(Map<String, dynamic> spec) async {
+        final uri = Uri.parse(
+          '${ApiConfig.baseUrl}/api/resource/customer_register_address'
+          '?spec=${Uri.encodeComponent(jsonEncode(spec))}',
+        );
+        return http.get(
+          uri,
+          headers: {...ApiConfig.headers, 'Authorization': 'Bearer $token'},
+        );
+      }
+
+      http.Response response = await fetchWithSpec({
         'fields': ['*'],
         'filters': [
-          ['parent_id', '=', parentId.toString()],
-          ['parent_type', '=', 'customer_register'],
+          ['customer_register_id', '=', parentId.toString()],
         ],
         'order_by': [
-          ['idx', 'asc'],
+          ['idx_row', 'asc'],
+          ['id', 'asc'],
         ],
-      };
-
-      final uri = Uri.parse(
-        '${ApiConfig.baseUrl}/api/resource/customer_register_address'
-        '?spec=${Uri.encodeComponent(jsonEncode(spec))}',
-      );
-
-      final response = await http.get(
-        uri,
-        headers: {...ApiConfig.headers, 'Authorization': 'Bearer $token'},
-      );
+      });
+      if (response.statusCode != 200) {
+        response = await fetchWithSpec({
+          'fields': ['*'],
+          'filters': [
+            ['parent_id', '=', parentId.toString()],
+            ['parent_type', '=', 'customer_register'],
+          ],
+          'order_by': [
+            ['idx', 'asc'],
+            ['id', 'asc'],
+          ],
+        });
+      }
       if (response.statusCode != 200) return;
 
       final body = jsonDecode(response.body) as Map<String, dynamic>;
@@ -222,15 +357,20 @@ class _MemberRegistrationPageState extends State<MemberRegistrationPage> {
         final model = ShippingAddressModel.create();
         model.labelController.text = (item['label'] ?? '').toString();
         model.addressController.text = (item['address'] ?? '').toString();
-        model.postalCodeController.text = (item['postal_code'] ?? '').toString();
+        model.postalCodeController.text = (item['postal_code'] ?? '')
+            .toString();
         model.picNameController.text = (item['pic_name'] ?? '').toString();
-        model.picPhoneController.text = (item['pic_phone'] ?? '').toString();
+        model.picPhoneController.text = _displayPhone(
+          (item['pic_phone'] ?? '').toString(),
+        );
         model.isDefault = item['is_default'] == 1 || item['is_default'] == true;
         model.sameAsCompanyAddress =
-            model.addressController.text.trim() == _formState.addressController.text.trim() &&
+            model.addressController.text.trim() ==
+                _formState.addressController.text.trim() &&
             (item['province']?.toString() ?? '') ==
                 (_formState.selectedProvince?.name ?? '') &&
-            (item['city']?.toString() ?? '') == (_formState.selectedRegency?.name ?? '') &&
+            (item['city']?.toString() ?? '') ==
+                (_formState.selectedRegency?.name ?? '') &&
             (item['district']?.toString() ?? '') ==
                 (_formState.selectedDistrict?.name ?? '') &&
             model.postalCodeController.text.trim() ==
@@ -243,10 +383,18 @@ class _MemberRegistrationPageState extends State<MemberRegistrationPage> {
           model.selectedProvince = ProvinceModel(code: '', name: provinceName);
         }
         if (cityName.isNotEmpty) {
-          model.selectedRegency = RegencyModel(code: '', name: cityName, provinceId: '');
+          model.selectedRegency = RegencyModel(
+            code: '',
+            name: cityName,
+            provinceId: '',
+          );
         }
         if (districtName.isNotEmpty) {
-          model.selectedDistrict = DistrictModel(code: '', name: districtName, regencyId: '');
+          model.selectedDistrict = DistrictModel(
+            code: '',
+            name: districtName,
+            regencyId: '',
+          );
         }
         shipping.add(model);
       }
@@ -256,7 +404,9 @@ class _MemberRegistrationPageState extends State<MemberRegistrationPage> {
         for (final old in _formState.shippingAddresses) {
           old.dispose();
         }
-        _formState.shippingAddresses = shipping.isEmpty ? [ShippingAddressModel.create()] : shipping;
+        _formState.shippingAddresses = shipping.isEmpty
+            ? [ShippingAddressModel.create()]
+            : shipping;
       });
 
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -265,15 +415,35 @@ class _MemberRegistrationPageState extends State<MemberRegistrationPage> {
           _memberCubit.loadShippingProvinces(address.id);
           if (address.selectedProvince != null &&
               address.selectedProvince!.code.isNotEmpty) {
-            _memberCubit.loadShippingRegencies(address.id, address.selectedProvince!.code);
+            _memberCubit.loadShippingRegencies(
+              address.id,
+              address.selectedProvince!.code,
+            );
           }
           if (address.selectedRegency != null &&
               address.selectedRegency!.code.isNotEmpty) {
-            _memberCubit.loadShippingDistricts(address.id, address.selectedRegency!.code);
+            _memberCubit.loadShippingDistricts(
+              address.id,
+              address.selectedRegency!.code,
+            );
           }
         }
       });
     } catch (_) {}
+  }
+
+  String _displayPhone(String raw) {
+    final trimmed = raw.trim();
+    if (trimmed.isEmpty) return trimmed;
+    final digits = trimmed.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digits.startsWith('62') && digits.length > 2) {
+      return '0${digits.substring(2)}';
+    }
+    if (digits.startsWith('0')) return digits;
+    if (trimmed.startsWith('+62') && digits.length > 2) {
+      return '0${digits.substring(2)}';
+    }
+    return trimmed;
   }
 
   DateTime? _parseBirthDate(String value) {
@@ -292,60 +462,18 @@ class _MemberRegistrationPageState extends State<MemberRegistrationPage> {
     return null;
   }
 
-  Future<void> _checkExistingRegistration(int userId) async {
-    if (userId == 0) return;
-
-    final usecase = di.myinjection<GetMemberRegistrationsByUserId>();
-
-    final result = await usecase.execute();
-
-    result.fold((_) {}, (registrations) {
-      if (registrations.isNotEmpty && mounted) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          _showAlreadyRegisteredDialog(registrations.last);
-        });
-      }
-    });
-  }
-
-  void _showAlreadyRegisteredDialog(MemberRegistration registration) {
-    final status = registration.status;
-
-    String message;
-    int initialTabIndex;
-
-    if (status == 'approved') {
-      message = 'Anda sudah terdaftar sebagai member dan telah disetujui.';
-      initialTabIndex = 1;
-    } else {
-      message = 'Anda sudah memiliki pengajuan member yang sedang diproses.';
-      initialTabIndex = 0;
-    }
-
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => AlertDialog(
-        title: const Text('Informasi'),
-        content: Text(message),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              context.goNamed(
-                'memberList',
-                extra: {'initialTabIndex': initialTabIndex},
-              );
-            },
-            child: const Text('OK'),
-          ),
-        ],
-      ),
-    );
+  void _syncBranchPicIfLinked() {
+    if (!_formState.branchPicSameAsOwner) return;
+    _formState.syncBranchPicWithOwner();
+    if (mounted) setState(() {});
   }
 
   @override
   void dispose() {
+    _formState.namaController.removeListener(_syncBranchPicIfLinked);
+    _formState.phoneController.removeListener(_syncBranchPicIfLinked);
+    _formState.emailController.removeListener(_syncBranchPicIfLinked);
+    _formState.birthPlaceController.removeListener(_syncBranchPicIfLinked);
     _formState.dispose();
     _scrollController.dispose();
     _memberCubit.close();
@@ -399,6 +527,71 @@ class _MemberRegistrationPageState extends State<MemberRegistrationPage> {
                             'dd MMMM yyyy',
                             'id_ID',
                           ).format(_selectedBirthDate!);
+                          if (_formState.branchPicSameAsOwner) {
+                            _formState.branchPicDateOfBirthController.text =
+                                _formState.dateOfBirthController.text;
+                          }
+                        });
+                        Navigator.of(context).pop();
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(height: 1),
+              Expanded(
+                child: CupertinoDatePicker(
+                  mode: CupertinoDatePickerMode.date,
+                  initialDateTime: initial,
+                  minimumDate: DateTime(1950),
+                  maximumDate: DateTime.now(),
+                  use24hFormat: true,
+                  onDateTimeChanged: (DateTime picked) {
+                    tempPicked = picked;
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _selectBranchPicBirthDate() async {
+    final DateTime initial = _selectedBranchPicBirthDate ?? DateTime(2000);
+    DateTime tempPicked = initial;
+
+    await showCupertinoModalPopup(
+      context: context,
+      builder: (context) {
+        return Container(
+          height: 320,
+          color: AppColors.whiteColor,
+          child: Column(
+            children: [
+              SizedBox(
+                height: 44,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    CupertinoButton(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: const Text('Batal'),
+                      onPressed: () => Navigator.of(context).pop(),
+                    ),
+                    CupertinoButton(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: const Text('Selesai'),
+                      onPressed: () {
+                        if (!mounted) return;
+                        setState(() {
+                          _selectedBranchPicBirthDate = tempPicked;
+                          _formState.branchPicDateOfBirthController.text =
+                              DateFormat(
+                                'dd MMMM yyyy',
+                                'id_ID',
+                              ).format(_selectedBranchPicBirthDate!);
                         });
                         Navigator.of(context).pop();
                       },
@@ -457,6 +650,50 @@ class _MemberRegistrationPageState extends State<MemberRegistrationPage> {
     }
 
     final formData = _formState.toApiCustomerRegisterJson();
+    final authState = context.read<AuthSessionCubit>().state;
+    if (authState is AuthSessionAuthenticated) {
+      formData['ekaplus_user'] = authState.user.id;
+    }
+    final hierarchySource =
+        widget.parentActiveCompany ?? _defaultHierarchySourceForNewCompany;
+
+    final needsOwnerPermission = (!_isEditMode && _isBcidMode);
+    if (needsOwnerPermission &&
+        hierarchySource != null &&
+        !hierarchySource.memberIsOwner) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Akun sharing tidak memiliki hak untuk menambah cabang (BCID)',
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    if (!_isEditMode && widget.intent == MemberRegistrationIntent.newCompany) {
+      formData['registration_mode'] = 'gcid';
+      if (hierarchySource?.nbidId != null) {
+        formData['nbid'] = hierarchySource!.nbidId;
+      }
+      if (hierarchySource?.gpidId != null) {
+        formData['gpid'] = hierarchySource!.gpidId;
+      }
+    }
+    if (_isBcidMode) {
+      final selectedGcid = hierarchySource?.gcidId ?? widget.parentGcidId;
+      if (selectedGcid != null) {
+        formData['gcid'] = selectedGcid;
+      }
+      if (hierarchySource?.nbidId != null) {
+        formData['nbid'] = hierarchySource!.nbidId;
+      }
+      if (hierarchySource?.gpidId != null) {
+        formData['gpid'] = hierarchySource!.gpidId;
+      }
+      formData['registration_mode'] = 'bcid';
+    }
     if (_editingRegistrationId != null) {
       formData['id'] = _editingRegistrationId;
     }
@@ -467,7 +704,14 @@ class _MemberRegistrationPageState extends State<MemberRegistrationPage> {
   void _scrollToFirstError(Map<String, String?> errors) {
     GlobalKey? target;
 
-    if (errors.containsKey('birthPlace') || errors.containsKey('dateOfBirth')) {
+    if (errors.containsKey('ownerName') ||
+        errors.containsKey('ownerPhone') ||
+        errors.containsKey('ownerEmail') ||
+        errors.containsKey('branchPicName') ||
+        errors.containsKey('branchPicPhone') ||
+        errors.containsKey('branchPicEmail') ||
+        errors.containsKey('birthPlace') ||
+        errors.containsKey('dateOfBirth')) {
       target = _identityKey;
     } else if (errors.containsKey('companyType') ||
         errors.containsKey('nik') ||
@@ -619,7 +863,9 @@ class _MemberRegistrationPageState extends State<MemberRegistrationPage> {
             child: Scaffold(
               appBar: CustomHeaderAppBar(
                 title: _isEditMode ? 'Ubah Pengajuan' : 'Hubungkan Usaha',
-                subtitle: _isEditMode ? 'Perbarui Draft Pengajuan' : 'Lengkapi Profil Anda',
+                subtitle: _isEditMode
+                    ? 'Perbarui Draft Pengajuan'
+                    : 'Lengkapi Profil Anda',
                 onBackPressed: _handleBackPressed,
               ),
               body: Column(
@@ -635,8 +881,18 @@ class _MemberRegistrationPageState extends State<MemberRegistrationPage> {
                             child: IdentitySectionWidget(
                               formState: _formState,
                               onSelectBirthDate: _selectBirthDate,
+                              onStateChanged: () => setState(() {}),
+                              ownerNameError: _errors['ownerName'],
+                              ownerPhoneError: _errors['ownerPhone'],
+                              ownerEmailError: _errors['ownerEmail'],
+                              branchPicNameError: _errors['branchPicName'],
+                              branchPicPhoneError: _errors['branchPicPhone'],
+                              branchPicEmailError: _errors['branchPicEmail'],
                               birthPlaceError: _errors['birthPlace'],
                               dateOfBirthError: _errors['dateOfBirth'],
+                              onSelectBranchPicBirthDate:
+                                  _selectBranchPicBirthDate,
+                              birthFieldsReadOnly: _isBcidMode,
                             ),
                           ),
                           Container(
@@ -653,6 +909,7 @@ class _MemberRegistrationPageState extends State<MemberRegistrationPage> {
                               // nikError: _errors['nik'],
                               // npwpError: _errors['npwp'],
                               branchError: _errors['branch'],
+                              lockCompanyIdentityFields: _isBcidMode,
                             ),
                           ),
                           Container(

@@ -16,6 +16,8 @@ import 'package:ekaplus_ekatunggal/features/member/presentation/pages/member_lis
 import 'package:ekaplus_ekatunggal/features/member/presentation/pages/company_selection_page.dart';
 import 'package:ekaplus_ekatunggal/features/member/presentation/pages/add_bcid_page.dart';
 import 'package:ekaplus_ekatunggal/features/member/domain/entities/member_registration.dart';
+import 'package:ekaplus_ekatunggal/features/member/domain/entities/active_member_company.dart';
+import 'package:ekaplus_ekatunggal/features/member/presentation/enums/member_registration_intent.dart';
 import 'package:ekaplus_ekatunggal/features/auth/domain/entities/user.dart';
 import 'package:ekaplus_ekatunggal/features/auth/domain/usecases/change_password.dart';
 import 'package:ekaplus_ekatunggal/features/auth/domain/usecases/request_email_change.dart';
@@ -212,6 +214,10 @@ class MyRouter {
           return MemberRegistrationPage(
             initialRegistration:
                 extra?['registration'] as MemberRegistration?,
+            intent: memberRegistrationIntentFromRouteValue(extra?['intent']),
+            parentGcidId: extra?['selectedGcidId'] as int?,
+            parentGcName: extra?['selectedGcName'] as String?,
+            parentActiveCompany: extra?['selectedActiveCompany'] as ActiveMemberCompany?,
           );
         },
       ),
@@ -655,3 +661,5 @@ class AppShell extends StatelessWidget {
     );
   }
 }
+
+

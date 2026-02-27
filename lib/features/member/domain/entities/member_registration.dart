@@ -36,6 +36,11 @@ class MemberRegistration extends Equatable {
   final String? email;
   final String? fax;
   final String? contactPerson;
+  final String? branchOwnerName;
+  final String? branchOwnerPhone;
+  final String? branchOwnerEmail;
+  final String? branchOwnerPlaceOfBirth;
+  final String? branchOwnerDateOfBirth;
 
   final String nik;
   final String? npwp;
@@ -78,6 +83,11 @@ class MemberRegistration extends Equatable {
     this.email,
     this.fax,
     this.contactPerson,
+    this.branchOwnerName,
+    this.branchOwnerPhone,
+    this.branchOwnerEmail,
+    this.branchOwnerPlaceOfBirth,
+    this.branchOwnerDateOfBirth,
     required this.nik,
     this.npwp,
     this.ktpImage,
@@ -117,6 +127,11 @@ class MemberRegistration extends Equatable {
     email,
     fax,
     contactPerson,
+    branchOwnerName,
+    branchOwnerPhone,
+    branchOwnerEmail,
+    branchOwnerPlaceOfBirth,
+    branchOwnerDateOfBirth,
     nik,
     npwp,
     ktpImage,
