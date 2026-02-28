@@ -417,22 +417,50 @@ class _MemberListPageState extends State<MemberListPage>
 
   Future<void> _showActiveCompanyDetail(ActiveMemberCompany company) async {
     final bcid = company.branchCustomerId;
-    final shippingAddresses = (bcid == null || bcid <= 0)
-        ? const <Map<String, dynamic>>[]
-        : await _loadActiveCompanyAddresses(bcid);
-    if (!mounted) return;
     final activeState = context.read<ActiveCompanyCubit>().state;
     final isSelected = activeState is ActiveCompanyReady &&
         activeState.activeBcid == company.branchCustomerId;
+    List<Map<String, dynamic>> shippingAddresses = const [];
+    var addressesLoaded = bcid == null || bcid <= 0;
+    var startedFetch = false;
+
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (dialogContext) => ActiveCompanyDetailDialog(
-        company: company,
-        shippingAddresses: shippingAddresses,
-        isActiveSelected: isSelected,
-        onSetActive: () => _setActiveCompany(company),
-        onClose: () => Navigator.of(dialogContext).pop(),
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (ctx, setDialogState) {
+          if (!addressesLoaded && !startedFetch) {
+            startedFetch = true;
+            _loadActiveCompanyAddresses(bcid!).then((rows) {
+              if (!ctx.mounted) return;
+              setDialogState(() {
+                shippingAddresses = rows;
+                addressesLoaded = true;
+              });
+            });
+          }
+          return Stack(
+            children: [
+              ActiveCompanyDetailDialog(
+                company: company,
+                shippingAddresses: shippingAddresses,
+                isActiveSelected: isSelected,
+                onSetActive: () => _setActiveCompany(company),
+                onClose: () => Navigator.of(dialogContext).pop(),
+              ),
+              if (!addressesLoaded)
+                const Positioned(
+                  top: 16,
+                  right: 16,
+                  child: SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                ),
+            ],
+          );
+        },
       ),
     );
   }

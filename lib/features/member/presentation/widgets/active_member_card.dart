@@ -24,148 +24,172 @@ class ActiveMemberCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final companyName = company.displayName;
     final branchName = company.branchName ?? '-';
-    final nationalBrand = company.nbName ?? '-';
-    final ownerName = (company.customerOwnerName ?? '').trim().isEmpty
+    final picBranchName = (company.branchOwnerName ?? '').trim().isEmpty
         ? '-'
-        : company.customerOwnerName!.trim();
-    final ownerPhone = (company.customerOwnerPhone ?? '').trim().isEmpty
+        : company.branchOwnerName!.trim();
+    final picBranchPhone = (company.branchOwnerPhone ?? '').trim().isEmpty
         ? '-'
-        : company.customerOwnerPhone!.trim();
+        : company.branchOwnerPhone!.trim();
+    final borderRadius = BorderRadius.circular(12);
 
-    return GestureDetector(
-      onTap: onTap,
-      onLongPress: onLongPress,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 220),
-        curve: Curves.easeOutCubic,
-        decoration: BoxDecoration(
-          color: AppColors.whiteColor,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeOutCubic,
+      decoration: BoxDecoration(
+        borderRadius: borderRadius,
+        boxShadow: [
+          BoxShadow(
+            color: (isActiveSelected ? Colors.green : Colors.black).withOpacity(
+              isActiveSelected ? 0.12 : 0.05,
+            ),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Material(
+        color: AppColors.whiteColor,
+        clipBehavior: Clip.antiAlias,
+        shape: RoundedRectangleBorder(
+          borderRadius: borderRadius,
+          side: BorderSide(
             color: isActiveSelected ? Colors.green[300]! : Colors.grey[200]!,
           ),
-          boxShadow: [
-            BoxShadow(
-              color: (isActiveSelected ? Colors.green : Colors.black).withOpacity(
-                isActiveSelected ? 0.12 : 0.05,
-              ),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header with active badge
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: isActiveSelected ? Colors.green[50] : Colors.grey[50],
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(12),
-                  topRight: Radius.circular(12),
+        child: InkWell(
+          onTap: onTap,
+          onLongPress: onLongPress,
+          splashColor: AppColors.primaryColor.withOpacity(0.18),
+          highlightColor: AppColors.primaryColor.withOpacity(0.08),
+          child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header with active badge
+                Ink(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: isActiveSelected
+                        ? Colors.green[50]
+                        : Colors.grey[50],
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(12),
+                      topRight: Radius.circular(12),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Ink(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(
+                          Icons.business,
+                          size: 24,
+                          color: isActiveSelected
+                              ? Colors.green[700]
+                              : Colors.grey[700],
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              companyName,
+                              style: TextStyle(
+                                fontFamily: AppFonts.primaryFont,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.blackColor,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 4),
+                            AnimatedOpacity(
+                              duration: const Duration(milliseconds: 180),
+                              opacity: isActiveSelected ? 1 : 0,
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 8,
+                                    height: 8,
+                                    decoration: BoxDecoration(
+                                      color: Colors.green[600],
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    'Aktif',
+                                    style: TextStyle(
+                                      fontFamily: AppFonts.primaryFont,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.green[700],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (onInfoTap != null)
+                        IconButton(
+                          onPressed: onInfoTap,
+                          icon: const Icon(Icons.info_outline),
+                          tooltip: 'Detail',
+                        ),
+                    ],
+                  ),
                 ),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Icon(
-                      Icons.business,
-                      size: 24,
-                      color: isActiveSelected ? Colors.green[700] : Colors.grey[700],
-                    ),
+
+                // Body
+                Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Company Type
+                      // _buildInfoRow(
+                      //   Icons.workspace_premium_outlined,
+                      //   'NB',
+                      //   nationalBrand,
+                      // ),
+
+                      // const SizedBox(height: 8),
+                      _buildInfoRow(
+                        Icons.person_outline,
+                        'PIC Branch name',
+                        picBranchName,
+                      ),
+
+                      const SizedBox(height: 8),
+                      _buildInfoRow(
+                        Icons.phone_outlined,
+                        'No. HP PIC Branch',
+                        picBranchPhone,
+                      ),
+
+                      const SizedBox(height: 8),
+
+                      // Branch
+                      _buildInfoRow(
+                        Icons.location_on_outlined,
+                        'Cabang yang dipilih',
+                        branchName,
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          companyName,
-                          style: TextStyle(
-                            fontFamily: AppFonts.primaryFont,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.blackColor,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 4),
-                        AnimatedOpacity(
-                          duration: const Duration(milliseconds: 180),
-                          opacity: isActiveSelected ? 1 : 0,
-                          child: Row(
-                            children: [
-                              Container(
-                                width: 8,
-                                height: 8,
-                                decoration: BoxDecoration(
-                                  color: Colors.green[600],
-                                  shape: BoxShape.circle,
-                                ),
-                              ),
-                              const SizedBox(width: 6),
-                              Text(
-                                'Aktif',
-                                style: TextStyle(
-                                  fontFamily: AppFonts.primaryFont,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.green[700],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  if (onInfoTap != null)
-                    IconButton(
-                      onPressed: onInfoTap,
-                      icon: const Icon(Icons.info_outline),
-                      tooltip: 'Detail',
-                    ),
-                ],
-              ),
+                ),
+              ],
             ),
-
-            // Body
-            Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Company Type
-                  _buildInfoRow(Icons.workspace_premium_outlined, 'NB', nationalBrand),
-
-                  const SizedBox(height: 8),
-                  _buildInfoRow(Icons.person_outline, 'Owner', ownerName),
-
-                  const SizedBox(height: 8),
-                  _buildInfoRow(Icons.phone_outlined, 'No. HP Owner', ownerPhone),
-
-                  const SizedBox(height: 8),
-
-                  // Branch
-                  _buildInfoRow(
-                    Icons.location_on_outlined,
-                    'Cabang',
-                    branchName,
-                  ),
-                ],
-              ),
-            ),
-          ],
+          ),
         ),
-      ),
     );
   }
 
