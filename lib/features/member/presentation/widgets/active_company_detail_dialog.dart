@@ -236,7 +236,7 @@ class ActiveCompanyDetailDialog extends StatelessWidget {
                     elevation: 0,
                   ),
                   child: Text(
-                    'Sedang Aktif',
+                    'Aktif',
                     style: TextStyle(
                       fontFamily: AppFonts.primaryFont,
                       fontSize: 15,
@@ -583,7 +583,7 @@ class _SetActiveButtonState extends State<_SetActiveButton> {
                 ),
               )
             : Text(
-                _done ? 'Berhasil' : 'Jadikan Perusahaan Aktif',
+                _done ? 'Aktif' : 'Set Aktif',
                 key: ValueKey(_done ? 'done' : 'idle'),
                 style: TextStyle(
                   fontFamily: AppFonts.primaryFont,

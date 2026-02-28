@@ -186,6 +186,34 @@ class AuthRepositoryImplementation implements AuthRepository {
   }
 
   @override
+  Future<Either<Failure, User>> updateUsername(
+    String userId,
+    String username,
+  ) async {
+    try {
+      final user = await localDataSource.getCachedUser();
+      if (user == null) {
+        return const Left(CacheFailure(message: 'User tidak ditemukan'));
+      }
+
+      final normalized = username.trim().toLowerCase();
+      if (normalized.isEmpty) {
+        return const Left(CacheFailure(message: 'Username tidak boleh kosong'));
+      }
+
+      await localDataSource.updateUser(user.id, {'username': normalized});
+
+      final updated = user.copyWith(
+        username: normalized,
+        updatedAt: DateTime.now(),
+      );
+      return Right(updated);
+    } catch (e) {
+      return Left(CacheFailure(message: e.toString()));
+    }
+  }
+
+  @override
   Future<Either<Failure, User>> updateProfilePicture(
     String userId,
     String? profilePicPath,

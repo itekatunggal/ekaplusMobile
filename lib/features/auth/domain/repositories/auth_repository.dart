@@ -33,6 +33,7 @@ abstract class AuthRepository {
   );
 
   Future<Either<Failure, User>> updateFullName(String userId, String fullName);
+  Future<Either<Failure, User>> updateUsername(String userId, String username);
 
   Future<Either<Failure, String>> requestPhoneChange({
     required String userId,

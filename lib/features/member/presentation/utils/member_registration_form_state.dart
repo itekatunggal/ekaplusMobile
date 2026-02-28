@@ -239,6 +239,14 @@ class MemberRegistrationFormState {
     branchPicDateOfBirthController.text = dateOfBirthController.text;
   }
 
+  void clearBranchPicIdentity() {
+    branchPicNameController.clear();
+    branchPicPhoneController.clear();
+    branchPicEmailController.clear();
+    branchPicBirthPlaceController.clear();
+    branchPicDateOfBirthController.clear();
+  }
+
   /// Remove shipping address by index
   void removeShippingAddress(int index) {
     if (index >= 0 && index < shippingAddresses.length) {

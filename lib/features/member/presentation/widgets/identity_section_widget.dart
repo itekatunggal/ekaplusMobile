@@ -166,6 +166,8 @@ class IdentitySectionWidget extends StatelessWidget {
                 formState.branchPicSameAsOwner = val ?? false;
                 if (formState.branchPicSameAsOwner) {
                   formState.syncBranchPicWithOwner();
+                } else {
+                  formState.clearBranchPicIdentity();
                 }
                 onStateChanged();
               },

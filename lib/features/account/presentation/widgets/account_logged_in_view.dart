@@ -913,6 +913,25 @@ class _AccountLoggedInViewState extends State<AccountLoggedInView> {
           const Divider(height: 1),
 
           _buildSettingItem(
+            icon: Icons.alternate_email,
+            iconSize: iconSize,
+            textSize: itemTextSize,
+            title: (currentUser.username.trim().isEmpty)
+                ? 'Atur Username'
+                : 'Ganti Username',
+            onTap: () {
+              context.pushNamed(
+                'edit-username',
+                extra: {
+                  'userId': currentUser.phone,
+                  'currentUsername': currentUser.username,
+                },
+              );
+            },
+          ),
+          const Divider(height: 1),
+
+          _buildSettingItem(
             icon: Icons.lock_outline,
             iconSize: iconSize,
             textSize: itemTextSize,

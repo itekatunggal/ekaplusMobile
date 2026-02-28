@@ -3,6 +3,7 @@ import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:ekaplus_ekatunggal/features/auth/domain/entities/user.dart';
 import 'package:ekaplus_ekatunggal/features/auth/domain/usecases/update_full_name.dart';
+import 'package:ekaplus_ekatunggal/features/auth/domain/usecases/update_username.dart';
 import 'package:ekaplus_ekatunggal/features/auth/domain/usecases/request_phone_change.dart';
 import 'package:ekaplus_ekatunggal/features/auth/domain/usecases/verify_phone_change.dart';
 import 'package:ekaplus_ekatunggal/features/auth/domain/usecases/request_email_change.dart';
@@ -12,6 +13,7 @@ part 'profile_update_state.dart';
 
 class ProfileUpdateCubit extends Cubit<ProfileUpdateState> {
   final UpdateFullName updateFullName;
+  final UpdateUsername updateUsername;
   final RequestPhoneChange requestPhoneChange;
   final VerifyPhoneChange verifyPhoneChange;
   final RequestEmailChange requestEmailChange;
@@ -19,6 +21,7 @@ class ProfileUpdateCubit extends Cubit<ProfileUpdateState> {
 
   ProfileUpdateCubit({
     required this.updateFullName,
+    required this.updateUsername,
     required this.requestPhoneChange,
     required this.verifyPhoneChange,
     required this.requestEmailChange,
@@ -40,6 +43,23 @@ class ProfileUpdateCubit extends Cubit<ProfileUpdateState> {
     result.fold(
       (failure) => emit(ProfileUpdateError(failure.message.toString())),
       (user) => emit(ProfileUpdateSuccess(user, 'Nama berhasil diubah')),
+    );
+  }
+
+  Future<void> updateUsernameValue({
+    required String userId,
+    required String username,
+  }) async {
+    emit(ProfileUpdateLoading());
+
+    final result = await updateUsername(
+      userId: userId,
+      username: username,
+    );
+
+    result.fold(
+      (failure) => emit(ProfileUpdateError(failure.message.toString())),
+      (user) => emit(ProfileUpdateSuccess(user, 'Username berhasil diubah')),
     );
   }
 

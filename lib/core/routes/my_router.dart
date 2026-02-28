@@ -6,6 +6,7 @@ import 'package:ekaplus_ekatunggal/features/account/presentation/pages/account_p
 import 'package:ekaplus_ekatunggal/features/account/presentation/pages/change_password_page.dart';
 import 'package:ekaplus_ekatunggal/features/account/presentation/pages/edit_contact_page.dart';
 import 'package:ekaplus_ekatunggal/features/account/presentation/pages/edit_full_name_page.dart';
+import 'package:ekaplus_ekatunggal/features/account/presentation/pages/edit_username_page.dart';
 import 'package:ekaplus_ekatunggal/features/account/presentation/pages/new_password_page.dart';
 import 'package:ekaplus_ekatunggal/features/account/presentation/pages/select_avatar_page.dart';
 import 'package:ekaplus_ekatunggal/features/account/presentation/pages/verify_contact_complete_page.dart';
@@ -24,6 +25,7 @@ import 'package:ekaplus_ekatunggal/features/auth/domain/usecases/request_email_c
 import 'package:ekaplus_ekatunggal/features/auth/domain/usecases/request_phone_change.dart';
 import 'package:ekaplus_ekatunggal/features/auth/domain/usecases/reset_password_with_otp.dart';
 import 'package:ekaplus_ekatunggal/features/auth/domain/usecases/update_full_name.dart';
+import 'package:ekaplus_ekatunggal/features/auth/domain/usecases/update_username.dart';
 import 'package:ekaplus_ekatunggal/features/auth/domain/usecases/verify_email_change.dart';
 import 'package:ekaplus_ekatunggal/features/auth/domain/usecases/verify_old_password.dart';
 import 'package:ekaplus_ekatunggal/features/auth/domain/usecases/verify_phone_change.dart';
@@ -333,6 +335,7 @@ class MyRouter {
           return BlocProvider(
             create: (context) => ProfileUpdateCubit(
               updateFullName: getIt<UpdateFullName>(),
+              updateUsername: getIt<UpdateUsername>(),
               requestPhoneChange: getIt<RequestPhoneChange>(),
               verifyPhoneChange: getIt<VerifyPhoneChange>(),
               requestEmailChange: getIt<RequestEmailChange>(),
@@ -341,6 +344,28 @@ class MyRouter {
             child: EditFullNamePage(
               userId: extra['userId'] as String,
               currentName: extra['currentName'] as String,
+            ),
+          );
+        },
+      ),
+
+      GoRoute(
+        path: '/account/edit-username',
+        name: 'edit-username',
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>;
+          return BlocProvider(
+            create: (context) => ProfileUpdateCubit(
+              updateFullName: getIt<UpdateFullName>(),
+              updateUsername: getIt<UpdateUsername>(),
+              requestPhoneChange: getIt<RequestPhoneChange>(),
+              verifyPhoneChange: getIt<VerifyPhoneChange>(),
+              requestEmailChange: getIt<RequestEmailChange>(),
+              verifyEmailChange: getIt<VerifyEmailChange>(),
+            ),
+            child: EditUsernamePage(
+              userId: extra['userId'] as String,
+              currentUsername: extra['currentUsername'] as String? ?? '',
             ),
           );
         },
@@ -373,6 +398,7 @@ class MyRouter {
           return BlocProvider(
             create: (context) => ProfileUpdateCubit(
               updateFullName: getIt<UpdateFullName>(),
+              updateUsername: getIt<UpdateUsername>(),
               requestPhoneChange: getIt<RequestPhoneChange>(),
               verifyPhoneChange: getIt<VerifyPhoneChange>(),
               requestEmailChange: getIt<RequestEmailChange>(),
@@ -451,6 +477,7 @@ class MyRouter {
           return BlocProvider(
             create: (context) => ProfileUpdateCubit(
               updateFullName: getIt<UpdateFullName>(),
+              updateUsername: getIt<UpdateUsername>(),
               requestPhoneChange: getIt<RequestPhoneChange>(),
               verifyPhoneChange: getIt<VerifyPhoneChange>(),
               requestEmailChange: getIt<RequestEmailChange>(),

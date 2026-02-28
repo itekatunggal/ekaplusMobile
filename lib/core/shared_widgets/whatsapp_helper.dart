@@ -11,13 +11,13 @@ class WhatsAppHelper {
     String productName,
   ) async {
     final message =
-        'Halo $adminName, saya ingin menanyakan perihal produk: $productName';
+        'EKA+ Message: \nHalo $adminName, saya ingin menanyakan perihal produk: $productName';
     await _open(context, message);
   }
 
   static Future<void> openGeneral(BuildContext context) async {
     final message =
-        'Halo $adminName, saya ingin bertanya mengenai produk dan layanan Ekatunggal';
+        'EKA+ Message: \nHalo $adminName, saya ingin bertanya mengenai produk dan layanan Ekatunggal';
     await _open(context, message);
   }
 
