@@ -22,6 +22,8 @@ class ProfileHeader extends StatefulWidget {
 }
 
 class _ProfileHeaderState extends State<ProfileHeader> {
+  int? _lastLoadedUserId;
+
   void _showActiveCompanyToast(String message) {
     AppSnackbar.show(
       context,
@@ -94,12 +96,19 @@ class _ProfileHeaderState extends State<ProfileHeader> {
       child: BlocBuilder<AuthSessionCubit, AuthSessionState>(
         builder: (context, authState) {
           if (authState is AuthSessionAuthenticated) {
+            final userId = authState.user.id;
+            final shouldForceReload = _lastLoadedUserId != userId;
+            _lastLoadedUserId = userId;
+
             final activeState = context.read<ActiveCompanyCubit>().state;
-            if (activeState is! ActiveCompanyReady &&
-                activeState is! ActiveCompanyLoading) {
+            if (shouldForceReload ||
+                (activeState is! ActiveCompanyReady &&
+                    activeState is! ActiveCompanyLoading)) {
               WidgetsBinding.instance.addPostFrameCallback((_) {
                 if (!mounted) return;
-                context.read<ActiveCompanyCubit>().loadCompaniesAndResolveActive();
+                context.read<ActiveCompanyCubit>().loadCompaniesAndResolveActive(
+                  force: shouldForceReload,
+                );
               });
             }
           }
@@ -210,6 +219,21 @@ class _ProfileHeaderState extends State<ProfileHeader> {
 
             if (authState is AuthSessionAuthenticated) {
               final user = authState.user;
+              final canPickCompany = authState.isMember;
+
+              if (!canPickCompany) {
+                return Text(
+                  'Halo, ${user.firstName}',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontFamily: AppFonts.primaryFont,
+                    color: AppColors.blackColor,
+                    fontSize: isIOS ? 16 : 14,
+                    letterSpacing: -0.3,
+                  ),
+                );
+              }
+
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -233,7 +257,9 @@ class _ProfileHeaderState extends State<ProfileHeader> {
                                 'Belum terhubung dengan perusahaan')
                           : 'Belum terhubung dengan perusahaan';
                       return GestureDetector(
-                        onTap: widget.onCompanyTap ?? _showCompanyPicker,
+                        onTap: canPickCompany
+                            ? (widget.onCompanyTap ?? _showCompanyPicker)
+                            : null,
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
@@ -252,8 +278,10 @@ class _ProfileHeaderState extends State<ProfileHeader> {
                                 ),
                               ),
                             ),
-                            const SizedBox(width: 6),
-                            Icon(Icons.expand_more, size: isIOS ? 18 : 16),
+                            if (canPickCompany) ...[
+                              const SizedBox(width: 6),
+                              Icon(Icons.expand_more, size: isIOS ? 18 : 16),
+                            ],
                           ],
                         ),
                       );

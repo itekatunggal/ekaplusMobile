@@ -27,6 +27,7 @@ class _AccountLoggedInViewState extends State<AccountLoggedInView> {
       myinjection<GetMemberRegistrationsByUserId>();
   MemberRegistration? _latestRegistration;
   bool _isLoadingRegistration = true;
+  int? _lastLoadedUserId;
 
   @override
   void initState() {
@@ -89,12 +90,24 @@ class _AccountLoggedInViewState extends State<AccountLoggedInView> {
             : widget.user;
         final activeState = context.watch<ActiveCompanyCubit>().state;
         if (sessionState is AuthSessionAuthenticated &&
-            activeState is! ActiveCompanyReady &&
-            activeState is! ActiveCompanyLoading) {
+            (activeState is! ActiveCompanyReady &&
+                activeState is! ActiveCompanyLoading)) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (!mounted) return;
             context.read<ActiveCompanyCubit>().loadCompaniesAndResolveActive();
           });
+        }
+        if (sessionState is AuthSessionAuthenticated) {
+          final shouldForceReload = _lastLoadedUserId != currentUser.id;
+          _lastLoadedUserId = currentUser.id;
+          if (shouldForceReload) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (!mounted) return;
+              context.read<ActiveCompanyCubit>().loadCompaniesAndResolveActive(
+                force: true,
+              );
+            });
+          }
         }
 
         return Container(
@@ -134,6 +147,7 @@ class _AccountLoggedInViewState extends State<AccountLoggedInView> {
                       value: currentUser.fullName,
                       context: context,
                       userId: currentUser.phone,
+                      currentUser: currentUser,
                     ),
 
                     const Divider(height: 1),
@@ -146,6 +160,7 @@ class _AccountLoggedInViewState extends State<AccountLoggedInView> {
                       value: currentUser.phone,
                       context: context,
                       userId: currentUser.phone,
+                      currentUser: currentUser,
                     ),
 
                     const Divider(height: 1),
@@ -158,6 +173,7 @@ class _AccountLoggedInViewState extends State<AccountLoggedInView> {
                       value: currentUser.email,
                       context: context,
                       userId: currentUser.phone,
+                      currentUser: currentUser,
                     ),
 
                     const Divider(height: 1),
@@ -556,6 +572,7 @@ class _AccountLoggedInViewState extends State<AccountLoggedInView> {
     required String value,
     required BuildContext context,
     required String userId,
+    required User currentUser,
   }) {
     final labelSize = _getResponsiveValue(
       context,
@@ -610,33 +627,57 @@ class _AccountLoggedInViewState extends State<AccountLoggedInView> {
                     extra: {'userId': userId, 'currentName': value},
                   );
                 } else if (label == 'Nomor Handphone') {
-                  context.pushNamed(
-                    'verify-password',
-                    extra: {
-                      'userId': userId,
-                      'title': 'Ubah Nomor Handphone',
-                      'subtitle': 'Masukkan password untuk verifikasi',
-                      'nextRoute': 'edit-contact',
-                      'nextRouteExtra': {
+                  final noPassword = (currentUser.password ?? '').isEmpty;
+                  if (noPassword) {
+                    context.pushNamed(
+                      'edit-contact',
+                      extra: {
+                        'userId': userId,
                         'currentPhone': value,
                         'type': 'phone',
                       },
-                    },
-                  );
+                    );
+                  } else {
+                    context.pushNamed(
+                      'verify-password',
+                      extra: {
+                        'userId': userId,
+                        'title': 'Ubah Nomor Handphone',
+                        'subtitle': 'Masukkan password untuk verifikasi',
+                        'nextRoute': 'edit-contact',
+                        'nextRouteExtra': {
+                          'currentPhone': value,
+                          'type': 'phone',
+                        },
+                      },
+                    );
+                  }
                 } else if (label == 'Email') {
-                  context.pushNamed(
-                    'verify-password',
-                    extra: {
-                      'userId': userId,
-                      'title': 'Ubah Email',
-                      'subtitle': 'Masukkan password untuk verifikasi',
-                      'nextRoute': 'edit-contact',
-                      'nextRouteExtra': {
+                  final noPassword = (currentUser.password ?? '').isEmpty;
+                  if (noPassword) {
+                    context.pushNamed(
+                      'edit-contact',
+                      extra: {
+                        'userId': userId,
                         'currentEmail': value,
                         'type': 'email',
                       },
-                    },
-                  );
+                    );
+                  } else {
+                    context.pushNamed(
+                      'verify-password',
+                      extra: {
+                        'userId': userId,
+                        'title': 'Ubah Email',
+                        'subtitle': 'Masukkan password untuk verifikasi',
+                        'nextRoute': 'edit-contact',
+                        'nextRouteExtra': {
+                          'currentEmail': value,
+                          'type': 'email',
+                        },
+                      },
+                    );
+                  }
                 }
               },
               child: Text(
@@ -811,7 +852,7 @@ class _AccountLoggedInViewState extends State<AccountLoggedInView> {
     } else if (_latestRegistration == null) {
       buttonText = 'Daftar Member';
       onPressed = () {
-        context.pushNamed('memberRegistration');
+        _handleMemberRegistrationTap(currentUser);
       };
     } else {
       final status = _latestRegistration!.status;
@@ -850,6 +891,58 @@ class _AccountLoggedInViewState extends State<AccountLoggedInView> {
         ),
       ),
     );
+  }
+
+  void _handleMemberRegistrationTap(User user) {
+    final phone = user.phone.trim();
+    final email = user.email.trim();
+    final noPassword = (user.password ?? '').isEmpty;
+
+    if (!user.isPhoneVerified || phone.isEmpty) {
+      AppSnackbar.show(
+        context,
+        message: 'Verifikasi nomor handphone dulu sebelum daftar member',
+        type: AppSnackbarType.warning,
+      );
+      context.pushNamed(
+        'edit-contact',
+        extra: {'userId': user.phone, 'currentPhone': phone, 'type': 'phone'},
+      );
+      return;
+    }
+
+    if (!user.isEmailVerified || email.isEmpty) {
+      AppSnackbar.show(
+        context,
+        message: 'Verifikasi email dulu sebelum daftar member',
+        type: AppSnackbarType.warning,
+      );
+      if (email.isEmpty) {
+        context.pushNamed(
+          'edit-contact',
+          extra: {'userId': user.phone, 'currentEmail': email, 'type': 'email'},
+        );
+      } else if (noPassword) {
+        context.pushNamed(
+          'verify-email-initial',
+          extra: {'userId': user.phone, 'email': email},
+        );
+      } else {
+        context.pushNamed(
+          'verify-password',
+          extra: {
+            'userId': user.phone,
+            'title': 'Ubah Email',
+            'subtitle': 'Masukkan password untuk verifikasi',
+            'nextRoute': 'edit-contact',
+            'nextRouteExtra': {'currentEmail': email, 'type': 'email'},
+          },
+        );
+      }
+      return;
+    }
+
+    context.pushNamed('memberRegistration');
   }
 
   Widget _buildSettingsSection(BuildContext context, User currentUser) {
