@@ -2,6 +2,7 @@
 
 import 'dart:convert';
 import 'package:ekaplus_ekatunggal/core/config/api_config.dart';
+import 'package:ekaplus_ekatunggal/core/network/resource_visibility.dart';
 
 import 'package:ekaplus_ekatunggal/features/product/data/models/product_model.dart';
 import 'package:ekaplus_ekatunggal/features/product/domain/entities/product.dart';
@@ -24,6 +25,25 @@ class ProductRemoteDatasourceImplementation extends ProductRemoteDatasource {
 
   ProductRemoteDatasourceImplementation({required this.client});
 
+  List<dynamic> _filterVisibleVariants(List<dynamic> variants) {
+    return variants.where((variant) {
+      if (variant is! Map<String, dynamic>) return false;
+      final item = variant['item'];
+      if (item is! Map<String, dynamic>) return false;
+      return ResourceVisibility.isVisibleRecord(item);
+    }).toList();
+  }
+
+  List<Map<String, dynamic>> _sanitizeProducts(List<dynamic> data) {
+    return data.whereType<Map<String, dynamic>>().where((row) {
+      return ResourceVisibility.isVisibleRecord(row);
+    }).map((row) {
+      final variants = row['variants'];
+      if (variants is! List) return row;
+      return {...row, 'variants': _filterVisibleVariants(variants)};
+    }).toList();
+  }
+
   @override
   Future<List<Product>> getAllProduct({
     int page = 1,
@@ -35,14 +55,14 @@ class ProductRemoteDatasourceImplementation extends ProductRemoteDatasource {
   }) async {
     try {
       final spec = <String, dynamic>{
-        "fields": fields ?? ["id", "product_name"],
+        "fields": fields ?? ["id", "product_name", "disabled", "status"],
         "limit": limit,
         "page": page,
         "childs": [
           {
             "alias": "variants",
             "table": "ekatalog_variant",
-            "fields": ["item.id", "item.image"],
+            "fields": ["item.id", "item.image", "item.disabled", "item.status"],
             "limit": 1,
             "order_by": [
               ["item.updated_at", "desc"],
@@ -89,8 +109,9 @@ class ProductRemoteDatasourceImplementation extends ProductRemoteDatasource {
       final List<dynamic> data = decoded is List
           ? decoded
           : (decoded['data'] ?? []);
+      final sanitized = _sanitizeProducts(data);
 
-      List<Product> result = ProductModel.fromJsonList(data);
+      List<Product> result = ProductModel.fromJsonList(sanitized);
 
       return result;
     } catch (e) {
@@ -120,12 +141,19 @@ class ProductRemoteDatasourceImplementation extends ProductRemoteDatasource {
               "item.item_name",
               "item.image",
               "item.item_desc",
+              "item.disabled",
+              "item.status",
             ],
             "order_by": [
               ["item.updated_at", "desc"],
             ],
           },
         ],
+        "filters": [
+          ["id", "=", id],
+          ["disabled", "=", "0"],
+        ],
+        "limit": 1,
       };
 
       final uri = Uri.parse(
@@ -140,7 +168,15 @@ class ProductRemoteDatasourceImplementation extends ProductRemoteDatasource {
 
       final decoded = jsonDecode(response.body);
 
-      final dynamic data = decoded is List ? decoded : (decoded['data'] ?? []);
+      final dataList = decoded is List ? decoded : (decoded['data'] ?? []);
+      if (dataList is! List || dataList.isEmpty) {
+        throw 'Produk tidak ditemukan atau nonaktif';
+      }
+      final sanitized = _sanitizeProducts(dataList);
+      if (sanitized.isEmpty) {
+        throw 'Produk tidak ditemukan atau nonaktif';
+      }
+      final dynamic data = sanitized.first;
 
       return ProductModel.fromJson(data);
     } catch (e) {

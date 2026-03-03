@@ -191,6 +191,17 @@ class MemberRemoteDataSourceImpl implements MemberRemoteDataSource {
     return DateTime.tryParse(v.toString());
   }
 
+  bool _supportsDisabledFilter(String resource) {
+    const resources = {
+      'branch',
+      'group_parent',
+      'group_customer',
+      'branch_customer',
+      'customer_position',
+    };
+    return resources.contains(resource);
+  }
+
   Future<List<Map<String, dynamic>>> _getResourceList(
     String resource, {
     required List<String> fields,
@@ -198,10 +209,17 @@ class MemberRemoteDataSourceImpl implements MemberRemoteDataSource {
     List<List<dynamic>>? orderBy,
   }) async {
     final token = await SessionManager.getToken();
+    final normalizedFilters = <List<dynamic>>[...?filters];
+    if (_supportsDisabledFilter(resource) &&
+        !normalizedFilters.any(
+          (f) => f.isNotEmpty && f.first.toString() == 'disabled',
+        )) {
+      normalizedFilters.add(['disabled', '=', '0']);
+    }
     final spec = <String, dynamic>{
       'fields': fields,
     };
-    if (filters != null && filters.isNotEmpty) spec['filters'] = filters;
+    if (normalizedFilters.isNotEmpty) spec['filters'] = normalizedFilters;
     if (orderBy != null && orderBy.isNotEmpty) spec['order_by'] = orderBy;
 
     final uri = Uri.parse(
@@ -675,27 +693,13 @@ class MemberRemoteDataSourceImpl implements MemberRemoteDataSource {
       final userData = await SessionManager.getCurrentUser();
 
       final user = UserModel.fromLocalJson(userData!);
-      final ownerRegistrations = await loadAllRegistrations(
+      final rows = await loadAllRegistrations(
         filters: [
-          ["owner", "=", "${user.id}"],
+          ["created_by", "=", "${user.id}"],
         ],
       );
 
-      final ekaplusUserRegistrations = await loadAllRegistrations(
-        filters: [
-          ["ekaplus_user", "=", "${user.id}"],
-        ],
-      );
-
-      final mergedById = <int, MemberRegistration>{};
-      for (final reg in ownerRegistrations) {
-        mergedById[reg.id] = reg;
-      }
-      for (final reg in ekaplusUserRegistrations) {
-        mergedById[reg.id] = reg;
-      }
-
-      final merged = mergedById.values.toList()
+      final merged = rows.toList()
         ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
       return merged;

@@ -381,6 +381,8 @@ class _MemberListPageState extends State<MemberListPage>
 
   Future<void> _showRegistrationDetail(MemberRegistration registration) async {
     final status = registration.status.toLowerCase();
+    final isRejected = status == 'reject' || status == 'rejected';
+    final canEdit = status == 'draft' || isRejected;
     final shippingAddresses = await _loadShippingAddresses(registration.id);
     if (!mounted) return;
     final formData = _toConfirmationFormData(
@@ -397,17 +399,20 @@ class _MemberListPageState extends State<MemberListPage>
         description:
             'Berikut adalah detail pengajuan member Anda yang sudah tersimpan.',
         primaryButtonText: 'Selesai',
-        secondaryButtonText: status == 'draft' ? 'Edit Pengajuan' : null,
+        secondaryButtonText: canEdit ? 'Edit Pengajuan' : null,
         showSectionEditAction: false,
         showPrimarySendIcon: false,
         onClose: () => Navigator.of(dialogContext).pop(),
         onConfirm: () => Navigator.of(dialogContext).pop(),
-        onEdit: status == 'draft'
+        onEdit: canEdit
             ? () {
                 Navigator.of(dialogContext).pop();
                 context.pushNamed(
                   'memberRegistration',
-                  extra: {'registration': registration},
+                  extra: {
+                    'registration': registration,
+                    'resubmitAsNew': isRejected,
+                  },
                 );
               }
             : null,
@@ -591,6 +596,8 @@ class _MemberListPageState extends State<MemberListPage>
       'company_district': registration.district,
       'company_postal_code': registration.postalCode,
       'customer_shipping_address': shippingAddresses,
+      'reject_reason': registration.rejectReason,
+      'reject_notes': registration.rejectNotes,
     };
   }
 

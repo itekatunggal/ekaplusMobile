@@ -230,6 +230,12 @@ class MemberRegistrationModel {
       branchOwnerDateOfBirth: _safeString(json['branch_owner_date_of_birth']).isEmpty
           ? null
           : _safeString(json['branch_owner_date_of_birth']),
+      rejectReason: _safeString(json['reject_reason']).isEmpty
+          ? null
+          : _safeString(json['reject_reason']),
+      rejectNotes: _safeString(json['reject_notes']).isEmpty
+          ? null
+          : _safeString(json['reject_notes']),
       nik: _safeString(json['nik']),
       npwp: _safeString(json['npwp']).isEmpty ? null : _safeString(json['npwp']),
       ktpImage: _safeString(json['ktp_image']).isEmpty ? null : _safeString(json['ktp_image']),

@@ -219,21 +219,6 @@ class _ProfileHeaderState extends State<ProfileHeader> {
 
             if (authState is AuthSessionAuthenticated) {
               final user = authState.user;
-              final canPickCompany = authState.isMember;
-
-              if (!canPickCompany) {
-                return Text(
-                  'Halo, ${user.firstName}',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontFamily: AppFonts.primaryFont,
-                    color: AppColors.blackColor,
-                    fontSize: isIOS ? 16 : 14,
-                    letterSpacing: -0.3,
-                  ),
-                );
-              }
-
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -250,16 +235,19 @@ class _ProfileHeaderState extends State<ProfileHeader> {
                   const SizedBox(height: 2),
                   BlocBuilder<ActiveCompanyCubit, ActiveCompanyState>(
                     builder: (context, state) {
-                      final companyLabel = state is ActiveCompanyLoading
-                          ? 'Memuat perusahaan...'
-                          : state is ActiveCompanyReady
-                          ? (state.activeCompany?.displayName ??
-                                'Belum terhubung dengan perusahaan')
-                          : 'Belum terhubung dengan perusahaan';
+                      final readyState = state is ActiveCompanyReady
+                          ? state
+                          : null;
+                      final hasActiveCompany =
+                          readyState != null &&
+                          readyState.companies.isNotEmpty &&
+                          readyState.activeCompany != null;
+                      if (!hasActiveCompany) {
+                        return const SizedBox.shrink();
+                      }
+                      final companyLabel = readyState.activeCompany!.displayName;
                       return GestureDetector(
-                        onTap: canPickCompany
-                            ? (widget.onCompanyTap ?? _showCompanyPicker)
-                            : null,
+                        onTap: widget.onCompanyTap ?? _showCompanyPicker,
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
@@ -278,10 +266,8 @@ class _ProfileHeaderState extends State<ProfileHeader> {
                                 ),
                               ),
                             ),
-                            if (canPickCompany) ...[
-                              const SizedBox(width: 6),
-                              Icon(Icons.expand_more, size: isIOS ? 18 : 16),
-                            ],
+                            const SizedBox(width: 6),
+                            Icon(Icons.expand_more, size: isIOS ? 18 : 16),
                           ],
                         ),
                       );

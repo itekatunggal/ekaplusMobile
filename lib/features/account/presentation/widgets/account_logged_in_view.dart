@@ -53,7 +53,10 @@ class _AccountLoggedInViewState extends State<AccountLoggedInView> {
       },
       (registrations) {
         if (!mounted) return;
-        final latest = registrations.isNotEmpty ? registrations.last : null;
+        final latest = registrations.isNotEmpty
+            ? (registrations.toList()
+                ..sort((a, b) => b.createdAt.compareTo(a.createdAt))).first
+            : null;
         setState(() {
           _latestRegistration = latest;
           _isLoadingRegistration = false;
@@ -103,6 +106,7 @@ class _AccountLoggedInViewState extends State<AccountLoggedInView> {
           if (shouldForceReload) {
             WidgetsBinding.instance.addPostFrameCallback((_) {
               if (!mounted) return;
+              _loadMemberRegistration();
               context.read<ActiveCompanyCubit>().loadCompaniesAndResolveActive(
                 force: true,
               );
@@ -1138,6 +1142,7 @@ class _AccountLoggedInViewState extends State<AccountLoggedInView> {
           TextButton(
             onPressed: () {
               Navigator.pop(dialogContext);
+              context.read<ActiveCompanyCubit>().reset();
               context.read<AuthSessionCubit>().logout();
               context.goNamed('home');
             },

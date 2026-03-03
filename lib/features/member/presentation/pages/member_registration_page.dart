@@ -38,6 +38,7 @@ import '../enums/member_registration_intent.dart';
 
 class MemberRegistrationPage extends StatefulWidget {
   final MemberRegistration? initialRegistration;
+  final bool resubmitAsNew;
   final MemberRegistrationIntent? intent;
   final int? parentGcidId;
   final String? parentGcName;
@@ -46,6 +47,7 @@ class MemberRegistrationPage extends StatefulWidget {
   const MemberRegistrationPage({
     super.key,
     this.initialRegistration,
+    this.resubmitAsNew = false,
     this.intent,
     this.parentGcidId,
     this.parentGcName,
@@ -78,6 +80,7 @@ class _MemberRegistrationPageState extends State<MemberRegistrationPage> {
   final GlobalKey _documentsKey = GlobalKey();
 
   bool get _isEditMode => widget.initialRegistration != null;
+  bool get _isResubmitAsNew => _isEditMode && widget.resubmitAsNew;
   int? get _editingRegistrationId => widget.initialRegistration?.id;
   bool get _isBcidMode =>
       !_isEditMode &&
@@ -694,8 +697,21 @@ class _MemberRegistrationPageState extends State<MemberRegistrationPage> {
       }
       formData['registration_mode'] = 'bcid';
     }
-    if (_editingRegistrationId != null) {
+    if (_editingRegistrationId != null && !_isResubmitAsNew) {
       formData['id'] = _editingRegistrationId;
+    }
+    if (_isResubmitAsNew) {
+      final initial = widget.initialRegistration;
+      final originalGpid = initial?.gpid?.id;
+      final originalGcid = initial?.gcid?.id;
+
+      if (originalGpid != null && originalGpid > 0) {
+        formData['gpid'] = originalGpid;
+      }
+      if (originalGcid != null && originalGcid > 0) {
+        formData['gcid'] = originalGcid;
+        formData['registration_mode'] = 'bcid';
+      }
     }
 
     await _showConfirmationDialog(formData, files);
@@ -836,7 +852,7 @@ class _MemberRegistrationPageState extends State<MemberRegistrationPage> {
             AppSnackbar.showRaw(context, 
               SnackBar(
                 content: Text(
-                  _isEditMode
+                  _isEditMode && !_isResubmitAsNew
                       ? 'Pengajuan berhasil diperbarui'
                       : 'Pengajuan berhasil dikirim',
                 ),
@@ -864,7 +880,9 @@ class _MemberRegistrationPageState extends State<MemberRegistrationPage> {
               appBar: CustomHeaderAppBar(
                 title: _isEditMode ? 'Ubah Pengajuan' : 'Hubungkan Usaha',
                 subtitle: _isEditMode
-                    ? 'Perbarui Draft Pengajuan'
+                    ? (_isResubmitAsNew
+                          ? 'Perbarui Pengajuan Ditolak untuk Kirim Ulang'
+                          : 'Perbarui Draft Pengajuan')
                     : 'Lengkapi Profil Anda',
                 onBackPressed: _handleBackPressed,
               ),

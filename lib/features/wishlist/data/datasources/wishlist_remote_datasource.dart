@@ -2,6 +2,7 @@
 
 import 'package:ekaplus_ekatunggal/core/network/base_remote_datasource.dart';
 import 'package:ekaplus_ekatunggal/core/network/query_spec_builder.dart';
+import 'package:ekaplus_ekatunggal/core/network/resource_visibility.dart';
 import 'package:ekaplus_ekatunggal/features/wishlist/data/models/wishlist_item_model.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
@@ -54,6 +55,8 @@ class WishlistLocalDataSourceImpl implements WishlistRemoteDataSource {
         "item.id",
         "item.item_code",
         "item.image",
+        "item.disabled",
+        "item.status",
         "user.id",
         "user.full_name",
         "created_at",
@@ -62,6 +65,7 @@ class WishlistLocalDataSourceImpl implements WishlistRemoteDataSource {
 
     // Filter by user
     spec.where("user", "=", userId);
+    spec.where("item.disabled", "=", 0);
 
     // Filter by productId jika ada
     if (productId != null) {
@@ -116,8 +120,13 @@ class WishlistLocalDataSourceImpl implements WishlistRemoteDataSource {
     final List<dynamic> data = decoded is List
         ? decoded
         : (decoded['data'] ?? []);
+    final visibleRows = data.whereType<Map<String, dynamic>>().where((row) {
+      final item = row['item'];
+      if (item is! Map<String, dynamic>) return false;
+      return ResourceVisibility.isVisibleRecord(item);
+    }).toList();
 
-    return WishlistItemModel.fromJsonList(data);
+    return WishlistItemModel.fromJsonList(visibleRows);
   }
 
   @override

@@ -41,6 +41,8 @@ class MemberRegistration extends Equatable {
   final String? branchOwnerEmail;
   final String? branchOwnerPlaceOfBirth;
   final String? branchOwnerDateOfBirth;
+  final String? rejectReason;
+  final String? rejectNotes;
 
   final String nik;
   final String? npwp;
@@ -88,6 +90,8 @@ class MemberRegistration extends Equatable {
     this.branchOwnerEmail,
     this.branchOwnerPlaceOfBirth,
     this.branchOwnerDateOfBirth,
+    this.rejectReason,
+    this.rejectNotes,
     required this.nik,
     this.npwp,
     this.ktpImage,
@@ -132,6 +136,8 @@ class MemberRegistration extends Equatable {
     branchOwnerEmail,
     branchOwnerPlaceOfBirth,
     branchOwnerDateOfBirth,
+    rejectReason,
+    rejectNotes,
     nik,
     npwp,
     ktpImage,

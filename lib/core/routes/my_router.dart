@@ -61,6 +61,39 @@ import 'package:ekaplus_ekatunggal/core/utils/global_navigator_key.dart';
 
 final getIt = GetIt.instance;
 
+CustomTransitionPage<void> _smoothPage({
+  required LocalKey key,
+  required Widget child,
+}) {
+  return CustomTransitionPage<void>(
+    key: key,
+    child: child,
+    transitionDuration: const Duration(milliseconds: 260),
+    reverseTransitionDuration: const Duration(milliseconds: 220),
+    transitionsBuilder: (context, animation, secondaryAnimation, pageChild) {
+      final fadeIn = CurvedAnimation(
+        parent: animation,
+        curve: const Interval(0.2, 1.0, curve: Curves.easeOutCubic),
+      );
+      final fadeOut = CurvedAnimation(
+        parent: secondaryAnimation,
+        curve: const Interval(0.0, 0.8, curve: Curves.easeOutCubic),
+      );
+      final scaleIn = Tween<double>(
+        begin: 0.94,
+        end: 1.0,
+      ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic));
+      return FadeTransition(
+        opacity: Tween<double>(begin: 1.0, end: 0.0).animate(fadeOut),
+        child: FadeTransition(
+          opacity: fadeIn,
+          child: ScaleTransition(scale: scaleIn, child: pageChild),
+        ),
+      );
+    },
+  );
+}
+
 class MyRouter {
   GoRouter get router => GoRouter(
     navigatorKey: globalNavigatorKey,
@@ -215,6 +248,7 @@ class MyRouter {
           final extra = state.extra as Map<String, dynamic>?;
           return MemberRegistrationPage(
             initialRegistration: extra?['registration'] as MemberRegistration?,
+            resubmitAsNew: extra?['resubmitAsNew'] as bool? ?? false,
             intent: memberRegistrationIntentFromRouteValue(extra?['intent']),
             parentGcidId: extra?['selectedGcidId'] as int?,
             parentGcName: extra?['selectedGcName'] as String?,
@@ -391,26 +425,29 @@ class MyRouter {
       GoRoute(
         path: '/account/edit-contact',
         name: 'edit-contact',
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final extra = state.extra as Map<String, dynamic>;
           final type = extra['type'] as String;
 
-          return BlocProvider(
-            create: (context) => ProfileUpdateCubit(
-              updateFullName: getIt<UpdateFullName>(),
-              updateUsername: getIt<UpdateUsername>(),
-              requestPhoneChange: getIt<RequestPhoneChange>(),
-              verifyPhoneChange: getIt<VerifyPhoneChange>(),
-              requestEmailChange: getIt<RequestEmailChange>(),
-              verifyEmailChange: getIt<VerifyEmailChange>(),
-            ),
-            child: EditContactPage(
-              userId: extra['userId'] as String,
-              currentValue: type == 'phone'
-                  ? extra['currentPhone'] as String
-                  : extra['currentEmail'] as String,
-              // verifiedPassword: extra['password'] as String,
-              type: type == 'phone' ? ContactType.phone : ContactType.email,
+          return _smoothPage(
+            key: state.pageKey,
+            child: BlocProvider(
+              create: (context) => ProfileUpdateCubit(
+                updateFullName: getIt<UpdateFullName>(),
+                updateUsername: getIt<UpdateUsername>(),
+                requestPhoneChange: getIt<RequestPhoneChange>(),
+                verifyPhoneChange: getIt<VerifyPhoneChange>(),
+                requestEmailChange: getIt<RequestEmailChange>(),
+                verifyEmailChange: getIt<VerifyEmailChange>(),
+              ),
+              child: EditContactPage(
+                userId: extra['userId'] as String,
+                currentValue: type == 'phone'
+                    ? extra['currentPhone'] as String
+                    : extra['currentEmail'] as String,
+                // verifiedPassword: extra['password'] as String,
+                type: type == 'phone' ? ContactType.phone : ContactType.email,
+              ),
             ),
           );
         },
@@ -472,20 +509,23 @@ class MyRouter {
       GoRoute(
         path: '/account/verify-email-initial',
         name: 'verify-email-initial',
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final extra = state.extra as Map<String, dynamic>;
-          return BlocProvider(
-            create: (context) => ProfileUpdateCubit(
-              updateFullName: getIt<UpdateFullName>(),
-              updateUsername: getIt<UpdateUsername>(),
-              requestPhoneChange: getIt<RequestPhoneChange>(),
-              verifyPhoneChange: getIt<VerifyPhoneChange>(),
-              requestEmailChange: getIt<RequestEmailChange>(),
-              verifyEmailChange: getIt<VerifyEmailChange>(),
-            ),
-            child: VerifyEmailInitialPage(
-              userId: extra['userId'] as String,
-              email: extra['email'] as String,
+          return _smoothPage(
+            key: state.pageKey,
+            child: BlocProvider(
+              create: (context) => ProfileUpdateCubit(
+                updateFullName: getIt<UpdateFullName>(),
+                updateUsername: getIt<UpdateUsername>(),
+                requestPhoneChange: getIt<RequestPhoneChange>(),
+                verifyPhoneChange: getIt<VerifyPhoneChange>(),
+                requestEmailChange: getIt<RequestEmailChange>(),
+                verifyEmailChange: getIt<VerifyEmailChange>(),
+              ),
+              child: VerifyEmailInitialPage(
+                userId: extra['userId'] as String,
+                email: extra['email'] as String,
+              ),
             ),
           );
         },

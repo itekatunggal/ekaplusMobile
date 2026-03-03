@@ -2,6 +2,7 @@
 
 import 'dart:convert';
 import 'package:ekaplus_ekatunggal/core/config/api_config.dart';
+import 'package:ekaplus_ekatunggal/core/network/resource_visibility.dart';
 import 'package:ekaplus_ekatunggal/features/banner/data/models/banner_model.dart';
 import 'package:ekaplus_ekatunggal/features/banner/domain/entities/bannerslider.dart';
 
@@ -40,8 +41,9 @@ class BannerRemoteDatasourceImplementation extends BannerRemoteDatasource {
 
       final body = jsonDecode(response.body);
       final List<dynamic> data = body['data'] ?? [];
+      final visibleRows = ResourceVisibility.filterVisibleRows(data);
 
-      List<BannerModel> bannerData = BannerModel.fromJsonList(data);
+      List<BannerModel> bannerData = BannerModel.fromJsonList(visibleRows);
 
       return bannerData;
     } catch (e) {
@@ -63,9 +65,15 @@ class BannerRemoteDatasourceImplementation extends BannerRemoteDatasource {
       }
 
       final body = jsonDecode(response.body);
-      final dynamic data = body['data'] ?? [];
+      final dynamic rawData = body['data'] ?? [];
+      if (rawData is! Map<String, dynamic>) {
+        throw Exception('Banner tidak ditemukan');
+      }
+      if (!ResourceVisibility.isVisibleRecord(rawData)) {
+        throw Exception('Banner tidak ditemukan atau nonaktif');
+      }
 
-      BannerModel result = BannerModel.fromJson(data);
+      BannerModel result = BannerModel.fromJson(rawData);
 
       return result;
     } catch (e) {

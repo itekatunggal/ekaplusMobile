@@ -564,9 +564,7 @@ class AuthLocalDataSourceImpl implements AuthRemoteDataSource {
 
   @override
   Future<void> clearSession() async {
-    await secureStorage.delete(key: _tokenKey);
-    await secureStorage.delete(key: _refreshTokenKey);
-    await box.delete(_userKey);
+    await SessionManager.clearSession();
   }
 
   @override

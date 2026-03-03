@@ -129,6 +129,17 @@ class MemberRegistrationCard extends StatelessWidget {
                       ),
                     ],
                   ),
+                  if (_isRejected(registration) &&
+                      ((registration.rejectReason ?? '').trim().isNotEmpty ||
+                          (registration.rejectNotes ?? '').trim().isNotEmpty)) ...[
+                    const SizedBox(height: 8),
+                    if ((registration.rejectReason ?? '').trim().isNotEmpty)
+                      _buildRejectItem('Alasan Reject', registration.rejectReason!),
+                    if ((registration.rejectNotes ?? '').trim().isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      _buildRejectItem('Catatan Reject', registration.rejectNotes!),
+                    ],
+                  ],
                 ],
               ),
             ),
@@ -154,8 +165,13 @@ class MemberRegistrationCard extends StatelessWidget {
         break;
       case 0:
       default:
-        backgroundColor = Colors.orange[50]!;
-        textColor = Colors.orange[700]!;
+        if (_isRejected(register)) {
+          backgroundColor = Colors.red[50]!;
+          textColor = Colors.red[700]!;
+        } else {
+          backgroundColor = Colors.orange[50]!;
+          textColor = Colors.orange[700]!;
+        }
         break;
     }
 
@@ -175,6 +191,32 @@ class MemberRegistrationCard extends StatelessWidget {
           color: textColor,
         ),
       ),
+    );
+  }
+
+  bool _isRejected(MemberRegistration register) {
+    final status = register.status.trim().toLowerCase();
+    return status == 'rejected' || status == 'reject';
+  }
+
+  Widget _buildRejectItem(String label, String value) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(Icons.report_problem_outlined, size: 16, color: Colors.red[700]),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Text(
+            '$label: $value',
+            style: TextStyle(
+              fontFamily: AppFonts.primaryFont,
+              fontSize: 11.5,
+              color: Colors.red[700],
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+      ],
     );
   }
 

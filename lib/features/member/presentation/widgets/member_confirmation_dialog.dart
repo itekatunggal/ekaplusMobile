@@ -184,6 +184,15 @@ class _MemberConfirmationDialogState extends State<MemberConfirmationDialog> {
 
                     // Informasi Perusahaan Section
                     _buildCompanySection(),
+                    if ((_asString(widget.formData['reject_reason']) ?? '')
+                            .trim()
+                            .isNotEmpty ||
+                        (_asString(widget.formData['reject_notes']) ?? '')
+                            .trim()
+                            .isNotEmpty) ...[
+                      const SizedBox(height: 32),
+                      _buildRejectSection(),
+                    ],
                     const SizedBox(height: 32),
 
                     // Alamat Section
@@ -638,6 +647,37 @@ class _MemberConfirmationDialogState extends State<MemberConfirmationDialog> {
                   return _buildShippingAddressCard(index, address);
                 }),
               ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildRejectSection() {
+    final reason = _asString(widget.formData['reject_reason'])?.trim();
+    final notes = _asString(widget.formData['reject_notes'])?.trim();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionHeader(
+          icon: Icons.report_problem_outlined,
+          title: 'Informasi Reject',
+        ),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: const Color(0xFFFFF5F5),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFFFECACA)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildDataItem(label: 'Alasan Reject', value: reason),
+              const SizedBox(height: 12),
+              _buildDataItem(label: 'Catatan Reject', value: notes),
             ],
           ),
         ),

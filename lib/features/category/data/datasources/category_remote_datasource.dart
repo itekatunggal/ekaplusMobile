@@ -18,6 +18,34 @@ class CategoryRemoteDatasourceImplementation extends CategoryRemoteDatasource {
 
   CategoryRemoteDatasourceImplementation({required this.client});
 
+  bool _isDisabled(dynamic value) {
+    if (value is num) return value == 1;
+    final raw = value?.toString().trim().toLowerCase() ?? '';
+    return raw == '1' || raw == 'true' || raw == 'disabled';
+  }
+
+  List<dynamic> _filterEnabledCategories(List<dynamic> rows) {
+    return rows.where((row) {
+      if (row is! Map<String, dynamic>) return false;
+      final disabled = _isDisabled(row['disabled']);
+      final status = _isDisabled(row['status']);
+      return !disabled && !status;
+    }).toList();
+  }
+
+  List<dynamic> _sanitizeTypeGroups(List<dynamic> rows) {
+    return rows.map((row) {
+      if (row is! Map<String, dynamic>) return row;
+      final categoriesRaw = row['categories'];
+      if (categoriesRaw is! List) return row;
+
+      return {
+        ...row,
+        'categories': _filterEnabledCategories(categoriesRaw),
+      };
+    }).toList();
+  }
+
   @override
   Future<List<CategoryGroupModel>> getGroupByType() async {
     try {
@@ -43,6 +71,11 @@ class CategoryRemoteDatasourceImplementation extends CategoryRemoteDatasource {
               "image",
               "subtitle",
               "title",
+              "disabled",
+              "status",
+            ],
+            "filters": [
+              ["disabled", "=", "0"],
             ],
           },
         ],
@@ -61,8 +94,11 @@ class CategoryRemoteDatasourceImplementation extends CategoryRemoteDatasource {
 
       final body = jsonDecode(response.body);
       final List<dynamic> data = body['data'] ?? [];
+      final sanitized = _sanitizeTypeGroups(data);
 
-      List<CategoryGroupModel> result = CategoryGroupModel.fromJsonList(data);
+      List<CategoryGroupModel> result = CategoryGroupModel.fromJsonList(
+        sanitized,
+      );
 
       return result;
     } catch (e) {
@@ -74,7 +110,7 @@ class CategoryRemoteDatasourceImplementation extends CategoryRemoteDatasource {
   Future<List<Category>> getAllCategory(int page) async {
     try {
       final spec = {
-        "fields": ["id", "category_name", "icon"],
+        "fields": ["id", "category_name", "icon", "disabled", "status"],
         "filters": [
           ["disabled", "=", "0"],
         ],
@@ -104,8 +140,9 @@ class CategoryRemoteDatasourceImplementation extends CategoryRemoteDatasource {
 
       final body = jsonDecode(response.body);
       final List<dynamic> data = body['data'] ?? [];
+      final sanitized = _filterEnabledCategories(data);
 
-      List<CategoryModel> typeData = CategoryModel.fromJsonList(data);
+      List<CategoryModel> typeData = CategoryModel.fromJsonList(sanitized);
 
       return typeData;
     } catch (e) {
@@ -118,6 +155,11 @@ class CategoryRemoteDatasourceImplementation extends CategoryRemoteDatasource {
     try {
       final spec = {
         "fields": ["*"],
+        "filters": [
+          ["id", "=", id],
+          ["disabled", "=", "0"],
+        ],
+        "limit": 1,
       };
 
       final uri = Uri.parse(
@@ -132,7 +174,11 @@ class CategoryRemoteDatasourceImplementation extends CategoryRemoteDatasource {
       }
 
       final body = jsonDecode(response.body);
-      final dynamic data = body['data'] ?? [];
+      final list = body['data'];
+      if (list is! List || list.isEmpty) {
+        throw Exception('Kategori tidak ditemukan atau nonaktif');
+      }
+      final dynamic data = list.first;
 
       CategoryModel result = CategoryModel.fromJson(data);
 

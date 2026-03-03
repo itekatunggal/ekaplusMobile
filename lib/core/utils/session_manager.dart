@@ -53,8 +53,7 @@ class SessionManager {
     await _secure.delete(key: _tokenKey);
     await _secure.delete(key: _refreshTokenKey);
     final box = Hive.box('auth_user_box');
-    await box.delete(_userKey);
-    await box.delete(_activeBcidKey);
+    await box.clear();
   }
 
   static Future<void> saveActiveBranchCustomerId(int bcid) async {

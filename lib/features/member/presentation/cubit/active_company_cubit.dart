@@ -88,6 +88,11 @@ class ActiveCompanyCubit extends Cubit<ActiveCompanyState> {
     await loadCompaniesAndResolveActive(force: true);
   }
 
+  Future<void> reset() async {
+    await SessionManager.clearActiveBranchCustomerId();
+    emit(const ActiveCompanyInitial());
+  }
+
   Future<bool> setActiveCompany(ActiveMemberCompany company) async {
     final bcid = company.branchCustomerId;
     if (bcid == null || bcid <= 0) return false;
@@ -112,4 +117,3 @@ class ActiveCompanyCubit extends Cubit<ActiveCompanyState> {
     return true;
   }
 }
-

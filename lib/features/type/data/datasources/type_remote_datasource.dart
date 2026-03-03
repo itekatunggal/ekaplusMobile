@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:ekaplus_ekatunggal/core/config/api_config.dart';
+import 'package:ekaplus_ekatunggal/core/network/resource_visibility.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:ekaplus_ekatunggal/features/type/data/models/type_model.dart';
 import 'package:ekaplus_ekatunggal/features/type/domain/entities/type.dart';
@@ -38,8 +39,9 @@ class TypeRemoteDatasourceImpl implements TypeRemoteDatasource {
 
       final body = jsonDecode(response.body);
       final List<dynamic> data = body['data'] ?? [];
+      final visibleRows = ResourceVisibility.filterVisibleRows(data);
 
-      List<TypeModel> typeData = TypeModel.fromJsonList(data);
+      List<TypeModel> typeData = TypeModel.fromJsonList(visibleRows);
 
       return typeData;
     } catch (e) {
