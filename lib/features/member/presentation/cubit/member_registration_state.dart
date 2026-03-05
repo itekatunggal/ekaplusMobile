@@ -27,6 +27,18 @@ class MemberRegistrationSuccess extends MemberRegistrationState {
   const MemberRegistrationSuccess();
 }
 
+class MemberRegistrationDraftSaved extends MemberRegistrationState {
+  final MemberRegistration registration;
+
+  const MemberRegistrationDraftSaved(this.registration);
+}
+
+class MemberRegistrationDraftDeleted extends MemberRegistrationState {
+  final int registrationId;
+
+  const MemberRegistrationDraftDeleted(this.registrationId);
+}
+
 // Branches Loaded
 class MemberRegistrationBranchesLoaded extends MemberRegistrationState {
   final List<BranchModel> branches;

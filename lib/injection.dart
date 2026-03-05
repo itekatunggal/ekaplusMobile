@@ -378,6 +378,7 @@ Future<void> init() async {
       getMemberRegistrationsByUserId: myinjection(),
       getApprovedGCIDs: myinjection(),
       getActiveMemberCompaniesByUserId: myinjection(),
+      deleteMemberRegistration: myinjection(),
     ),
   );
 }

@@ -574,6 +574,7 @@ class MemberRegistrationFormState {
       // Registration Metadata
       // 'type': registrationType,
       'source': 'ekaplus',
+      'owner_name': namaController.text.trim(),
       'owner_full_name': namaController.text.trim(),
       'owner_phone': _normalizePhoneForDb(phoneController.text.trim()),
       'owner_email': emailController.text.trim(),

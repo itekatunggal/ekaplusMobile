@@ -17,16 +17,19 @@ class MemberRegistrationCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDraft = _isDraft(registration);
     final companyName = registration.businessName;
     final branchName =
         registration.branch.city != null &&
             registration.branch.city!.trim().isNotEmpty
         ? '${registration.branch.branchName} - ${registration.branch.city}'
         : registration.branch.branchName;
+    final dateLabel = isDraft ? 'Diupdate' : 'Diajukan';
+    final displayDate = isDraft ? registration.updatedAt : registration.createdAt;
     final formattedDate = DateFormat(
       'dd MMM yyyy, HH:mm',
       'id_ID',
-    ).format(registration.createdAt.toLocal());
+    ).format(displayDate.toLocal());
 
     return GestureDetector(
       onTap: onTap,
@@ -120,7 +123,7 @@ class MemberRegistrationCard extends StatelessWidget {
                       ),
                       const SizedBox(width: 6),
                       Text(
-                        'Diajukan: $formattedDate',
+                        '$dateLabel: $formattedDate',
                         style: TextStyle(
                           fontFamily: AppFonts.primaryFont,
                           fontSize: 11,
@@ -197,6 +200,10 @@ class MemberRegistrationCard extends StatelessWidget {
   bool _isRejected(MemberRegistration register) {
     final status = register.status.trim().toLowerCase();
     return status == 'rejected' || status == 'reject';
+  }
+
+  bool _isDraft(MemberRegistration register) {
+    return register.status.trim().toLowerCase() == 'draft';
   }
 
   Widget _buildRejectItem(String label, String value) {

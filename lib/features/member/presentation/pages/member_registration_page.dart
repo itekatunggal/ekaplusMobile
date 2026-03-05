@@ -64,6 +64,8 @@ class _MemberRegistrationPageState extends State<MemberRegistrationPage> {
 
   Map<String, String?> _errors = {};
   bool _isSubmitting = false;
+  bool _shouldRefreshOnExit = false;
+  int? _persistedDraftId;
   DateTime? _selectedBirthDate;
   DateTime? _selectedBranchPicBirthDate;
   ActiveMemberCompany? _defaultHierarchySourceForNewCompany;
@@ -99,7 +101,10 @@ class _MemberRegistrationPageState extends State<MemberRegistrationPage> {
   void initState() {
     super.initState();
 
-    _memberCubit = di.myinjection<MemberRegistrationCubit>();
+    _memberCubit = context.read<MemberRegistrationCubit>();
+    if (_isEditMode && !_isResubmitAsNew) {
+      _persistedDraftId = widget.initialRegistration?.id;
+    }
 
     final authState = context.read<AuthSessionCubit>().state;
 
@@ -450,17 +455,27 @@ class _MemberRegistrationPageState extends State<MemberRegistrationPage> {
   }
 
   DateTime? _parseBirthDate(String value) {
-    if (value.trim().isEmpty) return null;
+    final raw = value.trim();
+    if (raw.isEmpty) return null;
 
     // Preferred display format: "01 Februari 2000"
     try {
-      return DateFormat('dd MMMM yyyy', 'id_ID').parseStrict(value.trim());
+      return DateFormat('dd MMMM yyyy', 'id_ID').parseStrict(raw);
     } catch (_) {}
 
     // Fallback for older stored format: "01/02/2000"
     try {
-      return DateFormat('dd/MM/yyyy').parseStrict(value.trim());
+      return DateFormat('dd/MM/yyyy').parseStrict(raw);
     } catch (_) {}
+
+    // API date format: "2000-02-01"
+    try {
+      return DateFormat('yyyy-MM-dd').parseStrict(raw);
+    } catch (_) {}
+
+    // ISO datetime fallback
+    final iso = DateTime.tryParse(raw);
+    if (iso != null) return iso;
 
     return null;
   }
@@ -479,7 +494,6 @@ class _MemberRegistrationPageState extends State<MemberRegistrationPage> {
     _formState.birthPlaceController.removeListener(_syncBranchPicIfLinked);
     _formState.dispose();
     _scrollController.dispose();
-    _memberCubit.close();
     super.dispose();
   }
 
@@ -622,36 +636,18 @@ class _MemberRegistrationPageState extends State<MemberRegistrationPage> {
     );
   }
 
-  Future<void> _handleSubmit() async {
-    final errors = _formState.validate();
-
-    if (errors.isNotEmpty) {
-      setState(() => _errors = errors);
-
-      AppSnackbar.showRaw(context, 
-        SnackBar(
-          content: Text(
-            'Masih ada field wajib diisi atau error (${errors.length})!',
-          ),
-          backgroundColor: Colors.red,
-        ),
-      );
-
-      _scrollToFirstError(errors);
-      return;
-    }
-
-    setState(() => _errors = {});
-
-    final Map<String, File> files = {};
-
+  Map<String, File> _collectFiles() {
+    final files = <String, File>{};
     if (_formState.ktpFile != null) {
       files['ktp_image'] = _formState.ktpFile!;
     }
     if (_formState.npwpFile != null) {
       files['npwp_image'] = _formState.npwpFile!;
     }
+    return files;
+  }
 
+  Map<String, dynamic>? _buildSubmissionPayload() {
     final formData = _formState.toApiCustomerRegisterJson();
     final authState = context.read<AuthSessionCubit>().state;
     if (authState is AuthSessionAuthenticated) {
@@ -664,7 +660,8 @@ class _MemberRegistrationPageState extends State<MemberRegistrationPage> {
     if (needsOwnerPermission &&
         hierarchySource != null &&
         !hierarchySource.memberIsOwner) {
-      AppSnackbar.showRaw(context, 
+      AppSnackbar.showRaw(
+        context,
         const SnackBar(
           content: Text(
             'Akun sharing tidak memiliki hak untuk menambah cabang (BCID)',
@@ -672,7 +669,7 @@ class _MemberRegistrationPageState extends State<MemberRegistrationPage> {
           backgroundColor: Colors.red,
         ),
       );
-      return;
+      return null;
     }
 
     if (!_isEditMode && widget.intent == MemberRegistrationIntent.newCompany) {
@@ -697,8 +694,11 @@ class _MemberRegistrationPageState extends State<MemberRegistrationPage> {
       }
       formData['registration_mode'] = 'bcid';
     }
-    if (_editingRegistrationId != null && !_isResubmitAsNew) {
-      formData['id'] = _editingRegistrationId;
+
+    final editingId =
+        _persistedDraftId ?? (_isResubmitAsNew ? null : _editingRegistrationId);
+    if (editingId != null) {
+      formData['id'] = editingId;
     }
     if (_isResubmitAsNew) {
       final initial = widget.initialRegistration;
@@ -714,7 +714,71 @@ class _MemberRegistrationPageState extends State<MemberRegistrationPage> {
       }
     }
 
-    await _showConfirmationDialog(formData, files);
+    return formData;
+  }
+
+  Future<MemberRegistration?> _saveDraft({
+    required Map<String, dynamic> payload,
+    required Map<String, File> files,
+    bool showLoading = true,
+  }) async {
+    final requestPayload = Map<String, dynamic>.from(payload);
+    final editingId = _persistedDraftId ?? (_isResubmitAsNew ? null : _editingRegistrationId);
+    if (editingId != null) {
+      requestPayload['id'] = editingId;
+    }
+
+    final draft = await _memberCubit.saveDraft(
+      requestPayload,
+      files: files,
+      showLoading: showLoading,
+    );
+    if (draft != null) {
+      _persistedDraftId = draft.id;
+      _shouldRefreshOnExit = true;
+    }
+    return draft;
+  }
+
+  Future<void> _handleSubmit() async {
+    final errors = _formState.validate();
+
+    if (errors.isNotEmpty) {
+      setState(() => _errors = errors);
+
+      AppSnackbar.showRaw(
+        context,
+        SnackBar(
+          content: Text(
+            'Masih ada field wajib diisi atau error (${errors.length})!',
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+
+      _scrollToFirstError(errors);
+      return;
+    }
+
+    setState(() => _errors = {});
+    final payload = _buildSubmissionPayload();
+    if (payload == null) return;
+    final files = _collectFiles();
+
+    setState(() => _isSubmitting = true);
+    final draft = await _saveDraft(
+      payload: payload,
+      files: files,
+      showLoading: true,
+    );
+    if (!mounted) return;
+    setState(() => _isSubmitting = false);
+    if (draft == null) return;
+
+    final confirmationData = Map<String, dynamic>.from(payload)
+      ..['id'] = draft.id
+      ..['status'] = 'Draft';
+    await _showConfirmationDialog(confirmationData, files);
   }
 
   void _scrollToFirstError(Map<String, String?> errors) {
@@ -767,31 +831,132 @@ class _MemberRegistrationPageState extends State<MemberRegistrationPage> {
     return errors.keys.any((key) => key.startsWith('shipping'));
   }
 
-  Future<bool> _showDiscardChangesDialog() async {
-    final result = await showDialog<bool>(
+  Future<String?> _showSaveOrDiscardDialog({
+    required String title,
+    required String description,
+    String saveLabel = 'Simpan Draft',
+    String discardLabel = 'Hapus',
+  }) async {
+    return showDialog<String>(
       context: context,
-      barrierDismissible: false,
+      barrierDismissible: true,
       builder: (dialogContext) {
-        return AlertDialog(
-          title: const Text('Konfirmasi'),
-          content: const Text(
-            'Data form yang sudah diisi belum disimpan. Yakin ingin kembali?',
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(false),
-              child: const Text('Tidak'),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFDECEC),
+                    borderRadius: BorderRadius.circular(28),
+                  ),
+                  child: const Icon(
+                    Icons.edit_note,
+                    color: AppColors.primaryColor,
+                    size: 28,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  title,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF0F172A),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  description,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    height: 1.5,
+                    color: Color(0xFF667085),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () =>
+                            Navigator.of(dialogContext).pop('discard'),
+                        style: OutlinedButton.styleFrom(
+                          minimumSize: const Size.fromHeight(48),
+                          side: const BorderSide(color: Color(0xFFE5E7EB)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: Text(
+                          discardLabel,
+                          style: const TextStyle(
+                            color: AppColors.primaryColor,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () =>
+                            Navigator.of(dialogContext).pop('save'),
+                        style: ElevatedButton.styleFrom(
+                          minimumSize: const Size.fromHeight(48),
+                          backgroundColor: AppColors.primaryColor,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: Text(
+                          saveLabel,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(true),
-              child: const Text('Ya'),
-            ),
-          ],
+          ),
         );
       },
     );
+  }
 
-    return result ?? false;
+  Future<String?> _showUnsavedFirstDraftDialog() {
+    return _showSaveOrDiscardDialog(
+      title: 'Simpan Pengajuan?',
+      description:
+          'Data yang sudah Anda isi belum dikirim. Simpan sebagai draft sekarang?',
+      saveLabel: 'Simpan Draft',
+      discardLabel: 'Hapus',
+    );
+  }
+
+  Future<String?> _showExistingDraftBackDialog() async {
+    return _showSaveOrDiscardDialog(
+      title: 'Simpan Perubahan?',
+      description:
+          'Perubahan belum disimpan ke draft. Simpan perubahan sekarang?',
+      saveLabel: 'Simpan Draft',
+      discardLabel: 'Buang',
+    );
   }
 
   Future<bool> _onWillPop() async {
@@ -800,18 +965,47 @@ class _MemberRegistrationPageState extends State<MemberRegistrationPage> {
     }
 
     if (!_formState.hasAnyInput()) {
-      return true;
+      context.pop(_shouldRefreshOnExit ? true : null);
+      return false;
+    }
+    final payload = _buildSubmissionPayload();
+    if (payload == null) return false;
+    final files = _collectFiles();
+
+    final hasPersistedDraft = _persistedDraftId != null;
+    final action = hasPersistedDraft
+        ? await _showExistingDraftBackDialog()
+        : await _showUnsavedFirstDraftDialog();
+    if (!mounted) return false;
+    if (action == null || action == 'cancel') return false;
+    if (action == 'discard') {
+      context.pop(_shouldRefreshOnExit ? true : null);
+      return false;
     }
 
-    return _showDiscardChangesDialog();
+    setState(() => _isSubmitting = true);
+    final draft = await _saveDraft(
+      payload: payload,
+      files: files,
+      showLoading: true,
+    );
+    if (!mounted) return false;
+    setState(() => _isSubmitting = false);
+    if (draft == null) return false;
+
+    AppSnackbar.showRaw(
+      context,
+      const SnackBar(
+        content: Text('Draft pengajuan berhasil disimpan.'),
+        backgroundColor: Colors.green,
+      ),
+    );
+    context.pop(_shouldRefreshOnExit ? true : null);
+    return false;
   }
 
   Future<void> _handleBackPressed() async {
-    final canPop = await _onWillPop();
-    if (!mounted) return;
-    if (canPop) {
-      context.pop();
-    }
+    await _onWillPop();
   }
 
   Future<void> _showConfirmationDialog(
@@ -827,185 +1021,192 @@ class _MemberRegistrationPageState extends State<MemberRegistrationPage> {
         onEdit: () => Navigator.pop(context),
         onConfirm: () async {
           Navigator.pop(context);
-          await _submitToDatabase(formData, files);
+          await _submitRequest(formData, files);
         },
       ),
     );
   }
 
-  Future<void> _submitToDatabase(
+  Future<void> _submitRequest(
     Map<String, dynamic> formData,
     Map<String, File> files,
   ) async {
     setState(() => _isSubmitting = true);
-    await _memberCubit.submitRegistration(formData, files: files);
+    final requestPayload = Map<String, dynamic>.from(formData);
+    if (_persistedDraftId != null) {
+      requestPayload['id'] = _persistedDraftId;
+    }
+    final submitted = await _memberCubit.submitAsRequest(
+      requestPayload,
+      files: files,
+    );
+    if (!mounted) return;
     setState(() => _isSubmitting = false);
+    if (submitted != null) {
+      _persistedDraftId = submitted.id;
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider.value(
-      value: _memberCubit,
-      child: BlocConsumer<MemberRegistrationCubit, MemberRegistrationState>(
-        listener: (context, state) {
-          if (state is MemberRegistrationSuccess) {
-            AppSnackbar.showRaw(context, 
-              SnackBar(
-                content: Text(
-                  _isEditMode && !_isResubmitAsNew
-                      ? 'Pengajuan berhasil diperbarui'
-                      : 'Pengajuan berhasil dikirim',
-                ),
-                backgroundColor: Colors.green,
+    return BlocConsumer<MemberRegistrationCubit, MemberRegistrationState>(
+      bloc: _memberCubit,
+      listener: (context, state) {
+        if (state is MemberRegistrationSuccess) {
+          AppSnackbar.showRaw(
+            context,
+            SnackBar(
+              content: Text(
+                _isEditMode && !_isResubmitAsNew
+                    ? 'Pengajuan berhasil diperbarui'
+                    : 'Pengajuan berhasil dikirim',
               ),
-            );
-
-            Navigator.of(context).pop();
-            context.pushReplacementNamed('memberList');
-          }
-
-          if (state is MemberRegistrationError) {
-            AppSnackbar.showRaw(context, 
-              SnackBar(
-                content: Text(state.message),
-                backgroundColor: Colors.red,
-              ),
-            );
-          }
-        },
-        builder: (context, state) {
-          return WillPopScope(
-            onWillPop: _onWillPop,
-            child: Scaffold(
-              appBar: CustomHeaderAppBar(
-                title: _isEditMode ? 'Ubah Pengajuan' : 'Hubungkan Usaha',
-                subtitle: _isEditMode
-                    ? (_isResubmitAsNew
-                          ? 'Perbarui Pengajuan Ditolak untuk Kirim Ulang'
-                          : 'Perbarui Draft Pengajuan')
-                    : 'Lengkapi Profil Anda',
-                onBackPressed: _handleBackPressed,
-              ),
-              body: Column(
-                children: [
-                  Expanded(
-                    child: SingleChildScrollView(
-                      controller: _scrollController,
-                      child: Column(
-                        children: [
-                          const SizedBox(height: 16),
-                          Container(
-                            key: _identityKey,
-                            child: IdentitySectionWidget(
-                              formState: _formState,
-                              onSelectBirthDate: _selectBirthDate,
-                              onStateChanged: () => setState(() {}),
-                              ownerNameError: _errors['ownerName'],
-                              ownerPhoneError: _errors['ownerPhone'],
-                              ownerEmailError: _errors['ownerEmail'],
-                              branchPicNameError: _errors['branchPicName'],
-                              branchPicPhoneError: _errors['branchPicPhone'],
-                              branchPicEmailError: _errors['branchPicEmail'],
-                              birthPlaceError: _errors['birthPlace'],
-                              dateOfBirthError: _errors['dateOfBirth'],
-                              onSelectBranchPicBirthDate:
-                                  _selectBranchPicBirthDate,
-                              birthFieldsReadOnly: _isBcidMode,
-                            ),
-                          ),
-                          Container(
-                            key: _companyInfoKey,
-                            child: CompanyInfoSectionWidget(
-                              formState: _formState,
-                              onCompanyTypeChanged: _onCompanyTypeChanged,
-                              onBranchChanged: _onBranchChanged,
-                              companyTypeError: _errors['companyType'],
-                              companyTitleError: _errors['companyTitle'],
-                              companySuffixError: _errors['companySuffix'],
-                              companyNameError: _errors['companyName'],
-                              productNeedError: _errors['productNeed'],
-                              // nikError: _errors['nik'],
-                              // npwpError: _errors['npwp'],
-                              branchError: _errors['branch'],
-                              lockCompanyIdentityFields: _isBcidMode,
-                            ),
-                          ),
-                          Container(
-                            key: _addressKey,
-                            child: AddressSectionWidget(
-                              formState: _formState,
-                              onStateChanged: () => setState(() {}),
-                              addressError: _errors['address'],
-                              provinceError: _errors['province'],
-                              regencyError: _errors['regency'],
-                              districtError: _errors['district'],
-                              // villageError: _errors['village'],
-                              // rtError: _errors['rt'],
-                              // rwError: _errors['rw'],
-                              postalCodeError: _errors['postalCode'],
-                            ),
-                          ),
-                          // Shipping Address Section
-                          Container(
-                            key: _shippingAddressKey,
-                            child: ShippingAddressSectionWidget(
-                              formState: _formState,
-                              errors: _errors,
-                              onStateChanged: () => setState(() {}),
-                            ),
-                          ),
-                          // Container(
-                          //   key: _supportingDataKey,
-                          //   child: SupportingDataSectionWidget(
-                          //     formState: _formState,
-                          //     contactPersonError: _errors['contactPerson'],
-                          //     emailCompanyError: _errors['emailCompany'],
-                          //     factoryAddressError: _errors['factoryAddress'],
-                          //     faxError: _errors['fax'],
-                          //   ),
-                          // ),
-                          // Container(
-                          //   key: _documentsKey,
-                          //   child: UploadDocumentsSectionWidget(
-                          //     formState: _formState,
-                          //     ktpFileError: _errors['ktpFile'],
-                          //     npwpFileError: _errors['npwpFile'],
-                          //     onStateChanged: () => setState(() {}),
-                          //   ),
-                          // ),
-                          const SizedBox(height: 8),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            child: SizedBox(
-                              width: double.infinity,
-                              height: 48,
-                              child: ElevatedButton(
-                                onPressed: _isSubmitting ? null : _handleSubmit,
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppColors.secondaryColor,
-                                  foregroundColor:
-                                      Colors.black, // warna teks/icon
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                ),
-                                child: _isSubmitting
-                                    ? const CircularProgressIndicator()
-                                    : const Text('Kirim Pengajuan'),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 32),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+              backgroundColor: Colors.green,
             ),
           );
-        },
-      ),
+
+          context.pushReplacementNamed('memberList');
+        }
+
+        if (state is MemberRegistrationError) {
+          AppSnackbar.showRaw(
+            context,
+            SnackBar(content: Text(state.message), backgroundColor: Colors.red),
+          );
+        }
+      },
+      builder: (context, state) {
+        return WillPopScope(
+          onWillPop: _onWillPop,
+          child: Scaffold(
+            appBar: CustomHeaderAppBar(
+              title: _isEditMode ? 'Ubah Pengajuan' : 'Hubungkan Usaha',
+              subtitle: _isEditMode
+                  ? (_isResubmitAsNew
+                        ? 'Perbarui Pengajuan Ditolak untuk Kirim Ulang'
+                        : 'Perbarui Draft Pengajuan')
+                  : 'Lengkapi Profil Anda',
+              onBackPressed: _handleBackPressed,
+            ),
+            body: Column(
+              children: [
+                Expanded(
+                  child: SingleChildScrollView(
+                    controller: _scrollController,
+                    child: Column(
+                      children: [
+                        const SizedBox(height: 16),
+                        Container(
+                          key: _identityKey,
+                          child: IdentitySectionWidget(
+                            formState: _formState,
+                            onSelectBirthDate: _selectBirthDate,
+                            onStateChanged: () => setState(() {}),
+                            ownerNameError: _errors['ownerName'],
+                            ownerPhoneError: _errors['ownerPhone'],
+                            ownerEmailError: _errors['ownerEmail'],
+                            branchPicNameError: _errors['branchPicName'],
+                            branchPicPhoneError: _errors['branchPicPhone'],
+                            branchPicEmailError: _errors['branchPicEmail'],
+                            birthPlaceError: _errors['birthPlace'],
+                            dateOfBirthError: _errors['dateOfBirth'],
+                            onSelectBranchPicBirthDate:
+                                _selectBranchPicBirthDate,
+                            birthFieldsReadOnly: _isBcidMode,
+                          ),
+                        ),
+                        Container(
+                          key: _companyInfoKey,
+                          child: CompanyInfoSectionWidget(
+                            formState: _formState,
+                            onCompanyTypeChanged: _onCompanyTypeChanged,
+                            onBranchChanged: _onBranchChanged,
+                            companyTypeError: _errors['companyType'],
+                            companyTitleError: _errors['companyTitle'],
+                            companySuffixError: _errors['companySuffix'],
+                            companyNameError: _errors['companyName'],
+                            productNeedError: _errors['productNeed'],
+                            // nikError: _errors['nik'],
+                            // npwpError: _errors['npwp'],
+                            branchError: _errors['branch'],
+                            lockCompanyIdentityFields: _isBcidMode,
+                          ),
+                        ),
+                        Container(
+                          key: _addressKey,
+                          child: AddressSectionWidget(
+                            formState: _formState,
+                            onStateChanged: () => setState(() {}),
+                            addressError: _errors['address'],
+                            provinceError: _errors['province'],
+                            regencyError: _errors['regency'],
+                            districtError: _errors['district'],
+                            // villageError: _errors['village'],
+                            // rtError: _errors['rt'],
+                            // rwError: _errors['rw'],
+                            postalCodeError: _errors['postalCode'],
+                          ),
+                        ),
+                        // Shipping Address Section
+                        Container(
+                          key: _shippingAddressKey,
+                          child: ShippingAddressSectionWidget(
+                            formState: _formState,
+                            errors: _errors,
+                            onStateChanged: () => setState(() {}),
+                          ),
+                        ),
+                        // Container(
+                        //   key: _supportingDataKey,
+                        //   child: SupportingDataSectionWidget(
+                        //     formState: _formState,
+                        //     contactPersonError: _errors['contactPerson'],
+                        //     emailCompanyError: _errors['emailCompany'],
+                        //     factoryAddressError: _errors['factoryAddress'],
+                        //     faxError: _errors['fax'],
+                        //   ),
+                        // ),
+                        // Container(
+                        //   key: _documentsKey,
+                        //   child: UploadDocumentsSectionWidget(
+                        //     formState: _formState,
+                        //     ktpFileError: _errors['ktpFile'],
+                        //     npwpFileError: _errors['npwpFile'],
+                        //     onStateChanged: () => setState(() {}),
+                        //   ),
+                        // ),
+                        const SizedBox(height: 8),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: SizedBox(
+                            width: double.infinity,
+                            height: 48,
+                            child: ElevatedButton(
+                              onPressed: _isSubmitting ? null : _handleSubmit,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.secondaryColor,
+                                foregroundColor:
+                                    Colors.black, // warna teks/icon
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                              child: _isSubmitting
+                                  ? const CircularProgressIndicator()
+                                  : const Text('Kirim Pengajuan'),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 32),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }

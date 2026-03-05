@@ -130,7 +130,10 @@ class MemberRegistrationModel {
       id: _safeInt(json['owner']),
       firstName: '',
       lastName: '',
-      fullName: _safeString(json['owner_full_name']),
+      fullName: _safeString(
+        json['owner_full_name'],
+        fallback: _safeString(json['owner_name']),
+      ),
       username: '',
       email: _safeString(json['owner_email']),
       phone: _displayPhone(json['owner_phone']),
@@ -211,9 +214,15 @@ class MemberRegistrationModel {
           : _safeString(json['email']),
       fax: _safeString(json['fax']).isEmpty ? null : _safeString(json['fax']),
       contactPerson: _safeString(json['contact_person']).isEmpty
-          ? (_safeString(json['owner_full_name']).isEmpty
+          ? (_safeString(
+                  json['owner_full_name'],
+                  fallback: _safeString(json['owner_name']),
+                ).isEmpty
               ? null
-              : _safeString(json['owner_full_name']))
+              : _safeString(
+                  json['owner_full_name'],
+                  fallback: _safeString(json['owner_name']),
+                ))
           : _safeString(json['contact_person']),
       branchOwnerName: _safeString(json['branch_owner']).isEmpty
           ? null

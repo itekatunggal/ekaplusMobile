@@ -381,8 +381,9 @@ class _MemberListPageState extends State<MemberListPage>
 
   Future<void> _showRegistrationDetail(MemberRegistration registration) async {
     final status = registration.status.toLowerCase();
+    final isDraft = status == 'draft';
     final isRejected = status == 'reject' || status == 'rejected';
-    final canEdit = status == 'draft' || isRejected;
+    final canEdit = isDraft || isRejected;
     final shippingAddresses = await _loadShippingAddresses(registration.id);
     if (!mounted) return;
     final formData = _toConfirmationFormData(
@@ -398,15 +399,35 @@ class _MemberListPageState extends State<MemberListPage>
         title: 'Detail Pengajuan',
         description:
             'Berikut adalah detail pengajuan member Anda yang sudah tersimpan.',
-        primaryButtonText: 'Selesai',
-        secondaryButtonText: canEdit ? 'Edit Pengajuan' : null,
+        primaryButtonText: isDraft ? 'Lanjutkan Pengajuan' : 'Selesai',
+        secondaryButtonText: isDraft
+            ? 'Hapus Draft'
+            : (canEdit ? 'Edit Pengajuan' : null),
         showSectionEditAction: false,
         showPrimarySendIcon: false,
         onClose: () => Navigator.of(dialogContext).pop(),
-        onConfirm: () => Navigator.of(dialogContext).pop(),
+        onConfirm: () async {
+          Navigator.of(dialogContext).pop();
+          if (!isDraft) return;
+          final shouldRefresh = await context.pushNamed<bool>(
+            'memberRegistration',
+            extra: {
+              'registration': registration,
+              'resubmitAsNew': false,
+            },
+          );
+          if (!mounted) return;
+          if (shouldRefresh == true) {
+            await _refreshAll();
+          }
+        },
         onEdit: canEdit
             ? () {
                 Navigator.of(dialogContext).pop();
+                if (isDraft) {
+                  _confirmDeleteDraft(registration);
+                  return;
+                }
                 context.pushNamed(
                   'memberRegistration',
                   extra: {
@@ -418,6 +439,39 @@ class _MemberListPageState extends State<MemberListPage>
             : null,
       ),
     );
+  }
+
+  Future<void> _confirmDeleteDraft(MemberRegistration registration) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Hapus Draft?'),
+        content: const Text(
+          'Draft pengajuan yang dihapus tidak bisa dikembalikan. Yakin ingin melanjutkan?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Batal'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Hapus'),
+          ),
+        ],
+      ),
+    );
+    if (!mounted || ok != true) return;
+
+    final deleted = await rBlok.deleteDraft(registration.id);
+    if (!mounted) return;
+
+    if (deleted) {
+      _showFloatingToast('Draft berhasil dihapus');
+      await _refreshAll();
+    }
   }
 
   Future<void> _showActiveCompanyDetail(ActiveMemberCompany company) async {

@@ -92,6 +92,7 @@ class MemberRemoteDataSourceImpl implements MemberRemoteDataSource {
     const allowedKeys = <String>{
       'source',
       'ekaplus_user',
+      'owner_name',
       'owner_full_name',
       'owner_phone',
       'owner_email',
@@ -111,6 +112,7 @@ class MemberRemoteDataSourceImpl implements MemberRemoteDataSource {
       'gcid',
       'registration_mode',
       'request_type',
+      'status',
       'branch_id',
       'company_address',
       'company_province',
@@ -534,6 +536,10 @@ class MemberRemoteDataSourceImpl implements MemberRemoteDataSource {
       final editingId = registration['id'] is int
           ? registration['id'] as int
           : int.tryParse('${registration['id'] ?? ''}');
+      final requestPayload = <String, dynamic>{...payload};
+      if (editingId != null) {
+        requestPayload['id'] = editingId;
+      }
 
       final uri = editingId != null
           ? Uri.parse('${ApiConfig.baseUrl}/api/resource/customer_register/$editingId')
@@ -549,16 +555,16 @@ class MemberRemoteDataSourceImpl implements MemberRemoteDataSource {
                   ...ApiConfig.headers,
                   'Authorization': 'Bearer $token',
                 },
-                body: jsonEncode(payload),
+                body: jsonEncode(requestPayload),
               )
             : await client.post(
-          uri,
-          headers: {
-            ...ApiConfig.headers,
-            'Authorization': 'Bearer $token',
-          },
-          body: jsonEncode(payload),
-        );
+                uri,
+                headers: {
+                  ...ApiConfig.headers,
+                  'Authorization': 'Bearer $token',
+                },
+                body: jsonEncode(requestPayload),
+              );
         if ((response.statusCode == 307 || response.statusCode == 308) &&
             response.headers['location'] != null) {
           final redirectedUri = uri.resolve(response.headers['location']!);
@@ -569,16 +575,16 @@ class MemberRemoteDataSourceImpl implements MemberRemoteDataSource {
                     ...ApiConfig.headers,
                     'Authorization': 'Bearer $token',
                   },
-                  body: jsonEncode(payload),
+                  body: jsonEncode(requestPayload),
                 )
               : await client.post(
-            redirectedUri,
-            headers: {
-              ...ApiConfig.headers,
-              'Authorization': 'Bearer $token',
-            },
-            body: jsonEncode(payload),
-          );
+                  redirectedUri,
+                  headers: {
+                    ...ApiConfig.headers,
+                    'Authorization': 'Bearer $token',
+                  },
+                  body: jsonEncode(requestPayload),
+                );
           statusCode = redirectedResponse.statusCode;
           responseBody = redirectedResponse.body;
         } else {
@@ -586,13 +592,16 @@ class MemberRemoteDataSourceImpl implements MemberRemoteDataSource {
           responseBody = response.body;
         }
       } else {
-        final request = http.MultipartRequest('POST', uri);
+        final request = http.MultipartRequest(
+          editingId != null ? 'PUT' : 'POST',
+          uri,
+        );
         request.headers.addAll({
           'Accept': 'application/json',
           'Authorization': 'Bearer $token',
         });
 
-        payload.forEach((key, value) {
+        requestPayload.forEach((key, value) {
           if (value is List || value is Map) {
             request.fields[key] = jsonEncode(value);
           } else {
@@ -671,14 +680,20 @@ class MemberRemoteDataSourceImpl implements MemberRemoteDataSource {
   @override
   Future<void> deleteRegistration(int memberId) async {
     try {
-      // Load existing registrations
-      final registrationsData = await _loadRegistrationsFromAssets();
-
-      // Remove registration
-      registrationsData.removeWhere((r) => r['member_id'] == memberId);
-
-      // Save back to assets
-      await _saveRegistrationsToAssets(registrationsData);
+      final token = await SessionManager.getToken();
+      final uri = Uri.parse(
+        '${ApiConfig.baseUrl}/api/resource/customer_register/$memberId',
+      );
+      final response = await client.delete(
+        uri,
+        headers: {...ApiConfig.headers, 'Authorization': 'Bearer $token'},
+      );
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw Exception(
+          'Failed to delete registration ($memberId): '
+          '${response.statusCode} ${response.body}',
+        );
+      }
     } catch (e) {
       throw Exception('Failed to delete registration: $e');
     }
@@ -700,7 +715,7 @@ class MemberRemoteDataSourceImpl implements MemberRemoteDataSource {
       );
 
       final merged = rows.toList()
-        ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
 
       return merged;
     } catch (e) {
