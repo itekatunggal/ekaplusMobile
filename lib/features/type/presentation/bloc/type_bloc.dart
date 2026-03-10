@@ -32,13 +32,11 @@ class TypeBloc extends Bloc<TypeEvent, TypeState> {
   final GetType getType;
   int selectedImage = 0;
 
-  // Helper method to check if error is network-related
   bool _isNetworkError(Failure failure) {
-    final errorMessage = failure.message?.toLowerCase() ?? '';
     return failure is NetworkFailure ||
-        errorMessage.contains('socketexception') ||
-        errorMessage.contains('no connection') ||
-        errorMessage.contains('failed host lookup');
+        failure is TimeoutFailure ||
+        (failure is ServerFailure &&
+            (failure.statusCode == null || failure.statusCode! >= 500));
   }
 
   Future<ResponseSub> getSubType(String id) async {
@@ -83,17 +81,14 @@ class TypeBloc extends Bloc<TypeEvent, TypeState> {
         event.page,
       );
 
-      resultGetAllType.fold(
-        (failure) {
-          // If network failure, keep showing shimmer (dialog will handle notification)
-          if (_isNetworkError(failure)) {
-            emit(TypeStateLoading());
-          } else {
-            emit(TypeStateError('Cannot get all Types'));
-          }
-        },
-        (r) => emit(TypeStateLoadedAllType(r)),
-      );
+      resultGetAllType.fold((failure) {
+        // If network failure, keep showing shimmer (dialog will handle notification)
+        if (_isNetworkError(failure)) {
+          emit(TypeStateLoading());
+        } else {
+          emit(TypeStateError('Cannot get all Types'));
+        }
+      }, (r) => emit(TypeStateLoadedAllType(r)));
     });
 
     on<TypeEventGetDetailType>((event, emit) async {

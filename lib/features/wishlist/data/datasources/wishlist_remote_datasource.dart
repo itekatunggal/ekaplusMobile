@@ -111,10 +111,6 @@ class WishlistLocalDataSourceImpl implements WishlistRemoteDataSource {
       query: {'spec': jsonEncode(spec.build())},
     );
 
-    if (response.statusCode != 200) {
-      throw Exception(response.body);
-    }
-
     final decoded = jsonDecode(response.body);
 
     final List<dynamic> data = decoded is List
@@ -140,11 +136,7 @@ class WishlistLocalDataSourceImpl implements WishlistRemoteDataSource {
 
     final body = jsonEncode({"user": userId, "item": productId});
 
-    final response = await ds.ADD(body);
-
-    if (response.statusCode != 200) {
-      throw Exception(response.body);
-    }
+    await ds.ADD(body);
   }
 
   @override
@@ -158,8 +150,7 @@ class WishlistLocalDataSourceImpl implements WishlistRemoteDataSource {
     }
 
     final response = await ds.DELETEONE(wishlist.first.id.toString());
-
-    if (response.statusCode != 200) {
+    if (response.statusCode != 200 && response.statusCode != 204) {
       throw Exception(response.body);
     }
   }
@@ -185,10 +176,6 @@ class WishlistLocalDataSourceImpl implements WishlistRemoteDataSource {
     final response = await ds.FINDALL(
       query: {'spec': jsonEncode(spec.build())},
     );
-
-    if (response.statusCode != 200) {
-      throw Exception(response.body);
-    }
 
     final decoded = jsonDecode(response.body);
     final List data = decoded is List ? decoded : (decoded['data'] ?? []);

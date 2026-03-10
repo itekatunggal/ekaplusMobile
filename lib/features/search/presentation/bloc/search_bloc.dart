@@ -26,13 +26,11 @@ class SearchBloc extends Bloc<SearchEvent, SearchState> {
     on<SearchEventClearQuery>(_onClearQuery);
   }
 
-  // Helper method to check if error is network-related
   bool _isNetworkError(Failure failure) {
-    final errorMessage = failure.message?.toLowerCase() ?? '';
     return failure is NetworkFailure ||
-        errorMessage.contains('socketexception') ||
-        errorMessage.contains('no connection') ||
-        errorMessage.contains('failed host lookup');
+        failure is TimeoutFailure ||
+        (failure is ServerFailure &&
+            (failure.statusCode == null || failure.statusCode! >= 500));
   }
 
   Future<void> _onInitial(

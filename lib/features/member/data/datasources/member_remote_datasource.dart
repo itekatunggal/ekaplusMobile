@@ -4,6 +4,8 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:ekaplus_ekatunggal/core/config/api_config.dart';
+import 'package:ekaplus_ekatunggal/core/network/http_request_handler.dart';
+import 'package:ekaplus_ekatunggal/core/network/network_exceptions.dart';
 import 'package:ekaplus_ekatunggal/core/utils/session_manager.dart';
 import 'package:ekaplus_ekatunggal/features/auth/data/models/user_model.dart';
 import 'package:ekaplus_ekatunggal/features/member/domain/entities/active_member_company.dart';
@@ -39,21 +41,30 @@ abstract class MemberRemoteDataSource {
   });
   Future<List<CustomerContactOption>> searchContacts(String query);
   Future<List<Map<String, dynamic>>> getCustomerPositions();
-  Future<Map<String, dynamic>> createCustomerAddress(Map<String, dynamic> payload);
+  Future<Map<String, dynamic>> createCustomerAddress(
+    Map<String, dynamic> payload,
+  );
   Future<Map<String, dynamic>> updateCustomerAddress(
     int addressId,
     Map<String, dynamic> payload,
   );
   Future<void> deleteCustomerAddress(int addressId);
   Future<Map<String, dynamic>> createContact(Map<String, dynamic> payload);
-  Future<Map<String, dynamic>> updateContact(int contactId, Map<String, dynamic> payload);
-  Future<Map<String, dynamic>> createCustomerContact(Map<String, dynamic> payload);
+  Future<Map<String, dynamic>> updateContact(
+    int contactId,
+    Map<String, dynamic> payload,
+  );
+  Future<Map<String, dynamic>> createCustomerContact(
+    Map<String, dynamic> payload,
+  );
   Future<Map<String, dynamic>> updateCustomerContact(
     int customerContactId,
     Map<String, dynamic> payload,
   );
   Future<void> deleteCustomerContact(int customerContactId);
-  Future<Map<String, dynamic>> createContactIdentity(Map<String, dynamic> payload);
+  Future<Map<String, dynamic>> createContactIdentity(
+    Map<String, dynamic> payload,
+  );
   Future<Map<String, dynamic>> updateContactIdentity(
     int identityId,
     Map<String, dynamic> payload,
@@ -82,7 +93,9 @@ class MemberRemoteDataSourceImpl implements MemberRemoteDataSource {
       return '0${digits.substring(2)}';
     }
     if (digits.startsWith('0')) return digits;
-    if (s.startsWith('+62') && digits.length > 2) return '0${digits.substring(2)}';
+    if (s.startsWith('+62') && digits.length > 2) {
+      return '0${digits.substring(2)}';
+    }
     return s;
   }
 
@@ -129,7 +142,9 @@ class MemberRemoteDataSourceImpl implements MemberRemoteDataSource {
       payload[key] = value;
     });
     if (payload['owner_phone'] != null) {
-      payload['owner_phone'] = _normalizePhoneForDb(payload['owner_phone'].toString());
+      payload['owner_phone'] = _normalizePhoneForDb(
+        payload['owner_phone'].toString(),
+      );
     }
     if (payload['branch_owner_phone'] != null) {
       payload['branch_owner_phone'] = _normalizePhoneForDb(
@@ -218,9 +233,7 @@ class MemberRemoteDataSourceImpl implements MemberRemoteDataSource {
         )) {
       normalizedFilters.add(['disabled', '=', '0']);
     }
-    final spec = <String, dynamic>{
-      'fields': fields,
-    };
+    final spec = <String, dynamic>{'fields': fields};
     if (normalizedFilters.isNotEmpty) spec['filters'] = normalizedFilters;
     if (orderBy != null && orderBy.isNotEmpty) spec['order_by'] = orderBy;
 
@@ -229,19 +242,21 @@ class MemberRemoteDataSourceImpl implements MemberRemoteDataSource {
       '?spec=${Uri.encodeComponent(jsonEncode(spec))}',
     );
 
-    final response = await client.get(
-      uri,
-      headers: {...ApiConfig.headers, 'Authorization': 'Bearer $token'},
+    final response = await HttpRequestHandler.send(
+      () => client.get(
+        uri,
+        headers: {...ApiConfig.headers, 'Authorization': 'Bearer $token'},
+      ),
+      defaultServerMessage: 'Failed to load $resource',
     );
-
-    if (response.statusCode != 200) {
-      throw Exception('Failed to load $resource (${response.statusCode})');
-    }
 
     final body = jsonDecode(response.body);
     final data = body['data'];
     if (data is List) {
-      return data.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
+      return data
+          .whereType<Map>()
+          .map((e) => Map<String, dynamic>.from(e))
+          .toList();
     }
     if (data is Map) {
       return [Map<String, dynamic>.from(data)];
@@ -339,6 +354,47 @@ class MemberRemoteDataSourceImpl implements MemberRemoteDataSource {
 
   Future<String> _authToken() async => (await SessionManager.getToken()) ?? '';
 
+  Future<List<Map<String, dynamic>>> _loadMemberOfRowsByMethod(int uid) async {
+    final token = await _authToken();
+    final uri = Uri.parse(
+      '${ApiConfig.baseUrl}/api/resource/member_of/method/memberofuser',
+    );
+
+    final response = await HttpRequestHandler.send(
+      () => client.post(
+        uri,
+        headers: {...ApiConfig.headers, 'Authorization': 'Bearer $token'},
+        body: jsonEncode({'uid': uid}),
+      ),
+      defaultServerMessage: 'Gagal memuat perusahaan aktif',
+    );
+
+    final decoded = jsonDecode(response.body);
+    final dynamic rawData = decoded is Map<String, dynamic>
+        ? (decoded['data'] ?? decoded['message'] ?? decoded)
+        : decoded;
+
+    if (rawData is List) {
+      return rawData
+          .whereType<Map>()
+          .map((row) => Map<String, dynamic>.from(row))
+          .toList();
+    }
+
+    if (rawData is Map<String, dynamic>) {
+      final nestedData = rawData['data'];
+      if (nestedData is List) {
+        return nestedData
+            .whereType<Map>()
+            .map((row) => Map<String, dynamic>.from(row))
+            .toList();
+      }
+      return [rawData];
+    }
+
+    return const [];
+  }
+
   Uri _resourceUri(String resource, [int? id]) => Uri.parse(
     id == null
         ? '${ApiConfig.baseUrl}/api/resource/$resource'
@@ -351,21 +407,21 @@ class MemberRemoteDataSourceImpl implements MemberRemoteDataSource {
     int? id,
   }) async {
     final token = await _authToken();
-    final response = id == null
-        ? await client.post(
-            _resourceUri(resource),
-            headers: {...ApiConfig.headers, 'Authorization': 'Bearer $token'},
-            body: jsonEncode(payload),
-          )
-        : await client.put(
-            _resourceUri(resource, id),
-            headers: {...ApiConfig.headers, 'Authorization': 'Bearer $token'},
-            body: jsonEncode(payload),
-          );
-
-    if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw Exception('Failed to save $resource (${response.statusCode}): ${response.body}');
-    }
+    final response = await HttpRequestHandler.send(
+      () => id == null
+          ? client.post(
+              _resourceUri(resource),
+              headers: {...ApiConfig.headers, 'Authorization': 'Bearer $token'},
+              body: jsonEncode(payload),
+            )
+          : client.put(
+              _resourceUri(resource, id),
+              headers: {...ApiConfig.headers, 'Authorization': 'Bearer $token'},
+              body: jsonEncode(payload),
+            ),
+      defaultServerMessage: 'Failed to save $resource',
+      successCodes: const {200, 201},
+    );
     final body = jsonDecode(response.body);
     final data = body is Map ? body['data'] : null;
     if (data is Map<String, dynamic>) return data;
@@ -374,14 +430,16 @@ class MemberRemoteDataSourceImpl implements MemberRemoteDataSource {
 
   Future<void> _deleteResource(String resource, int id) async {
     final token = await _authToken();
-    final response = await client.delete(
-      _resourceUri(resource, id),
-      headers: {...ApiConfig.headers, 'Authorization': 'Bearer $token'},
+    await HttpRequestHandler.send(
+      () => client.delete(
+        _resourceUri(resource, id),
+        headers: {...ApiConfig.headers, 'Authorization': 'Bearer $token'},
+      ),
+      defaultServerMessage: 'Failed to delete $resource',
+      successCodes: const {200, 204},
     );
-    if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw Exception('Failed to delete $resource ($id): ${response.statusCode}');
-    }
   }
+
   // ============================================
   Future<List<Map<String, dynamic>>> _loadRegistrationsFromAssets() async {
     try {
@@ -471,14 +529,13 @@ class MemberRemoteDataSourceImpl implements MemberRemoteDataSource {
         '?spec=${Uri.encodeComponent(jsonEncode(spec))}',
       );
 
-      final response = await client.get(
-        uri,
-        headers: {...ApiConfig.headers, 'Authorization': 'Bearer $token'},
+      final response = await HttpRequestHandler.send(
+        () => client.get(
+          uri,
+          headers: {...ApiConfig.headers, 'Authorization': 'Bearer $token'},
+        ),
+        defaultServerMessage: 'Gagal mengambil data registrasi',
       );
-
-      if (response.statusCode != 200) {
-        throw Exception('Gagal mengambil data tipe');
-      }
 
       final body = jsonDecode(response.body);
       final List<dynamic> data = body['data'] ?? [];
@@ -489,7 +546,8 @@ class MemberRemoteDataSourceImpl implements MemberRemoteDataSource {
 
       return result;
     } catch (e) {
-      throw Exception('Failed to get data: $e');
+      if (e is AppNetworkException) rethrow;
+      throw UnknownException(message: 'Failed to get data: $e');
     }
   }
 
@@ -504,19 +562,20 @@ class MemberRemoteDataSourceImpl implements MemberRemoteDataSource {
         '${ApiConfig.baseUrl}/api/resource/customer_register/$id',
       );
 
-      final response = await client.get(
-        uri,
-        headers: {...ApiConfig.headers, 'Authorization': 'Bearer $token'},
+      final response = await HttpRequestHandler.send(
+        () => client.get(
+          uri,
+          headers: {...ApiConfig.headers, 'Authorization': 'Bearer $token'},
+        ),
+        defaultServerMessage: 'Gagal mengambil detail registrasi',
       );
-
-      if (response.statusCode != 200) {
-        throw Exception('Gagal mengambil detail registrasi');
-      }
 
       final body = jsonDecode(response.body) as Map<String, dynamic>;
       final data = body['data'];
       if (data is! Map<String, dynamic>) {
-        throw Exception('Format response detail tidak valid');
+        throw const UnknownException(
+          message: 'Format response detail tidak valid',
+        );
       }
 
       return MemberRegistrationModel.fromJson(data);
@@ -542,49 +601,55 @@ class MemberRemoteDataSourceImpl implements MemberRemoteDataSource {
       }
 
       final uri = editingId != null
-          ? Uri.parse('${ApiConfig.baseUrl}/api/resource/customer_register/$editingId')
+          ? Uri.parse(
+              '${ApiConfig.baseUrl}/api/resource/customer_register/$editingId',
+            )
           : Uri.parse('${ApiConfig.baseUrl}/api/resource/customer_register');
       late final int statusCode;
       late final String responseBody;
 
       if (files.isEmpty) {
-        final response = editingId != null
-            ? await client.put(
-                uri,
-                headers: {
-                  ...ApiConfig.headers,
-                  'Authorization': 'Bearer $token',
-                },
-                body: jsonEncode(requestPayload),
-              )
-            : await client.post(
-                uri,
-                headers: {
-                  ...ApiConfig.headers,
-                  'Authorization': 'Bearer $token',
-                },
-                body: jsonEncode(requestPayload),
-              );
-        if ((response.statusCode == 307 || response.statusCode == 308) &&
-            response.headers['location'] != null) {
-          final redirectedUri = uri.resolve(response.headers['location']!);
-          final redirectedResponse = editingId != null
-              ? await client.put(
-                  redirectedUri,
+        final response = await HttpRequestHandler.guard(
+          () => editingId != null
+              ? client.put(
+                  uri,
                   headers: {
                     ...ApiConfig.headers,
                     'Authorization': 'Bearer $token',
                   },
                   body: jsonEncode(requestPayload),
                 )
-              : await client.post(
-                  redirectedUri,
+              : client.post(
+                  uri,
                   headers: {
                     ...ApiConfig.headers,
                     'Authorization': 'Bearer $token',
                   },
                   body: jsonEncode(requestPayload),
-                );
+                ),
+        );
+        if ((response.statusCode == 307 || response.statusCode == 308) &&
+            response.headers['location'] != null) {
+          final redirectedUri = uri.resolve(response.headers['location']!);
+          final redirectedResponse = await HttpRequestHandler.guard(
+            () => editingId != null
+                ? client.put(
+                    redirectedUri,
+                    headers: {
+                      ...ApiConfig.headers,
+                      'Authorization': 'Bearer $token',
+                    },
+                    body: jsonEncode(requestPayload),
+                  )
+                : client.post(
+                    redirectedUri,
+                    headers: {
+                      ...ApiConfig.headers,
+                      'Authorization': 'Bearer $token',
+                    },
+                    body: jsonEncode(requestPayload),
+                  ),
+          );
           statusCode = redirectedResponse.statusCode;
           responseBody = redirectedResponse.body;
         } else {
@@ -615,7 +680,7 @@ class MemberRemoteDataSourceImpl implements MemberRemoteDataSource {
           );
         }
 
-        final response = await request.send();
+        final response = await HttpRequestHandler.guard(() => request.send());
         statusCode = response.statusCode;
         responseBody = await response.stream.bytesToString();
       }
@@ -628,7 +693,8 @@ class MemberRemoteDataSourceImpl implements MemberRemoteDataSource {
           jsonDecode(responseBody) as Map<String, dynamic>;
 
       final data = json['data'];
-      final resultId = editingId ??
+      final resultId =
+          editingId ??
           (data is Map<String, dynamic>
               ? (data['id'] is int
                     ? data['id'] as int
@@ -684,18 +750,17 @@ class MemberRemoteDataSourceImpl implements MemberRemoteDataSource {
       final uri = Uri.parse(
         '${ApiConfig.baseUrl}/api/resource/customer_register/$memberId',
       );
-      final response = await client.delete(
-        uri,
-        headers: {...ApiConfig.headers, 'Authorization': 'Bearer $token'},
+      await HttpRequestHandler.send(
+        () => client.delete(
+          uri,
+          headers: {...ApiConfig.headers, 'Authorization': 'Bearer $token'},
+        ),
+        defaultServerMessage: 'Failed to delete registration ($memberId)',
+        successCodes: const {200, 204},
       );
-      if (response.statusCode < 200 || response.statusCode >= 300) {
-        throw Exception(
-          'Failed to delete registration ($memberId): '
-          '${response.statusCode} ${response.body}',
-        );
-      }
     } catch (e) {
-      throw Exception('Failed to delete registration: $e');
+      if (e is AppNetworkException) rethrow;
+      throw UnknownException(message: 'Failed to delete registration: $e');
     }
   }
 
@@ -769,41 +834,52 @@ class MemberRemoteDataSourceImpl implements MemberRemoteDataSource {
           ],
         );
 
-    List<Map<String, dynamic>> memberOfRows;
-    try {
-      memberOfRows = await loadMemberOfByRefType('gpid');
-    } catch (_) {
-      // Compatibility for legacy API field name.
-      memberOfRows = await _getResourceList(
-        'member_of',
-        fields: ['*'],
-        filters: [
-          ['user', '=', '${user.id}'],
-          ['ref_type', '=', 'gpid'],
-        ],
-      );
-    }
-
+    List<Map<String, dynamic>> memberOfRows = const [];
     List<Map<String, dynamic>> legacyBcidMembershipRows = const [];
-    if (memberOfRows.isEmpty) {
+
+    try {
+      final methodRows = await _loadMemberOfRowsByMethod(user.id);
+      memberOfRows = methodRows.where((row) {
+        return (row['ref_type'] ?? '').toString() == 'gpid';
+      }).toList();
+      legacyBcidMembershipRows = methodRows.where((row) {
+        return (row['ref_type'] ?? '').toString() == 'bcid';
+      }).toList();
+    } catch (_) {
       try {
-        legacyBcidMembershipRows = await _getResourceList(
-          'member_of',
-          fields: ['*'],
-          filters: [
-            ['user_id', '=', '${user.id}'],
-            ['ref_type', '=', 'bcid'],
-          ],
-        );
+        memberOfRows = await loadMemberOfByRefType('gpid');
       } catch (_) {
-        legacyBcidMembershipRows = await _getResourceList(
+        // Compatibility for legacy API field name.
+        memberOfRows = await _getResourceList(
           'member_of',
           fields: ['*'],
           filters: [
             ['user', '=', '${user.id}'],
-            ['ref_type', '=', 'bcid'],
+            ['ref_type', '=', 'gpid'],
           ],
         );
+      }
+
+      if (memberOfRows.isEmpty) {
+        try {
+          legacyBcidMembershipRows = await _getResourceList(
+            'member_of',
+            fields: ['*'],
+            filters: [
+              ['user_id', '=', '${user.id}'],
+              ['ref_type', '=', 'bcid'],
+            ],
+          );
+        } catch (_) {
+          legacyBcidMembershipRows = await _getResourceList(
+            'member_of',
+            fields: ['*'],
+            filters: [
+              ['user', '=', '${user.id}'],
+              ['ref_type', '=', 'bcid'],
+            ],
+          );
+        }
       }
     }
 
@@ -919,11 +995,14 @@ class MemberRemoteDataSourceImpl implements MemberRemoteDataSource {
     }
     final defaultAddressByBcid = <int, Map<String, dynamic>>{};
     for (final row in addressRows) {
-      final parentId = _safeInt(row['parent_id'] ?? row['bcid'] ?? row['bcid_id']);
+      final parentId = _safeInt(
+        row['parent_id'] ?? row['bcid'] ?? row['bcid_id'],
+      );
       if (parentId <= 0) continue;
       final existing = defaultAddressByBcid[parentId];
       if (existing == null ||
-          (!_isTruthy(existing['is_default']) && _isTruthy(row['is_default']))) {
+          (!_isTruthy(existing['is_default']) &&
+              _isTruthy(row['is_default']))) {
         defaultAddressByBcid[parentId] = row;
       }
     }
@@ -941,7 +1020,8 @@ class MemberRemoteDataSourceImpl implements MemberRemoteDataSource {
       final nbid = gp == null ? 0 : _safeInt(gp['nbid']);
       final nb = nationalBrandById[nbid];
 
-      final mo = gpidMemberById[gpid] ??
+      final mo =
+          gpidMemberById[gpid] ??
           legacyBcidMembershipRows.firstWhere(
             (e) => _safeInt(e['ref_id']) == bcid,
             orElse: () => const <String, dynamic>{},
@@ -950,9 +1030,9 @@ class MemberRemoteDataSourceImpl implements MemberRemoteDataSource {
       final branchObj = bc['branch'];
       final branchName = branchObj is Map
           ? (_safeNullableString(branchObj['branch_name']) ??
-              _safeNullableString(branchObj['name']))
+                _safeNullableString(branchObj['name']))
           : (_safeNullableString(bc['branch.branch_name']) ??
-              _safeNullableString(bc['branch.name']));
+                _safeNullableString(bc['branch.name']));
       final branchCity = branchObj is Map
           ? _safeNullableString(branchObj['city'])
           : _safeNullableString(bc['branch.city']);
@@ -976,32 +1056,60 @@ class MemberRemoteDataSourceImpl implements MemberRemoteDataSource {
           branchOwnerName: _safeNullableString(bc['branch_owner']),
           branchOwnerPhone: _displayPhone(bc['branch_owner_phone']),
           branchOwnerEmail: _safeNullableString(bc['branch_owner_email']),
-          branchOwnerPlaceOfBirth: _safeNullableString(bc['branch_owner_place_of_birth']),
-          branchOwnerDateOfBirth: _safeNullableString(bc['branch_owner_date_of_birth']),
+          branchOwnerPlaceOfBirth: _safeNullableString(
+            bc['branch_owner_place_of_birth'],
+          ),
+          branchOwnerDateOfBirth: _safeNullableString(
+            bc['branch_owner_date_of_birth'],
+          ),
           gcidId: gc == null ? null : _safeNullableInt(gc['id']),
           gcName: _safeNullableString(gc == null ? null : gc['gc_name']),
           gpidId: gp == null ? null : _safeNullableInt(gp['id']),
           gpCode: _safeNullableString(gp == null ? null : gp['name']),
           gpName: _safeNullableString(gp == null ? null : gp['gp_name']),
           nbidId: nbid > 0 ? nbid : null,
-          nbName: _safeNullableString(nb == null ? null : (nb['nb_name'] ?? nb['name'])),
+          nbName: _safeNullableString(
+            nb == null ? null : (nb['nb_name'] ?? nb['name']),
+          ),
           customerRegisterId: null,
           customerRegisterStatus: null,
-          customerOwnerName: _safeNullableString(gc == null ? null : gc['owner_full_name']),
-          customerOwnerEmail: _safeNullableString(gc == null ? null : gc['owner_email']),
-          customerOwnerPhone: _displayPhone(gc == null ? null : gc['owner_phone']),
+          customerOwnerName: _safeNullableString(
+            gc == null ? null : gc['owner_full_name'],
+          ),
+          customerOwnerEmail: _safeNullableString(
+            gc == null ? null : gc['owner_email'],
+          ),
+          customerOwnerPhone: _displayPhone(
+            gc == null ? null : gc['owner_phone'],
+          ),
           customerOwnerPlaceOfBirth: _safeNullableString(
             gc == null ? null : gc['owner_place_of_birth'],
           ),
-          customerOwnerDateOfBirth: _safeNullableString(gc == null ? null : gc['owner_date_of_birth']),
-          customerCompanyName: _safeNullableString(gc == null ? null : gc['company_name']),
-          customerCompanyType: _safeNullableString(gc == null ? null : gc['company_type']),
-          customerCompanyTitle: _safeNullableString(gc == null ? null : gc['company_title']),
+          customerOwnerDateOfBirth: _safeNullableString(
+            gc == null ? null : gc['owner_date_of_birth'],
+          ),
+          customerCompanyName: _safeNullableString(
+            gc == null ? null : gc['company_name'],
+          ),
+          customerCompanyType: _safeNullableString(
+            gc == null ? null : gc['company_type'],
+          ),
+          customerCompanyTitle: _safeNullableString(
+            gc == null ? null : gc['company_title'],
+          ),
           customerProductNeed: _safeNullableString(bc['product_need']),
-          customerCompanyAddress: _safeNullableString(defaultAddress == null ? null : defaultAddress['address']),
-          customerCompanyProvince: _safeNullableString(defaultAddress == null ? null : defaultAddress['province']),
-          customerCompanyCity: _safeNullableString(defaultAddress == null ? null : defaultAddress['city']),
-          customerCompanyDistrict: _safeNullableString(defaultAddress == null ? null : defaultAddress['district']),
+          customerCompanyAddress: _safeNullableString(
+            defaultAddress == null ? null : defaultAddress['address'],
+          ),
+          customerCompanyProvince: _safeNullableString(
+            defaultAddress == null ? null : defaultAddress['province'],
+          ),
+          customerCompanyCity: _safeNullableString(
+            defaultAddress == null ? null : defaultAddress['city'],
+          ),
+          customerCompanyDistrict: _safeNullableString(
+            defaultAddress == null ? null : defaultAddress['district'],
+          ),
           customerCompanyPostalCode: _safeNullableString(
             defaultAddress == null ? null : defaultAddress['postal_code'],
           ),
@@ -1128,11 +1236,7 @@ class MemberRemoteDataSourceImpl implements MemberRemoteDataSource {
         : await _getByIds('contact', contactIds, fields: ['*']);
     final positions = positionIds.isEmpty
         ? const <Map<String, dynamic>>[]
-        : await _getByIds(
-            'customer_position',
-            positionIds,
-            fields: ['*'],
-          );
+        : await _getByIds('customer_position', positionIds, fields: ['*']);
     final identities = contactIds.isEmpty
         ? const <Map<String, dynamic>>[]
         : await _getByFieldValues(
@@ -1153,19 +1257,22 @@ class MemberRemoteDataSourceImpl implements MemberRemoteDataSource {
     for (final row in identities) {
       final cid = _safeInt(row['contact_id']);
       if (cid <= 0) continue;
-      identityByContact.putIfAbsent(cid, () => []).add(
-        ActiveCompanyContactIdentity(
-          id: _safeInt(row['id']),
-          contactId: cid,
-          channel: _safeNullableString(row['channel']),
-          handle: (((row['channel'] ?? '').toString() == 'phone') ||
-                  ((row['channel'] ?? '').toString() == 'whatsapp'))
-              ? _displayPhone(row['handle'])
-              : _safeNullableString(row['handle']),
-          externalId: _safeNullableString(row['external_id']),
-          isVerified: _isTruthy(row['is_verified']),
-        ),
-      );
+      identityByContact
+          .putIfAbsent(cid, () => [])
+          .add(
+            ActiveCompanyContactIdentity(
+              id: _safeInt(row['id']),
+              contactId: cid,
+              channel: _safeNullableString(row['channel']),
+              handle:
+                  (((row['channel'] ?? '').toString() == 'phone') ||
+                      ((row['channel'] ?? '').toString() == 'whatsapp'))
+                  ? _displayPhone(row['handle'])
+                  : _safeNullableString(row['handle']),
+              externalId: _safeNullableString(row['external_id']),
+              isVerified: _isTruthy(row['is_verified']),
+            ),
+          );
     }
 
     final detailContacts = customerContactRows.map((row) {
@@ -1193,9 +1300,9 @@ class MemberRemoteDataSourceImpl implements MemberRemoteDataSource {
     final branchObj = bc['branch'];
     final branchName = branchObj is Map
         ? (_safeNullableString(branchObj['branch_name']) ??
-            _safeNullableString(branchObj['name']))
+              _safeNullableString(branchObj['name']))
         : (_safeNullableString(bc['branch.branch_name']) ??
-            _safeNullableString(bc['branch.name']));
+              _safeNullableString(bc['branch.name']));
     final branchCity = branchObj is Map
         ? _safeNullableString(branchObj['city'])
         : _safeNullableString(bc['branch.city']);
@@ -1250,10 +1357,7 @@ class MemberRemoteDataSourceImpl implements MemberRemoteDataSource {
       }
     }
     if (rows.isEmpty) {
-      rows = await _getResourceList(
-        'contact',
-        fields: ['*'],
-      );
+      rows = await _getResourceList('contact', fields: ['*']);
       rows = rows.where((row) {
         final hay = [
           row['name'],
@@ -1276,8 +1380,10 @@ class MemberRemoteDataSourceImpl implements MemberRemoteDataSource {
         email: _safeNullableString(row['email']),
       );
     }
-    return byId.values.toList()
-      ..sort((a, b) => a.displayLabel.toLowerCase().compareTo(b.displayLabel.toLowerCase()));
+    return byId.values.toList()..sort(
+      (a, b) =>
+          a.displayLabel.toLowerCase().compareTo(b.displayLabel.toLowerCase()),
+    );
   }
 
   @override
@@ -1312,11 +1418,14 @@ class MemberRemoteDataSourceImpl implements MemberRemoteDataSource {
     };
     final result = {
       for (final entry in raw.entries)
-        if (allowed.contains(entry.key) && entry.value != null) entry.key: entry.value,
+        if (allowed.contains(entry.key) && entry.value != null)
+          entry.key: entry.value,
     };
     if (result['pic_phone'] != null &&
         result['pic_phone'].toString().trim().isNotEmpty) {
-      result['pic_phone'] = _normalizePhoneForDb(result['pic_phone'].toString());
+      result['pic_phone'] = _normalizePhoneForDb(
+        result['pic_phone'].toString(),
+      );
     }
     return result;
   }
@@ -1325,15 +1434,19 @@ class MemberRemoteDataSourceImpl implements MemberRemoteDataSource {
     const allowed = {'name', 'full_name', 'phone', 'email'};
     final result = {
       for (final entry in raw.entries)
-        if (allowed.contains(entry.key) && entry.value != null) entry.key: entry.value,
+        if (allowed.contains(entry.key) && entry.value != null)
+          entry.key: entry.value,
     };
-    if (result['phone'] != null && result['phone'].toString().trim().isNotEmpty) {
+    if (result['phone'] != null &&
+        result['phone'].toString().trim().isNotEmpty) {
       result['phone'] = _normalizePhoneForDb(result['phone'].toString());
     }
     return result;
   }
 
-  Map<String, dynamic> _sanitizeCustomerContactPayload(Map<String, dynamic> raw) {
+  Map<String, dynamic> _sanitizeCustomerContactPayload(
+    Map<String, dynamic> raw,
+  ) {
     const allowed = {
       'bcid',
       'contact_id',
@@ -1344,7 +1457,8 @@ class MemberRemoteDataSourceImpl implements MemberRemoteDataSource {
     };
     return {
       for (final entry in raw.entries)
-        if (allowed.contains(entry.key) && entry.value != null) entry.key: entry.value,
+        if (allowed.contains(entry.key) && entry.value != null)
+          entry.key: entry.value,
     };
   }
 
@@ -1358,7 +1472,8 @@ class MemberRemoteDataSourceImpl implements MemberRemoteDataSource {
     };
     final result = {
       for (final entry in raw.entries)
-        if (allowed.contains(entry.key) && entry.value != null) entry.key: entry.value,
+        if (allowed.contains(entry.key) && entry.value != null)
+          entry.key: entry.value,
     };
     final channel = (result['channel'] ?? '').toString().trim();
     if ((channel == 'phone' || channel == 'whatsapp') &&
@@ -1370,7 +1485,9 @@ class MemberRemoteDataSourceImpl implements MemberRemoteDataSource {
   }
 
   @override
-  Future<Map<String, dynamic>> createCustomerAddress(Map<String, dynamic> payload) {
+  Future<Map<String, dynamic>> createCustomerAddress(
+    Map<String, dynamic> payload,
+  ) {
     return _saveResource('customer_address', _sanitizeAddressPayload(payload));
   }
 
@@ -1379,7 +1496,11 @@ class MemberRemoteDataSourceImpl implements MemberRemoteDataSource {
     int addressId,
     Map<String, dynamic> payload,
   ) {
-    return _saveResource('customer_address', _sanitizeAddressPayload(payload), id: addressId);
+    return _saveResource(
+      'customer_address',
+      _sanitizeAddressPayload(payload),
+      id: addressId,
+    );
   }
 
   @override
@@ -1393,12 +1514,21 @@ class MemberRemoteDataSourceImpl implements MemberRemoteDataSource {
   }
 
   @override
-  Future<Map<String, dynamic>> updateContact(int contactId, Map<String, dynamic> payload) {
-    return _saveResource('contact', _sanitizeContactPayload(payload), id: contactId);
+  Future<Map<String, dynamic>> updateContact(
+    int contactId,
+    Map<String, dynamic> payload,
+  ) {
+    return _saveResource(
+      'contact',
+      _sanitizeContactPayload(payload),
+      id: contactId,
+    );
   }
 
   @override
-  Future<Map<String, dynamic>> createCustomerContact(Map<String, dynamic> payload) {
+  Future<Map<String, dynamic>> createCustomerContact(
+    Map<String, dynamic> payload,
+  ) {
     return _saveResource(
       'customer_contact',
       _sanitizeCustomerContactPayload(payload),
@@ -1423,7 +1553,9 @@ class MemberRemoteDataSourceImpl implements MemberRemoteDataSource {
   }
 
   @override
-  Future<Map<String, dynamic>> createContactIdentity(Map<String, dynamic> payload) {
+  Future<Map<String, dynamic>> createContactIdentity(
+    Map<String, dynamic> payload,
+  ) {
     return _saveResource(
       'contact_identities',
       _sanitizeIdentityPayload(payload),

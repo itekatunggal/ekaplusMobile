@@ -2,6 +2,7 @@
 
 import 'dart:convert';
 import 'package:ekaplus_ekatunggal/core/config/api_config.dart';
+import 'package:ekaplus_ekatunggal/core/network/http_request_handler.dart';
 import 'package:ekaplus_ekatunggal/features/category/data/models/category_group_model.dart';
 import 'package:ekaplus_ekatunggal/features/category/data/models/category_model.dart';
 import 'package:ekaplus_ekatunggal/features/category/domain/entities/category.dart';
@@ -39,152 +40,115 @@ class CategoryRemoteDatasourceImplementation extends CategoryRemoteDatasource {
       final categoriesRaw = row['categories'];
       if (categoriesRaw is! List) return row;
 
-      return {
-        ...row,
-        'categories': _filterEnabledCategories(categoriesRaw),
-      };
+      return {...row, 'categories': _filterEnabledCategories(categoriesRaw)};
     }).toList();
   }
 
   @override
   Future<List<CategoryGroupModel>> getGroupByType() async {
-    try {
-      final spec = {
-        "fields": ["id", "type_name"],
-        "filters": [
-          ["disabled", "=", "0"],
-        ],
-        "childs": [
-          {
-            "alias": "categories",
-            "table": "ekatalog_category",
-            "parent_key": "item_type",
-            "parent_value": "id",
-            "order_by": [
-              ["name", "asc"],
-            ],
-            "fields": [
-              "category_name",
-              "icon",
-              "id",
-              "description",
-              "image",
-              "subtitle",
-              "title",
-              "disabled",
-              "status",
-            ],
-            "filters": [
-              ["disabled", "=", "0"],
-            ],
-          },
-        ],
-      };
+    final spec = {
+      "fields": ["id", "type_name"],
+      "filters": [
+        ["disabled", "=", "0"],
+      ],
+      "childs": [
+        {
+          "alias": "categories",
+          "table": "ekatalog_category",
+          "parent_key": "item_type",
+          "parent_value": "id",
+          "order_by": [
+            ["name", "asc"],
+          ],
+          "fields": [
+            "category_name",
+            "icon",
+            "id",
+            "description",
+            "image",
+            "subtitle",
+            "title",
+            "disabled",
+            "status",
+          ],
+          "filters": [
+            ["disabled", "=", "0"],
+          ],
+        },
+      ],
+    };
 
-      final uri = Uri.parse(
-        '${ApiConfig.baseUrl}/api/resource/ekatalog_type'
-        '?spec=${Uri.encodeComponent(jsonEncode(spec))}',
-      );
+    final uri = Uri.parse(
+      '${ApiConfig.baseUrl}/api/resource/ekatalog_type'
+      '?spec=${Uri.encodeComponent(jsonEncode(spec))}',
+    );
 
-      final response = await client.get(uri, headers: {...ApiConfig.headers});
+    final response = await HttpRequestHandler.send(
+      () => client.get(uri, headers: {...ApiConfig.headers}),
+      defaultServerMessage: 'Gagal mengambil data kategori',
+    );
 
-      if (response.statusCode != 200) {
-        throw Exception('Gagal mengambil data tipe');
-      }
+    final body = jsonDecode(response.body);
+    final List<dynamic> data = body['data'] ?? [];
+    final sanitized = _sanitizeTypeGroups(data);
 
-      final body = jsonDecode(response.body);
-      final List<dynamic> data = body['data'] ?? [];
-      final sanitized = _sanitizeTypeGroups(data);
-
-      List<CategoryGroupModel> result = CategoryGroupModel.fromJsonList(
-        sanitized,
-      );
-
-      return result;
-    } catch (e) {
-      throw Exception('Gagal mengambil data tipe: $e');
-    }
+    return CategoryGroupModel.fromJsonList(sanitized);
   }
 
   @override
   Future<List<Category>> getAllCategory(int page) async {
-    try {
-      final spec = {
-        "fields": ["id", "category_name", "icon", "disabled", "status"],
-        "filters": [
-          ["disabled", "=", "0"],
-        ],
-        // "childs": [
-        //   {
-        //     "alias": "categories",
-        //     "table": "ekatalog_category",
-        //     "parent_key": "item_type",
-        //     "parent_value": "id",
-        //     "order_by": [
-        //       ["name", "asc"],
-        //     ],
-        //   },
-        // ],
-      };
+    final spec = {
+      "fields": ["id", "category_name", "icon", "disabled", "status"],
+      "filters": [
+        ["disabled", "=", "0"],
+      ],
+    };
 
-      final uri = Uri.parse(
-        '${ApiConfig.baseUrl}/api/resource/ekatalog_category'
-        '?spec=${Uri.encodeComponent(jsonEncode(spec))}',
-      );
+    final uri = Uri.parse(
+      '${ApiConfig.baseUrl}/api/resource/ekatalog_category'
+      '?spec=${Uri.encodeComponent(jsonEncode(spec))}',
+    );
 
-      final response = await client.get(uri, headers: {...ApiConfig.headers});
+    final response = await HttpRequestHandler.send(
+      () => client.get(uri, headers: {...ApiConfig.headers}),
+      defaultServerMessage: 'Gagal mengambil data kategori',
+    );
 
-      if (response.statusCode != 200) {
-        throw Exception('Gagal mengambil data tipe');
-      }
+    final body = jsonDecode(response.body);
+    final List<dynamic> data = body['data'] ?? [];
+    final sanitized = _filterEnabledCategories(data);
 
-      final body = jsonDecode(response.body);
-      final List<dynamic> data = body['data'] ?? [];
-      final sanitized = _filterEnabledCategories(data);
-
-      List<CategoryModel> typeData = CategoryModel.fromJsonList(sanitized);
-
-      return typeData;
-    } catch (e) {
-      throw Exception('Gagal mengambil data tipe: $e');
-    }
+    return CategoryModel.fromJsonList(sanitized);
   }
 
   @override
   Future<Category> getCategory(String id) async {
-    try {
-      final spec = {
-        "fields": ["*"],
-        "filters": [
-          ["id", "=", id],
-          ["disabled", "=", "0"],
-        ],
-        "limit": 1,
-      };
+    final spec = {
+      "fields": ["*"],
+      "filters": [
+        ["id", "=", id],
+        ["disabled", "=", "0"],
+      ],
+      "limit": 1,
+    };
 
-      final uri = Uri.parse(
-        '${ApiConfig.baseUrl}/api/resource/ekatalog_category'
-        '?spec=${Uri.encodeComponent(jsonEncode(spec))}',
-      );
+    final uri = Uri.parse(
+      '${ApiConfig.baseUrl}/api/resource/ekatalog_category'
+      '?spec=${Uri.encodeComponent(jsonEncode(spec))}',
+    );
 
-      final response = await client.get(uri, headers: {...ApiConfig.headers});
+    final response = await HttpRequestHandler.send(
+      () => client.get(uri, headers: {...ApiConfig.headers}),
+      defaultServerMessage: 'Gagal mengambil detail kategori',
+    );
 
-      if (response.statusCode != 200) {
-        throw Exception('Gagal mengambil data tipe');
-      }
-
-      final body = jsonDecode(response.body);
-      final list = body['data'];
-      if (list is! List || list.isEmpty) {
-        throw Exception('Kategori tidak ditemukan atau nonaktif');
-      }
-      final dynamic data = list.first;
-
-      CategoryModel result = CategoryModel.fromJson(data);
-
-      return result;
-    } catch (e) {
-      throw Exception('Gagal mengambil data tipe: $e');
+    final body = jsonDecode(response.body);
+    final list = body['data'];
+    if (list is! List || list.isEmpty) {
+      throw const FormatException('Kategori tidak ditemukan atau nonaktif');
     }
+    final dynamic data = list.first;
+
+    return CategoryModel.fromJson(data);
   }
 }

@@ -1,10 +1,11 @@
 import 'package:dartz/dartz.dart';
-import '../../../../core/error/failure.dart';
-import '../datasources/auth_remote_datasource.dart';
-import '../models/user_model.dart';
-import '../../domain/entities/user.dart';
-import '../../domain/repositories/auth_repository.dart';
-import '../../domain/usecases/register_user.dart';
+import 'package:ekaplus_ekatunggal/core/error/failure.dart';
+import 'package:ekaplus_ekatunggal/core/error/failure_mapper.dart';
+import 'package:ekaplus_ekatunggal/features/auth/data/datasources/auth_remote_datasource.dart';
+import 'package:ekaplus_ekatunggal/features/auth/data/models/user_model.dart';
+import 'package:ekaplus_ekatunggal/features/auth/domain/entities/user.dart';
+import 'package:ekaplus_ekatunggal/features/auth/domain/repositories/auth_repository.dart';
+import 'package:ekaplus_ekatunggal/features/auth/domain/usecases/register_user.dart';
 
 class AuthRepositoryImplementation implements AuthRepository {
   final AuthRemoteDataSource localDataSource;
@@ -17,7 +18,12 @@ class AuthRepositoryImplementation implements AuthRepository {
       final exists = await localDataSource.checkPhoneExists(phone);
       return Right(exists);
     } catch (e) {
-      return Left(CacheFailure(message: e.toString()));
+      return Left(
+        mapExceptionToFailure(
+          e,
+          fallbackMessage: 'Gagal memeriksa nomor handphone',
+        ),
+      );
     }
   }
 
@@ -30,7 +36,9 @@ class AuthRepositoryImplementation implements AuthRepository {
       final otp = await localDataSource.generateOtp(phone, method);
       return Right(otp);
     } catch (e) {
-      return Left(CacheFailure(message: e.toString()));
+      return Left(
+        mapExceptionToFailure(e, fallbackMessage: 'Gagal meminta OTP'),
+      );
     }
   }
 
@@ -40,7 +48,9 @@ class AuthRepositoryImplementation implements AuthRepository {
       final otp = await localDataSource.registerOtp(phone);
       return Right(otp);
     } catch (e) {
-      return Left(CacheFailure(message: e.toString()));
+      return Left(
+        mapExceptionToFailure(e, fallbackMessage: 'Gagal mengirim OTP'),
+      );
     }
   }
 
@@ -54,7 +64,9 @@ class AuthRepositoryImplementation implements AuthRepository {
       final valid = await localDataSource.verifyOtp(phone, otp, method);
       return Right(valid);
     } catch (e) {
-      return Left(CacheFailure(message: e.toString()));
+      return Left(
+        mapExceptionToFailure(e, fallbackMessage: 'Gagal memverifikasi OTP'),
+      );
     }
   }
 
@@ -79,7 +91,6 @@ class AuthRepositoryImplementation implements AuthRepository {
         placeOfBirth: params.birthPlace,
         password: params.password,
         profilePic: '',
-
         referralCode: '',
         referredBy: null,
         address: '',
@@ -105,7 +116,9 @@ class AuthRepositoryImplementation implements AuthRepository {
       await localDataSource.saveUser(user);
       return Right(user);
     } catch (e) {
-      return Left(CacheFailure(message: e.toString()));
+      return Left(
+        mapExceptionToFailure(e, fallbackMessage: 'Gagal mendaftarkan user'),
+      );
     }
   }
 
@@ -120,11 +133,12 @@ class AuthRepositoryImplementation implements AuthRepository {
     } on Failure catch (failure) {
       return Left(failure);
     } catch (e) {
-      final message = e.toString().isNotEmpty
-          ? e.toString()
-          : 'Terjadi kesalahan saat login';
-
-      return Left(ServerFailure(message: message));
+      return Left(
+        mapExceptionToFailure(
+          e,
+          fallbackMessage: 'Terjadi kesalahan saat login',
+        ),
+      );
     }
   }
 
@@ -135,9 +149,12 @@ class AuthRepositoryImplementation implements AuthRepository {
       return Right(user);
     } on Failure catch (failure) {
       return Left(failure);
-    } catch (_) {
-      return const Left(
-        ServerFailure(message: 'Terjadi kesalahan saat login Google'),
+    } catch (e) {
+      return Left(
+        mapExceptionToFailure(
+          e,
+          fallbackMessage: 'Terjadi kesalahan saat login Google',
+        ),
       );
     }
   }
@@ -151,7 +168,7 @@ class AuthRepositoryImplementation implements AuthRepository {
       }
       return Right(user);
     } catch (e) {
-      return Left(CacheFailure(message: e.toString()));
+      return Left(mapExceptionToFailure(e));
     }
   }
 
@@ -181,7 +198,9 @@ class AuthRepositoryImplementation implements AuthRepository {
       });
       return Right(updated);
     } catch (e) {
-      return Left(CacheFailure(message: e.toString()));
+      return Left(
+        mapExceptionToFailure(e, fallbackMessage: 'Gagal memperbarui nama'),
+      );
     }
   }
 
@@ -198,7 +217,9 @@ class AuthRepositoryImplementation implements AuthRepository {
 
       final normalized = username.trim().toLowerCase();
       if (normalized.isEmpty) {
-        return const Left(CacheFailure(message: 'Username tidak boleh kosong'));
+        return const Left(
+          ValidationFailure(message: 'Username tidak boleh kosong'),
+        );
       }
 
       await localDataSource.updateUser(user.id, {'username': normalized});
@@ -209,7 +230,9 @@ class AuthRepositoryImplementation implements AuthRepository {
       );
       return Right(updated);
     } catch (e) {
-      return Left(CacheFailure(message: e.toString()));
+      return Left(
+        mapExceptionToFailure(e, fallbackMessage: 'Gagal memperbarui username'),
+      );
     }
   }
 
@@ -220,7 +243,6 @@ class AuthRepositoryImplementation implements AuthRepository {
     String? bgColor,
   ) async {
     try {
-      // Cek apakah profilePicPath adalah file lokal (untuk upload)
       final isLocalFile =
           profilePicPath != null &&
           profilePicPath.isNotEmpty &&
@@ -230,17 +252,14 @@ class AuthRepositoryImplementation implements AuthRepository {
           profilePicPath.contains('/');
 
       if (isLocalFile) {
-        // Upload file ke server
         final updatedUser = await localDataSource.updateProfilePicture(
           profilePicPath,
         );
         return Right(updatedUser);
       } else if (profilePicPath != null && profilePicPath.isEmpty) {
-        // Delete foto profil dari server
         final updatedUser = await localDataSource.updateProfilePicture("");
         return Right(updatedUser);
       } else {
-        // Untuk local avatar atau update UUID, update cache saja
         final user = await localDataSource.getCachedUser();
         if (user == null) {
           return const Left(CacheFailure(message: 'User tidak ditemukan'));
@@ -258,7 +277,12 @@ class AuthRepositoryImplementation implements AuthRepository {
         return Right(updated);
       }
     } catch (e) {
-      return Left(CacheFailure(message: e.toString()));
+      return Left(
+        mapExceptionToFailure(
+          e,
+          fallbackMessage: 'Gagal memperbarui foto profil',
+        ),
+      );
     }
   }
 
@@ -272,14 +296,19 @@ class AuthRepositoryImplementation implements AuthRepository {
       final exists = await localDataSource.checkPhoneExists(newPhone);
       if (exists) {
         return const Left(
-          CacheFailure(message: 'Nomor handphone sudah digunakan'),
+          ValidationFailure(message: 'Nomor handphone sudah digunakan'),
         );
       }
 
       final otp = await localDataSource.generateOtp(newPhone, "wa");
       return Right(otp);
     } catch (e) {
-      return Left(CacheFailure(message: e.toString()));
+      return Left(
+        mapExceptionToFailure(
+          e,
+          fallbackMessage: 'Gagal meminta perubahan nomor handphone',
+        ),
+      );
     }
   }
 
@@ -290,15 +319,6 @@ class AuthRepositoryImplementation implements AuthRepository {
     required String verificationCode,
   }) async {
     try {
-      // final valid = await localDataSource.verifyOtp(
-      //   newPhone,
-      //   verificationCode,
-      //   "wa",
-      // );
-      // if (!valid) {
-      //   return const Left(CacheFailure(message: 'Kode verifikasi tidak valid'));
-      // }
-
       final user = await localDataSource.getCachedUser();
       if (user == null) {
         return const Left(CacheFailure(message: 'User tidak ditemukan'));
@@ -313,7 +333,12 @@ class AuthRepositoryImplementation implements AuthRepository {
       await localDataSource.changePhone(newPhone, verificationCode);
       return Right(updated);
     } catch (e) {
-      return Left(CacheFailure(message: e.toString()));
+      return Left(
+        mapExceptionToFailure(
+          e,
+          fallbackMessage: 'Gagal memverifikasi perubahan nomor handphone',
+        ),
+      );
     }
   }
 
@@ -326,7 +351,12 @@ class AuthRepositoryImplementation implements AuthRepository {
       final otp = await localDataSource.generateOtp(newEmail, "email");
       return Right(otp);
     } catch (e) {
-      return Left(CacheFailure(message: e.toString()));
+      return Left(
+        mapExceptionToFailure(
+          e,
+          fallbackMessage: 'Gagal meminta perubahan email',
+        ),
+      );
     }
   }
 
@@ -351,7 +381,12 @@ class AuthRepositoryImplementation implements AuthRepository {
       await localDataSource.changeEmail(newEmail, verificationCode);
       return Right(updated);
     } catch (e) {
-      return Left(CacheFailure(message: e.toString()));
+      return Left(
+        mapExceptionToFailure(
+          e,
+          fallbackMessage: 'Gagal memverifikasi perubahan email',
+        ),
+      );
     }
   }
 
@@ -385,7 +420,9 @@ class AuthRepositoryImplementation implements AuthRepository {
       );
       return Right(user);
     } catch (e) {
-      return Left(ValidationFailure(message: e.toString()));
+      return Left(
+        mapExceptionToFailure(e, fallbackMessage: 'Gagal mengubah password'),
+      );
     }
   }
 
@@ -403,7 +440,9 @@ class AuthRepositoryImplementation implements AuthRepository {
       final valid = await localDataSource.checkPassword(password);
       return Right(valid);
     } catch (e) {
-      return Left(ValidationFailure(message: e.toString()));
+      return Left(
+        mapExceptionToFailure(e, fallbackMessage: 'Gagal memeriksa password'),
+      );
     }
   }
 
@@ -413,7 +452,9 @@ class AuthRepositoryImplementation implements AuthRepository {
       final valid = await localDataSource.getUserInfo();
       return Right(valid);
     } catch (e) {
-      return Left(ValidationFailure(message: e.toString()));
+      return Left(
+        mapExceptionToFailure(e, fallbackMessage: 'Gagal memuat info user'),
+      );
     }
   }
 }

@@ -18,13 +18,11 @@ class WishlistBloc extends Bloc<WishlistEvent, WishlistState> {
 
   static const int _defaultLimit = 20;
 
-  // Helper method to check if error is network-related
   bool _isNetworkError(Failure failure) {
-    final errorMessage = failure.message?.toLowerCase() ?? '';
     return failure is NetworkFailure ||
-        errorMessage.contains('socketexception') ||
-        errorMessage.contains('no connection') ||
-        errorMessage.contains('failed host lookup');
+        failure is TimeoutFailure ||
+        (failure is ServerFailure &&
+            (failure.statusCode == null || failure.statusCode! >= 500));
   }
 
   WishlistBloc({
@@ -76,28 +74,31 @@ class WishlistBloc extends Bloc<WishlistEvent, WishlistState> {
       fields: event.fields,
     );
 
-    result.fold((failure) {
-      // If network failure, keep showing shimmer (dialog will handle notification)
-      if (_isNetworkError(failure)) {
-        emit(WishlistLoading());
-      } else {
-        emit(WishlistError(failure.message ?? ''));
-      }
-    }, (items) {
-      emit(
-        WishlistLoaded(
-          items: items,
-          statusMap: {},
-          page: 1,
-          limit: limit,
-          hasMore: items.length == limit,
-          search: event.search,
-          filters: event.filters,
-          orderBy: event.orderBy,
-          fields: event.fields,
-        ),
-      );
-    });
+    result.fold(
+      (failure) {
+        // If network failure, keep showing shimmer (dialog will handle notification)
+        if (_isNetworkError(failure)) {
+          emit(WishlistLoading());
+        } else {
+          emit(WishlistError(failure.message ?? ''));
+        }
+      },
+      (items) {
+        emit(
+          WishlistLoaded(
+            items: items,
+            statusMap: {},
+            page: 1,
+            limit: limit,
+            hasMore: items.length == limit,
+            search: event.search,
+            filters: event.filters,
+            orderBy: event.orderBy,
+            fields: event.fields,
+          ),
+        );
+      },
+    );
   }
 
   Future<void> _onLoadNextPage(
@@ -126,23 +127,26 @@ class WishlistBloc extends Bloc<WishlistEvent, WishlistState> {
       fields: current.fields,
     );
 
-    result.fold((failure) {
-      // If network failure, keep current state (dialog will handle notification)
-      if (_isNetworkError(failure)) {
-        emit(current.copyWith(isLoadingMore: false));
-      } else {
-        emit(WishlistError(failure.message ?? ''));
-      }
-    }, (items) {
-      emit(
-        current.copyWith(
-          items: [...current.items, ...items],
-          page: nextPage,
-          hasMore: items.length == current.limit,
-          isLoadingMore: false,
-        ),
-      );
-    });
+    result.fold(
+      (failure) {
+        // If network failure, keep current state (dialog will handle notification)
+        if (_isNetworkError(failure)) {
+          emit(current.copyWith(isLoadingMore: false));
+        } else {
+          emit(WishlistError(failure.message ?? ''));
+        }
+      },
+      (items) {
+        emit(
+          current.copyWith(
+            items: [...current.items, ...items],
+            page: nextPage,
+            hasMore: items.length == current.limit,
+            isLoadingMore: false,
+          ),
+        );
+      },
+    );
   }
 
   Future<void> _onRefresh(
@@ -176,24 +180,27 @@ class WishlistBloc extends Bloc<WishlistEvent, WishlistState> {
 
     final result = await getWishlist(user.id);
 
-    result.fold((failure) {
-      // If network failure, keep showing shimmer (dialog will handle notification)
-      if (_isNetworkError(failure)) {
-        emit(WishlistLoading());
-      } else {
-        emit(WishlistError(failure.message ?? ''));
-      }
-    }, (items) {
-      emit(
-        WishlistLoaded(
-          items: items,
-          statusMap: {},
-          page: 1,
-          limit: items.length,
-          hasMore: false,
-        ),
-      );
-    });
+    result.fold(
+      (failure) {
+        // If network failure, keep showing shimmer (dialog will handle notification)
+        if (_isNetworkError(failure)) {
+          emit(WishlistLoading());
+        } else {
+          emit(WishlistError(failure.message ?? ''));
+        }
+      },
+      (items) {
+        emit(
+          WishlistLoaded(
+            items: items,
+            statusMap: {},
+            page: 1,
+            limit: items.length,
+            hasMore: false,
+          ),
+        );
+      },
+    );
   }
 
   Future<void> _onToggleWishlistItem(

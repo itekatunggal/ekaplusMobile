@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:ekaplus_ekatunggal/core/config/api_config.dart';
+import 'package:ekaplus_ekatunggal/core/network/http_request_handler.dart';
 import 'package:ekaplus_ekatunggal/core/network/resource_visibility.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:ekaplus_ekatunggal/features/type/data/models/type_model.dart';
@@ -18,35 +19,28 @@ class TypeRemoteDatasourceImpl implements TypeRemoteDatasource {
 
   @override
   Future<List<Type>> getAllType(int page) async {
-    try {
-      final spec = {
-        "fields": ["*"],
-        "filters": [
-          ["disabled", "=", "0"],
-        ],
-      };
+    final spec = {
+      "fields": ["*"],
+      "filters": [
+        ["disabled", "=", "0"],
+      ],
+    };
 
-      final uri = Uri.parse(
-        '${ApiConfig.baseUrl}/api/resource/ekatalog_type'
-        '?spec=${Uri.encodeComponent(jsonEncode(spec))}',
-      );
+    final uri = Uri.parse(
+      '${ApiConfig.baseUrl}/api/resource/ekatalog_type'
+      '?spec=${Uri.encodeComponent(jsonEncode(spec))}',
+    );
 
-      final response = await client.get(uri, headers: {...ApiConfig.headers});
+    final response = await HttpRequestHandler.send(
+      () => client.get(uri, headers: {...ApiConfig.headers}),
+      defaultServerMessage: 'Gagal mengambil data tipe',
+    );
 
-      if (response.statusCode != 200) {
-        throw Exception('Gagal mengambil data tipe');
-      }
+    final body = jsonDecode(response.body);
+    final List<dynamic> data = body['data'] ?? [];
+    final visibleRows = ResourceVisibility.filterVisibleRows(data);
 
-      final body = jsonDecode(response.body);
-      final List<dynamic> data = body['data'] ?? [];
-      final visibleRows = ResourceVisibility.filterVisibleRows(data);
-
-      List<TypeModel> typeData = TypeModel.fromJsonList(visibleRows);
-
-      return typeData;
-    } catch (e) {
-      throw Exception('Gagal mengambil data tipe: $e');
-    }
+    return TypeModel.fromJsonList(visibleRows);
   }
 
   @override
