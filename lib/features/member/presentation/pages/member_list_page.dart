@@ -117,7 +117,9 @@ class _MemberListPageState extends State<MemberListPage>
               _isActiveCompaniesLoading = false;
               _activeCompaniesError = null;
             });
-            context.read<ActiveCompanyCubit>().loadCompaniesAndResolveActive(force: true);
+            context.read<ActiveCompanyCubit>().loadCompaniesAndResolveActive(
+              force: true,
+            );
           } else if (state is MemberRegistrationActiveCompaniesError) {
             setState(() {
               _isActiveCompaniesLoading = false;
@@ -164,7 +166,10 @@ class _MemberListPageState extends State<MemberListPage>
             Expanded(
               child: TabBarView(
                 controller: _tabController,
-                children: [_buildRegistrationList(), _buildActiveCompaniesList()],
+                children: [
+                  _buildRegistrationList(),
+                  _buildActiveCompaniesList(),
+                ],
               ),
             ),
           ],
@@ -193,8 +198,8 @@ class _MemberListPageState extends State<MemberListPage>
         icon: Icons.description_outlined,
         title: 'Belum Ada Pengajuan',
         subtitle:
-            'Anda belum memiliki pengajuan member.\nSilakan daftar untuk menjadi member.',
-        buttonText: 'Daftar Member',
+            'Anda belum memiliki pengajuan Perusahaan.\nSilakan daftarkan perusahaan anda.',
+        buttonText: 'Daftar Perusahaan',
         onPressed: () {
           context.pushNamed('memberRegistration');
         },
@@ -398,7 +403,7 @@ class _MemberListPageState extends State<MemberListPage>
         formData: formData,
         title: 'Detail Pengajuan',
         description:
-            'Berikut adalah detail pengajuan member Anda yang sudah tersimpan.',
+            'Berikut adalah detail pendaftaran Perusaahaan Anda yang sudah tersimpan.',
         primaryButtonText: isDraft ? 'Lanjutkan Pengajuan' : 'Selesai',
         secondaryButtonText: isDraft
             ? 'Hapus Draft'
@@ -411,10 +416,7 @@ class _MemberListPageState extends State<MemberListPage>
           if (!isDraft) return;
           final shouldRefresh = await context.pushNamed<bool>(
             'memberRegistration',
-            extra: {
-              'registration': registration,
-              'resubmitAsNew': false,
-            },
+            extra: {'registration': registration, 'resubmitAsNew': false},
           );
           if (!mounted) return;
           if (shouldRefresh == true) {
@@ -477,7 +479,8 @@ class _MemberListPageState extends State<MemberListPage>
   Future<void> _showActiveCompanyDetail(ActiveMemberCompany company) async {
     final bcid = company.branchCustomerId;
     final activeState = context.read<ActiveCompanyCubit>().state;
-    final isSelected = activeState is ActiveCompanyReady &&
+    final isSelected =
+        activeState is ActiveCompanyReady &&
         activeState.activeBcid == company.branchCustomerId;
     List<Map<String, dynamic>> shippingAddresses = const [];
     var addressesLoaded = bcid == null || bcid <= 0;
@@ -525,7 +528,9 @@ class _MemberListPageState extends State<MemberListPage>
   }
 
   Future<void> _setActiveCompany(ActiveMemberCompany company) async {
-    final changed = await context.read<ActiveCompanyCubit>().setActiveCompany(company);
+    final changed = await context.read<ActiveCompanyCubit>().setActiveCompany(
+      company,
+    );
     if (!mounted) return;
     if (changed) {
       _showFloatingToast('${company.displayName} menjadi perusahaan aktif');
@@ -563,7 +568,9 @@ class _MemberListPageState extends State<MemberListPage>
     }
   }
 
-  Future<List<Map<String, dynamic>>> _loadActiveCompanyAddresses(int bcid) async {
+  Future<List<Map<String, dynamic>>> _loadActiveCompanyAddresses(
+    int bcid,
+  ) async {
     try {
       final token = await SessionManager.getToken();
 
@@ -655,7 +662,9 @@ class _MemberListPageState extends State<MemberListPage>
     };
   }
 
-  Future<List<Map<String, dynamic>>> _loadShippingAddresses(int parentId) async {
+  Future<List<Map<String, dynamic>>> _loadShippingAddresses(
+    int parentId,
+  ) async {
     try {
       final token = await SessionManager.getToken();
       Future<http.Response> fetchWithSpec(Map<String, dynamic> spec) async {
@@ -698,22 +707,19 @@ class _MemberListPageState extends State<MemberListPage>
       final data = body['data'];
       if (data is! List) return const [];
 
-      return data
-          .whereType<Map>()
-          .map((e) {
-            final row = Map<String, dynamic>.from(e);
-            final picPhone = (row['pic_phone'] ?? '').toString().trim();
-            if (picPhone.isNotEmpty) {
-              final digits = picPhone.replaceAll(RegExp(r'[^0-9]'), '');
-              if (digits.startsWith('62') && digits.length > 2) {
-                row['pic_phone'] = '0${digits.substring(2)}';
-              } else if (picPhone.startsWith('+62') && digits.length > 2) {
-                row['pic_phone'] = '0${digits.substring(2)}';
-              }
-            }
-            return row;
-          })
-          .toList();
+      return data.whereType<Map>().map((e) {
+        final row = Map<String, dynamic>.from(e);
+        final picPhone = (row['pic_phone'] ?? '').toString().trim();
+        if (picPhone.isNotEmpty) {
+          final digits = picPhone.replaceAll(RegExp(r'[^0-9]'), '');
+          if (digits.startsWith('62') && digits.length > 2) {
+            row['pic_phone'] = '0${digits.substring(2)}';
+          } else if (picPhone.startsWith('+62') && digits.length > 2) {
+            row['pic_phone'] = '0${digits.substring(2)}';
+          }
+        }
+        return row;
+      }).toList();
     } catch (_) {
       return const [];
     }

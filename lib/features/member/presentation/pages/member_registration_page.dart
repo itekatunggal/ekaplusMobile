@@ -150,6 +150,15 @@ class _MemberRegistrationPageState extends State<MemberRegistrationPage> {
 
   Future<void> _loadDefaultHierarchyForNewCompany() async {
     try {
+      final legacySource = await _loadLegacyDefaultHierarchyForNewCompany();
+      if (!mounted) return;
+      if (legacySource != null) {
+        setState(() {
+          _defaultHierarchySourceForNewCompany = legacySource;
+        });
+        return;
+      }
+
       final result = await _getActiveMemberCompaniesByUserId.execute();
       if (!mounted) return;
       result.fold((_) {}, (companies) {
@@ -164,6 +173,115 @@ class _MemberRegistrationPageState extends State<MemberRegistrationPage> {
       });
     } catch (_) {
       // Hidden defaults only; form should remain usable if this lookup fails.
+    }
+  }
+
+  Future<ActiveMemberCompany?> _loadLegacyDefaultHierarchyForNewCompany() async {
+    try {
+      final userData = await SessionManager.getCurrentUser();
+      if (userData == null) return null;
+      final userId = int.tryParse('${userData['id'] ?? ''}');
+      if (userId == null || userId <= 0) return null;
+
+      final token = await SessionManager.getToken();
+      if (token == null || token.isEmpty) return null;
+
+      final memberOfSpec = {
+        'fields': ['*'],
+        'filters': [
+          ['ref_type', '=', 'gpid'],
+          ['user', '=', userId],
+        ],
+        'order_by': [
+          ['is_owner', 'desc'],
+          ['updated_at', 'desc'],
+          ['id', 'desc'],
+        ],
+      };
+
+      final memberOfUri = Uri.parse(
+        '${ApiConfig.baseUrl}/api/resource/member_of'
+        '?spec=${Uri.encodeComponent(jsonEncode(memberOfSpec))}',
+      );
+      final memberOfResponse = await http.get(
+        memberOfUri,
+        headers: {...ApiConfig.headers, 'Authorization': 'Bearer $token'},
+      );
+      if (memberOfResponse.statusCode != 200) return null;
+
+      final memberOfBody = jsonDecode(memberOfResponse.body) as Map<String, dynamic>;
+      final memberRows = memberOfBody['data'];
+      if (memberRows is! List || memberRows.isEmpty) return null;
+
+      final ownerRow = memberRows.cast<dynamic>().firstWhere(
+        (row) => row is Map && ((row['is_owner'] == 1) || (row['is_owner'] == true)),
+        orElse: () => memberRows.first,
+      );
+      if (ownerRow is! Map) return null;
+
+      final row = Map<String, dynamic>.from(ownerRow);
+      final gpid = int.tryParse('${row['ref_id'] ?? ''}');
+      if (gpid == null || gpid <= 0) return null;
+
+      final groupParentUri = Uri.parse(
+        '${ApiConfig.baseUrl}/api/resource/group_parent/$gpid',
+      );
+      final groupParentResponse = await http.get(
+        groupParentUri,
+        headers: {...ApiConfig.headers, 'Authorization': 'Bearer $token'},
+      );
+
+      int? nbid;
+      String? gpCode;
+      String? gpName;
+      String? nbName;
+      if (groupParentResponse.statusCode == 200) {
+        final groupParentBody =
+            jsonDecode(groupParentResponse.body) as Map<String, dynamic>;
+        final gpData = groupParentBody['data'];
+        if (gpData is Map<String, dynamic>) {
+          nbid = int.tryParse('${gpData['nbid'] ?? ''}');
+          gpCode = gpData['name']?.toString();
+          gpName = gpData['gp_name']?.toString();
+
+          if (nbid != null && nbid > 0) {
+            final nationalBrandUri = Uri.parse(
+              '${ApiConfig.baseUrl}/api/resource/national_brand/$nbid',
+            );
+            final nationalBrandResponse = await http.get(
+              nationalBrandUri,
+              headers: {...ApiConfig.headers, 'Authorization': 'Bearer $token'},
+            );
+            if (nationalBrandResponse.statusCode == 200) {
+              final nationalBrandBody =
+                  jsonDecode(nationalBrandResponse.body) as Map<String, dynamic>;
+              final nbData = nationalBrandBody['data'];
+              if (nbData is Map<String, dynamic>) {
+                nbName = (nbData['nb_name'] ?? nbData['name'])?.toString();
+              }
+            }
+          }
+        }
+      }
+
+      return ActiveMemberCompany(
+        memberOfId: int.tryParse('${row['id'] ?? ''}') ?? 0,
+        refType: (row['ref_type'] ?? 'gpid').toString(),
+        refId: gpid,
+        userId: userId,
+        memberOfStatus: row['status']?.toString(),
+        memberIsOwner: row['is_owner'] == 1 || row['is_owner'] == true,
+        memberIsSharing: row['is_sharing'] == 1 || row['is_sharing'] == true,
+        shareFromUserId: int.tryParse('${row['share_from'] ?? ''}'),
+        gpidId: gpid,
+        gpCode: gpCode,
+        gpName: gpName,
+        nbidId: nbid,
+        nbName: nbName,
+        createdAt: DateTime.tryParse('${row['created_at'] ?? ''}'),
+      );
+    } catch (_) {
+      return null;
     }
   }
 

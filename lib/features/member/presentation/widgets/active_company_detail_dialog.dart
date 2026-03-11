@@ -22,7 +22,7 @@ class ActiveCompanyDetailDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bcName = company.displayName;
-    final gpName = company.gpName ?? company.gpCode ?? '-';
+    // final gpName = company.gpName ?? company.gpCode ?? '-';
     final pageBg = const Color(0xFFF1F2F4);
     return Dialog.fullscreen(
       child: Scaffold(
@@ -83,17 +83,17 @@ class ActiveCompanyDetailDialog extends StatelessWidget {
                           height: 1.5,
                         ),
                       ),
+                      // const SizedBox(height: 18),
+                      // _section(
+                      //   icon: Icons.grid_view_rounded,
+                      //   title: 'Ringkasan',
+                      //   children: [
+                      //     _itemStack('Group Parent', gpName),
+                      //     const SizedBox(height: 14),
+                      //     _itemStack('Branch Customer', bcName),
+                      //   ],
+                      // ),
                       const SizedBox(height: 18),
-                      _section(
-                        icon: Icons.grid_view_rounded,
-                        title: 'Ringkasan',
-                        children: [
-                          _itemStack('Group Parent', gpName),
-                          const SizedBox(height: 14),
-                          _itemStack('Branch Customer', bcName),
-                        ],
-                      ),
-                      const SizedBox(height: 14),
                       _section(
                         icon: Icons.person,
                         title: 'Detail Pemilik',

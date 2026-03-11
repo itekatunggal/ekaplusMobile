@@ -55,7 +55,8 @@ class _AccountLoggedInViewState extends State<AccountLoggedInView> {
         if (!mounted) return;
         final latest = registrations.isNotEmpty
             ? (registrations.toList()
-                ..sort((a, b) => b.createdAt.compareTo(a.createdAt))).first
+                    ..sort((a, b) => b.createdAt.compareTo(a.createdAt)))
+                  .first
             : null;
         setState(() {
           _latestRegistration = latest;
@@ -867,7 +868,7 @@ class _AccountLoggedInViewState extends State<AccountLoggedInView> {
           context.pushNamed('companySelection');
         };
       } else {
-        buttonText = 'Lihat Pengajuan Member';
+        buttonText = 'Lihat Pengajuan Perusahaan';
         onPressed = () {
           context.pushNamed('memberList', extra: {'initialTabIndex': 0});
         };

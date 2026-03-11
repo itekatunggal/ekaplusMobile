@@ -57,7 +57,7 @@ class _SplashScreenPageState extends State<SplashScreenPage>
               height: 180,
               fit: BoxFit.contain,
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 2),
             AnimatedBuilder(
               animation: _controller,
               builder: (context, child) {

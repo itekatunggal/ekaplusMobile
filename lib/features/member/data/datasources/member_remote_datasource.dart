@@ -352,6 +352,10 @@ class MemberRemoteDataSourceImpl implements MemberRemoteDataSource {
     return s == '1' || s == 'true' || s == 'yes';
   }
 
+  String _normalizeMemberRefType(dynamic value) {
+    return value?.toString().trim().toLowerCase() ?? '';
+  }
+
   Future<String> _authToken() async => (await SessionManager.getToken()) ?? '';
 
   Future<List<Map<String, dynamic>>> _loadMemberOfRowsByMethod(int uid) async {
@@ -835,16 +839,44 @@ class MemberRemoteDataSourceImpl implements MemberRemoteDataSource {
         );
 
     List<Map<String, dynamic>> memberOfRows = const [];
+    List<Map<String, dynamic>> gcidMembershipRows = const [];
     List<Map<String, dynamic>> legacyBcidMembershipRows = const [];
 
     try {
       final methodRows = await _loadMemberOfRowsByMethod(user.id);
       memberOfRows = methodRows.where((row) {
-        return (row['ref_type'] ?? '').toString() == 'gpid';
+        return _normalizeMemberRefType(row['ref_type']) == 'gpid';
+      }).toList();
+      gcidMembershipRows = methodRows.where((row) {
+        return _normalizeMemberRefType(row['ref_type']) == 'gcid';
       }).toList();
       legacyBcidMembershipRows = methodRows.where((row) {
-        return (row['ref_type'] ?? '').toString() == 'bcid';
+        return _normalizeMemberRefType(row['ref_type']) == 'bcid';
       }).toList();
+
+      // Some API responses from `member_of/method/memberofuser` return only
+      // a compact active-company list: [{id, name}] where id is the BCID.
+      if (memberOfRows.isEmpty &&
+          gcidMembershipRows.isEmpty &&
+          legacyBcidMembershipRows.isEmpty) {
+        legacyBcidMembershipRows = methodRows
+            .where(
+              (row) =>
+                  _safeInt(row['id']) > 0 &&
+                  !row.containsKey('ref_id') &&
+                  !row.containsKey('ref_type'),
+            )
+            .map(
+              (row) => <String, dynamic>{
+                'id': _safeInt(row['id']),
+                'ref_type': 'bcid',
+                'ref_id': _safeInt(row['id']),
+                'user_id': user.id,
+                'name': row['name'],
+              },
+            )
+            .toList();
+      }
     } catch (_) {
       try {
         memberOfRows = await loadMemberOfByRefType('gpid');
@@ -861,6 +893,21 @@ class MemberRemoteDataSourceImpl implements MemberRemoteDataSource {
       }
 
       if (memberOfRows.isEmpty) {
+        try {
+          gcidMembershipRows = await loadMemberOfByRefType('gcid');
+        } catch (_) {
+          gcidMembershipRows = await _getResourceList(
+            'member_of',
+            fields: ['*'],
+            filters: [
+              ['user', '=', '${user.id}'],
+              ['ref_type', '=', 'gcid'],
+            ],
+          );
+        }
+      }
+
+      if (memberOfRows.isEmpty && gcidMembershipRows.isEmpty) {
         try {
           legacyBcidMembershipRows = await _getResourceList(
             'member_of',
@@ -883,25 +930,80 @@ class MemberRemoteDataSourceImpl implements MemberRemoteDataSource {
       }
     }
 
-    if (memberOfRows.isEmpty && legacyBcidMembershipRows.isEmpty) return [];
+    if (memberOfRows.isEmpty) {
+      try {
+        memberOfRows = await loadMemberOfByRefType('gpid');
+      } catch (_) {
+        try {
+          memberOfRows = await _getResourceList(
+            'member_of',
+            fields: ['*'],
+            filters: [
+              ['user', '=', '${user.id}'],
+              ['ref_type', '=', 'gpid'],
+            ],
+          );
+        } catch (_) {}
+      }
+    }
+
+    if (memberOfRows.isEmpty &&
+        gcidMembershipRows.isEmpty &&
+        legacyBcidMembershipRows.isEmpty) {
+      return [];
+    }
 
     final gpidMemberById = <int, Map<String, dynamic>>{
       for (final row in memberOfRows)
         if (_safeInt(row['ref_id']) > 0) _safeInt(row['ref_id']): row,
     };
+    final gcidMemberById = <int, Map<String, dynamic>>{
+      for (final row in gcidMembershipRows)
+        if (_safeInt(row['ref_id']) > 0) _safeInt(row['ref_id']): row,
+    };
+    final defaultGpidMembership = memberOfRows.isEmpty
+        ? const <String, dynamic>{}
+        : Map<String, dynamic>.from(
+            memberOfRows.firstWhere(
+              (row) => _isTruthy(row['is_owner']),
+              orElse: () => memberOfRows.first,
+            ),
+          );
 
     final gpids = gpidMemberById.keys.toList();
-    final groupCustomerRows = await _getByFieldValues(
+    final gcidsFromMembership = gcidMemberById.keys.toList();
+    final groupCustomerRowsFromGpid = await _getByFieldValues(
       'group_customer',
       'gpid',
       gpids,
       fields: ['*'],
     );
+    final groupCustomerRowsFromGcid = await _getByIds(
+      'group_customer',
+      gcidsFromMembership,
+      fields: ['*'],
+    );
+    final groupCustomerRows = <Map<String, dynamic>>[
+      ...groupCustomerRowsFromGpid,
+      ...groupCustomerRowsFromGcid,
+    ];
+    final dedupedGroupCustomerById = <int, Map<String, dynamic>>{};
+    for (final row in groupCustomerRows) {
+      final id = _safeInt(row['id']);
+      if (id > 0) dedupedGroupCustomerById[id] = row;
+    }
     final groupCustomerById = {
-      for (final row in groupCustomerRows) _safeInt(row['id']): row,
+      for (final entry in dedupedGroupCustomerById.entries) entry.key: entry.value,
     };
+    final groupCustomerByGpid = <int, Map<String, dynamic>>{};
+    for (final row in groupCustomerById.values) {
+      final gpid = _safeInt(row['gpid']);
+      if (gpid > 0 && !groupCustomerByGpid.containsKey(gpid)) {
+        groupCustomerByGpid[gpid] = row;
+      }
+    }
 
-    final gcids = groupCustomerRows
+    final gcids = groupCustomerById.values
         .map((e) => _safeInt(e['id']))
         .where((e) => e > 0)
         .toList();
@@ -927,6 +1029,14 @@ class MemberRemoteDataSourceImpl implements MemberRemoteDataSource {
       ...branchCustomerRowsFromGp,
       ...branchCustomerRowsFromLegacy,
     ];
+    final compactMethodNameByBcid = <int, String>{};
+    for (final row in legacyBcidMembershipRows) {
+      final bcid = _safeInt(row['ref_id']);
+      final compactName = _safeNullableString(row['name'])?.trim();
+      if (bcid > 0 && compactName != null && compactName.isNotEmpty) {
+        compactMethodNameByBcid[bcid] = compactName;
+      }
+    }
     final branchCustomerById = <int, Map<String, dynamic>>{};
     for (final row in branchCustomerRows) {
       final id = _safeInt(row['id']);
@@ -1014,20 +1124,28 @@ class MemberRemoteDataSourceImpl implements MemberRemoteDataSource {
       final bcid = _safeInt(bc['id']);
       if (bcid <= 0 || !addedBcid.add(bcid)) continue;
       final gcid = _safeInt(bc['gcid']);
-      final gc = groupCustomerById[gcid];
-      final gpid = gc == null ? 0 : _safeInt(gc['gpid']);
+      final legacyMembership = legacyBcidMembershipRows.firstWhere(
+        (e) => _safeInt(e['ref_id']) == bcid,
+        orElse: () => const <String, dynamic>{},
+      );
+      final fallbackGpid = _safeInt(
+        defaultGpidMembership['ref_id'] ?? legacyMembership['gpid'],
+      );
+      final gc =
+          groupCustomerById[gcid] ??
+          (fallbackGpid > 0 ? groupCustomerByGpid[fallbackGpid] : null);
+      final gpid = gc == null ? fallbackGpid : _safeInt(gc['gpid']);
       final gp = groupParentById[gpid];
       final nbid = gp == null ? 0 : _safeInt(gp['nbid']);
       final nb = nationalBrandById[nbid];
 
       final mo =
+          gcidMemberById[gcid] ??
           gpidMemberById[gpid] ??
-          legacyBcidMembershipRows.firstWhere(
-            (e) => _safeInt(e['ref_id']) == bcid,
-            orElse: () => const <String, dynamic>{},
-          );
+          legacyMembership;
 
       final branchObj = bc['branch'];
+      final compactName = compactMethodNameByBcid[bcid];
       final branchName = branchObj is Map
           ? (_safeNullableString(branchObj['branch_name']) ??
                 _safeNullableString(branchObj['name']))
@@ -1049,7 +1167,9 @@ class MemberRemoteDataSourceImpl implements MemberRemoteDataSource {
           memberIsSharing: _isTruthy(mo['is_sharing']),
           shareFromUserId: _safeNullableInt(mo['share_from']),
           branchCustomerId: _safeNullableInt(bc['id']),
-          branchCustomerCode: _safeNullableString(bc['name']),
+          branchCustomerCode:
+              _safeNullableString(bc['name']) ??
+              compactName,
           branchId: _safeNullableInt(bc['branch_id'] ?? bc['branch']),
           branchName: branchName,
           branchCity: branchCity,
@@ -1063,7 +1183,9 @@ class MemberRemoteDataSourceImpl implements MemberRemoteDataSource {
             bc['branch_owner_date_of_birth'],
           ),
           gcidId: gc == null ? null : _safeNullableInt(gc['id']),
-          gcName: _safeNullableString(gc == null ? null : gc['gc_name']),
+          gcName:
+              _safeNullableString(gc == null ? null : gc['gc_name']) ??
+              compactName,
           gpidId: gp == null ? null : _safeNullableInt(gp['id']),
           gpCode: _safeNullableString(gp == null ? null : gp['name']),
           gpName: _safeNullableString(gp == null ? null : gp['gp_name']),

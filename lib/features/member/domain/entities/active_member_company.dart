@@ -100,7 +100,9 @@ class ActiveMemberCompany extends Equatable {
     final city = (branchCity ?? '').trim();
     if (gc.isNotEmpty && city.isNotEmpty) return '$gc - $city';
     if (gc.isNotEmpty) return gc;
-    if ((branchCustomerCode ?? '').trim().isNotEmpty) return branchCustomerCode!;
+    if ((branchCustomerCode ?? '').trim().isNotEmpty) {
+      return branchCustomerCode!;
+    }
     return 'BCID #$refId';
   }
 

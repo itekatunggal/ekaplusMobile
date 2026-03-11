@@ -1,8 +1,7 @@
 // lib/features/auth/presentation/pages/register_form_page.dart
-// ignore_for_file: use_build_context_synchronously
+// ignore_for_file: use_build_context_synchronously, unused_element
 
 import 'package:ekaplus_ekatunggal/constant.dart';
-import 'package:ekaplus_ekatunggal/core/services/storage_service.dart';
 import 'package:ekaplus_ekatunggal/core/shared_widgets/custom_header.dart';
 import 'package:ekaplus_ekatunggal/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:ekaplus_ekatunggal/features/auth/presentation/bloc/auth_event.dart';
@@ -12,7 +11,6 @@ import 'package:ekaplus_ekatunggal/features/auth/presentation/widgets/birth_info
 import 'package:ekaplus_ekatunggal/features/auth/presentation/widgets/contact_info_section_widget.dart';
 import 'package:ekaplus_ekatunggal/features/auth/presentation/widgets/password_section_widget.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -134,17 +132,14 @@ class _RegisterFormPageState extends State<RegisterFormPage> {
   }
 
   // Auto-copy JSON to clipboard (fire-and-forget ok)
-  Future<void> _autoCopyJsonToClipboard() async {
+  Future<void> _autoCopyJsonToClipboard() async { return; /*
     try {
-      final storageService = StorageService();
-      final jsonString = await storageService.exportUsersAsJson();
-      await Clipboard.setData(ClipboardData(text: jsonString));
       debugPrint('✅ JSON AUTO-COPIED TO CLIPBOARD!');
       debugPrint('📁 Also saved to: ${storageService.getAssetsFilePath()}');
     } catch (e) {
       debugPrint('⚠️ Could not copy to clipboard: $e');
     }
-  }
+  */ }
 
   // Validators
   String? _validateName(String? value) {
@@ -333,8 +328,6 @@ class _RegisterFormPageState extends State<RegisterFormPage> {
             debugPrint('✅ RegisterSuccess (listener)');
             // 1. Tutup keyboard/hapus fokus secara paksa sebelum navigasi
             FocusScope.of(context).unfocus();
-
-            _autoCopyJsonToClipboard();
 
             if (mounted && !_isDisposed) {
               AppSnackbar.showRaw(context, 

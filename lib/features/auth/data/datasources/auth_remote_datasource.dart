@@ -6,7 +6,6 @@ import 'package:ekaplus_ekatunggal/core/utils/session_manager.dart';
 import 'package:ekaplus_ekatunggal/core/network/http_request_handler.dart';
 import 'package:ekaplus_ekatunggal/core/network/network_exceptions.dart';
 import 'package:ekaplus_ekatunggal/features/auth/domain/entities/user.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:hive/hive.dart';
 import 'package:http/http.dart' as http;
@@ -49,7 +48,6 @@ abstract class AuthRemoteDataSource {
 }
 
 class AuthLocalDataSourceImpl implements AuthRemoteDataSource {
-  static const _assetPath = 'assets/data/users.json';
   static const _tokenKey = 'auth_token';
   static const _refreshTokenKey = 'refresh_token';
   static const _userKey = 'current_user';
@@ -62,17 +60,6 @@ class AuthLocalDataSourceImpl implements AuthRemoteDataSource {
   // ============================================================
   // PRIVATE HELPERS
   // ============================================================
-
-  Future<List<Map<String, dynamic>>> _loadUsersFromAssets() async {
-    try {
-      final raw = await rootBundle.loadString(_assetPath);
-      final decoded = jsonDecode(raw);
-      final list = decoded is Map ? decoded['users'] ?? [] : decoded;
-      return List<Map<String, dynamic>>.from(list);
-    } catch (_) {
-      return [];
-    }
-  }
 
   String normalizePhone(String phone) {
     var cleaned = phone.replaceAll(RegExp(r'[^0-9]'), '');
@@ -447,11 +434,7 @@ class AuthLocalDataSourceImpl implements AuthRemoteDataSource {
     if (cached != null && cached.phone == phone) {
       return cached;
     }
-
-    final users = await _loadUsersFromAssets();
-    final data = users.where((u) => u['phone'] == phone);
-    if (data.isEmpty) return null;
-    return UserModel.fromApiJson(data.first);
+    return null;
   }
 
   @override
@@ -460,11 +443,7 @@ class AuthLocalDataSourceImpl implements AuthRemoteDataSource {
     if (cached != null && cached.username == username) {
       return cached;
     }
-
-    final users = await _loadUsersFromAssets();
-    final data = users.where((u) => u['username'] == username);
-    if (data.isEmpty) return null;
-    return UserModel.fromApiJson(data.first);
+    return null;
   }
 
   @override
@@ -473,11 +452,7 @@ class AuthLocalDataSourceImpl implements AuthRemoteDataSource {
     if (cached != null && cached.email == email) {
       return cached;
     }
-
-    final users = await _loadUsersFromAssets();
-    final data = users.where((u) => u['email'] == email);
-    if (data.isEmpty) return null;
-    return UserModel.fromApiJson(data.first);
+    return null;
   }
 
   @override

@@ -1,5 +1,10 @@
+import 'dart:convert';
+
+import 'package:ekaplus_ekatunggal/core/config/api_config.dart';
+import 'package:ekaplus_ekatunggal/core/utils/session_manager.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:http/http.dart' as http;
 
 import '../../../../constant.dart';
 import '../../../../injection.dart';
@@ -32,11 +37,8 @@ class _AddBCIDPageState extends State<AddBCIDPage> {
     final result = await _getActiveMemberCompaniesByUserId.execute();
     if (!mounted) return;
 
-    result.fold(
-      (_) => setState(() {
-        _parentGcOptions = [];
-        _isLoading = false;
-      }),
+    List<ActiveMemberCompany> rows = result.fold(
+      (_) => <ActiveMemberCompany>[],
       (companies) {
         final byGcid = <int, ActiveMemberCompany>{};
         for (final c in companies) {
@@ -45,14 +47,140 @@ class _AddBCIDPageState extends State<AddBCIDPage> {
           if (id == null || id <= 0) continue;
           byGcid.putIfAbsent(id, () => c);
         }
-        final rows = byGcid.values.toList()
+        return byGcid.values.toList()
           ..sort((a, b) => (a.gcName ?? '').compareTo(b.gcName ?? ''));
-        setState(() {
-          _parentGcOptions = rows;
-          _isLoading = false;
-        });
       },
     );
+
+    if (rows.isEmpty) {
+      rows = await _loadLegacyGcOptions();
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _parentGcOptions = rows;
+      _isLoading = false;
+    });
+  }
+
+  Future<List<ActiveMemberCompany>> _loadLegacyGcOptions() async {
+    try {
+      final userData = await SessionManager.getCurrentUser();
+      if (userData == null) return const [];
+      final userId = int.tryParse('${userData['id'] ?? ''}');
+      if (userId == null || userId <= 0) return const [];
+
+      final token = await SessionManager.getToken();
+      if (token == null || token.isEmpty) return const [];
+
+      final memberOfSpec = {
+        'fields': ['*'],
+        'filters': [
+          ['ref_type', '=', 'gpid'],
+          ['user', '=', userId],
+        ],
+        'order_by': [
+          ['is_owner', 'desc'],
+          ['updated_at', 'desc'],
+          ['id', 'desc'],
+        ],
+      };
+
+      final memberOfUri = Uri.parse(
+        '${ApiConfig.baseUrl}/api/resource/member_of'
+        '?spec=${Uri.encodeComponent(jsonEncode(memberOfSpec))}',
+      );
+      final memberOfResponse = await http.get(
+        memberOfUri,
+        headers: {...ApiConfig.headers, 'Authorization': 'Bearer $token'},
+      );
+      if (memberOfResponse.statusCode != 200) return const [];
+
+      final memberOfBody = jsonDecode(memberOfResponse.body) as Map<String, dynamic>;
+      final memberRows = memberOfBody['data'];
+      if (memberRows is! List || memberRows.isEmpty) return const [];
+
+      final gpids = memberRows
+          .whereType<Map>()
+          .map((row) => int.tryParse('${row['ref_id'] ?? ''}') ?? 0)
+          .where((id) => id > 0)
+          .toSet()
+          .toList();
+      if (gpids.isEmpty) return const [];
+
+      final groupCustomerSpec = {
+        'fields': ['*'],
+        'filters': [
+          ['gpid', 'in', gpids],
+        ],
+      };
+      final groupCustomerUri = Uri.parse(
+        '${ApiConfig.baseUrl}/api/resource/group_customer'
+        '?spec=${Uri.encodeComponent(jsonEncode(groupCustomerSpec))}',
+      );
+      final groupCustomerResponse = await http.get(
+        groupCustomerUri,
+        headers: {...ApiConfig.headers, 'Authorization': 'Bearer $token'},
+      );
+      if (groupCustomerResponse.statusCode != 200) return const [];
+
+      final groupCustomerBody =
+          jsonDecode(groupCustomerResponse.body) as Map<String, dynamic>;
+      final groupCustomers = groupCustomerBody['data'];
+      if (groupCustomers is! List || groupCustomers.isEmpty) return const [];
+
+      final gpidMembershipById = <int, Map<String, dynamic>>{};
+      for (final item in memberRows.whereType<Map>()) {
+        final row = Map<String, dynamic>.from(item);
+        final gpid = int.tryParse('${row['ref_id'] ?? ''}') ?? 0;
+        if (gpid <= 0 || gpidMembershipById.containsKey(gpid)) continue;
+        gpidMembershipById[gpid] = row;
+      }
+
+      final byGcid = <int, ActiveMemberCompany>{};
+      for (final item in groupCustomers.whereType<Map>()) {
+        final gc = Map<String, dynamic>.from(item);
+        final gcid = int.tryParse('${gc['id'] ?? ''}') ?? 0;
+        final gpid = int.tryParse('${gc['gpid'] ?? ''}') ?? 0;
+        if (gcid <= 0 || gpid <= 0) continue;
+        final memberRow = gpidMembershipById[gpid];
+
+        byGcid.putIfAbsent(
+          gcid,
+          () => ActiveMemberCompany(
+            memberOfId: int.tryParse('${memberRow?['id'] ?? ''}') ?? 0,
+            refType: (memberRow?['ref_type'] ?? 'gpid').toString(),
+            refId: gpid,
+            userId: userId,
+            memberOfStatus: memberRow?['status']?.toString(),
+            memberIsOwner:
+                memberRow?['is_owner'] == 1 || memberRow?['is_owner'] == true,
+            memberIsSharing:
+                memberRow?['is_sharing'] == 1 ||
+                memberRow?['is_sharing'] == true,
+            shareFromUserId: int.tryParse('${memberRow?['share_from'] ?? ''}'),
+            gcidId: gcid,
+            gcName: gc['gc_name']?.toString(),
+            gpidId: gpid,
+            customerOwnerName: gc['owner_full_name']?.toString(),
+            customerOwnerEmail: gc['owner_email']?.toString(),
+            customerOwnerPhone: gc['owner_phone']?.toString(),
+            customerOwnerPlaceOfBirth: gc['owner_place_of_birth']?.toString(),
+            customerOwnerDateOfBirth: gc['owner_date_of_birth']?.toString(),
+            customerCompanyName: gc['company_name']?.toString(),
+            customerCompanyType: gc['company_type']?.toString(),
+            customerCompanyTitle: gc['company_title']?.toString(),
+            createdAt: DateTime.tryParse('${memberRow?['created_at'] ?? ''}'),
+          ),
+        );
+      }
+
+      final rows = byGcid.values.toList()
+        ..sort((a, b) => (a.gcName ?? '').compareTo(b.gcName ?? ''));
+      return rows;
+    } catch (_) {
+      return const [];
+    }
   }
 
   void _continueToForm() {
