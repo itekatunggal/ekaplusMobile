@@ -110,7 +110,8 @@ class _WishlistItemCardState extends State<WishlistItemCard>
         _isLoading = false;
       });
 
-      AppSnackbar.showRaw(context, 
+      AppSnackbar.showRaw(
+        context,
         SnackBar(
           content: Row(
             children: [
@@ -901,15 +902,16 @@ class _WishlistItemCardState extends State<WishlistItemCard>
                           ToggleWishlistItem(productId: widget.productId),
                         );
                         Navigator.pop(c);
-                        AppSnackbar.showRaw(context, 
+                        AppSnackbar.showRaw(
+                          context,
                           SnackBar(
                             content: Row(
                               children: [
-                                const Icon(
-                                  Icons.check_circle_outline,
-                                  color: Colors.white,
-                                  size: 18,
-                                ),
+                                // const Icon(
+                                //   Icons.check_circle_outline,
+                                //   color: Colors.white,
+                                //   size: 18,
+                                // ),
                                 const SizedBox(width: 10),
                                 Expanded(
                                   child: Text(

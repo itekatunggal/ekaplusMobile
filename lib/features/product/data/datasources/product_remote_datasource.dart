@@ -161,17 +161,24 @@ class ProductRemoteDatasourceImplementation extends ProductRemoteDatasource {
     );
 
     final decoded = jsonDecode(response.body);
+    final rawData = decoded is Map<String, dynamic> ? decoded['data'] : decoded;
 
-    final dataList = decoded is List ? decoded : (decoded['data'] ?? []);
-    if (dataList is! List || dataList.isEmpty) {
-      throw const FormatException('Produk tidak ditemukan atau nonaktif');
+    if (rawData is Map<String, dynamic>) {
+      final sanitized = _sanitizeProducts([rawData]);
+      if (sanitized.isEmpty) {
+        throw const FormatException('Produk tidak ditemukan atau nonaktif');
+      }
+      return ProductModel.fromJson(sanitized.first);
     }
-    final sanitized = _sanitizeProducts(dataList);
-    if (sanitized.isEmpty) {
-      throw const FormatException('Produk tidak ditemukan atau nonaktif');
-    }
-    final dynamic data = sanitized.first;
 
-    return ProductModel.fromJson(data);
+    if (rawData is List && rawData.isNotEmpty) {
+      final sanitized = _sanitizeProducts(rawData);
+      if (sanitized.isEmpty) {
+        throw const FormatException('Produk tidak ditemukan atau nonaktif');
+      }
+      return ProductModel.fromJson(sanitized.first);
+    }
+
+    throw const FormatException('Produk tidak ditemukan atau nonaktif');
   }
 }

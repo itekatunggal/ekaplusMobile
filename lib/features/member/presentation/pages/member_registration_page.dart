@@ -176,7 +176,8 @@ class _MemberRegistrationPageState extends State<MemberRegistrationPage> {
     }
   }
 
-  Future<ActiveMemberCompany?> _loadLegacyDefaultHierarchyForNewCompany() async {
+  Future<ActiveMemberCompany?>
+  _loadLegacyDefaultHierarchyForNewCompany() async {
     try {
       final userData = await SessionManager.getCurrentUser();
       if (userData == null) return null;
@@ -209,12 +210,14 @@ class _MemberRegistrationPageState extends State<MemberRegistrationPage> {
       );
       if (memberOfResponse.statusCode != 200) return null;
 
-      final memberOfBody = jsonDecode(memberOfResponse.body) as Map<String, dynamic>;
+      final memberOfBody =
+          jsonDecode(memberOfResponse.body) as Map<String, dynamic>;
       final memberRows = memberOfBody['data'];
       if (memberRows is! List || memberRows.isEmpty) return null;
 
       final ownerRow = memberRows.cast<dynamic>().firstWhere(
-        (row) => row is Map && ((row['is_owner'] == 1) || (row['is_owner'] == true)),
+        (row) =>
+            row is Map && ((row['is_owner'] == 1) || (row['is_owner'] == true)),
         orElse: () => memberRows.first,
       );
       if (ownerRow is! Map) return null;
@@ -254,7 +257,8 @@ class _MemberRegistrationPageState extends State<MemberRegistrationPage> {
             );
             if (nationalBrandResponse.statusCode == 200) {
               final nationalBrandBody =
-                  jsonDecode(nationalBrandResponse.body) as Map<String, dynamic>;
+                  jsonDecode(nationalBrandResponse.body)
+                      as Map<String, dynamic>;
               final nbData = nationalBrandBody['data'];
               if (nbData is Map<String, dynamic>) {
                 nbName = (nbData['nb_name'] ?? nbData['name'])?.toString();
@@ -765,7 +769,9 @@ class _MemberRegistrationPageState extends State<MemberRegistrationPage> {
     return files;
   }
 
-  Map<String, dynamic>? _buildSubmissionPayload() {
+  Map<String, dynamic>? _buildSubmissionPayload({
+    bool validateForRequest = true,
+  }) {
     final formData = _formState.toApiCustomerRegisterJson();
     final authState = context.read<AuthSessionCubit>().state;
     if (authState is AuthSessionAuthenticated) {
@@ -776,6 +782,7 @@ class _MemberRegistrationPageState extends State<MemberRegistrationPage> {
 
     final needsOwnerPermission = (!_isEditMode && _isBcidMode);
     if (needsOwnerPermission &&
+        validateForRequest &&
         hierarchySource != null &&
         !hierarchySource.memberIsOwner) {
       AppSnackbar.showRaw(
@@ -841,7 +848,8 @@ class _MemberRegistrationPageState extends State<MemberRegistrationPage> {
     bool showLoading = true,
   }) async {
     final requestPayload = Map<String, dynamic>.from(payload);
-    final editingId = _persistedDraftId ?? (_isResubmitAsNew ? null : _editingRegistrationId);
+    final editingId =
+        _persistedDraftId ?? (_isResubmitAsNew ? null : _editingRegistrationId);
     if (editingId != null) {
       requestPayload['id'] = editingId;
     }
@@ -868,7 +876,8 @@ class _MemberRegistrationPageState extends State<MemberRegistrationPage> {
         context,
         SnackBar(
           content: Text(
-            'Masih ada field wajib diisi atau error (${errors.length})!',
+            'Masih ada field yang wajib diisi atau error!',
+            // 'Masih ada field wajib diisi atau error (${errors.length})!',
           ),
           backgroundColor: Colors.red,
         ),
@@ -1086,7 +1095,7 @@ class _MemberRegistrationPageState extends State<MemberRegistrationPage> {
       context.pop(_shouldRefreshOnExit ? true : null);
       return false;
     }
-    final payload = _buildSubmissionPayload();
+    final payload = _buildSubmissionPayload(validateForRequest: false);
     if (payload == null) return false;
     final files = _collectFiles();
 

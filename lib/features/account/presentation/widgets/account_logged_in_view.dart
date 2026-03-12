@@ -852,12 +852,12 @@ class _AccountLoggedInViewState extends State<AccountLoggedInView> {
     if (hasActiveCompany) {
       buttonText = 'Tambah Perusahaan / Cabang';
       onPressed = () {
-        context.pushNamed('companySelection');
+        _handleCompanyRegistrationTap(currentUser, routeName: 'companySelection');
       };
     } else if (_latestRegistration == null) {
       buttonText = 'Daftar Member';
       onPressed = () {
-        _handleMemberRegistrationTap(currentUser);
+        _handleCompanyRegistrationTap(currentUser, routeName: 'memberRegistration');
       };
     } else {
       final status = _latestRegistration!.status;
@@ -865,7 +865,7 @@ class _AccountLoggedInViewState extends State<AccountLoggedInView> {
       if (status == 'approved') {
         buttonText = 'Hubungkan Perusahaan';
         onPressed = () {
-          context.pushNamed('companySelection');
+          _handleCompanyRegistrationTap(currentUser, routeName: 'companySelection');
         };
       } else {
         buttonText = 'Lihat Pengajuan Perusahaan';
@@ -898,7 +898,7 @@ class _AccountLoggedInViewState extends State<AccountLoggedInView> {
     );
   }
 
-  void _handleMemberRegistrationTap(User user) {
+  void _handleCompanyRegistrationTap(User user, {required String routeName}) {
     final phone = user.phone.trim();
     final email = user.email.trim();
     final noPassword = (user.password ?? '').isEmpty;
@@ -919,7 +919,7 @@ class _AccountLoggedInViewState extends State<AccountLoggedInView> {
     if (!user.isEmailVerified || email.isEmpty) {
       AppSnackbar.show(
         context,
-        message: 'Verifikasi email dulu sebelum daftar member',
+        message: 'Lengkapi dan verifikasi email dulu sebelum daftar perusahaan',
         type: AppSnackbarType.warning,
       );
       if (email.isEmpty) {
@@ -947,7 +947,7 @@ class _AccountLoggedInViewState extends State<AccountLoggedInView> {
       return;
     }
 
-    context.pushNamed('memberRegistration');
+    context.pushNamed(routeName);
   }
 
   Widget _buildSettingsSection(BuildContext context, User currentUser) {

@@ -41,7 +41,7 @@ class WishlistEmptyState extends StatelessWidget {
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontFamily: AppFonts.primaryFont,
-                    fontSize: 16 * scale,
+                    fontSize: 18 * scale,
                     fontWeight: FontWeight.w700,
                     color: AppColors.blackColor,
                   ),
@@ -55,7 +55,7 @@ class WishlistEmptyState extends StatelessWidget {
                   style: TextStyle(
                     fontFamily: AppFonts.primaryFont,
                     fontWeight: FontWeight.w400,
-                    fontSize: 13 * scale,
+                    fontSize: 15 * scale,
                     color: Colors.grey[600],
                     height: 1.4,
                   ),
