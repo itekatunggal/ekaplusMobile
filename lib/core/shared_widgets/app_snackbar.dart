@@ -104,61 +104,56 @@ class AppSnackbar {
             child: Align(
               alignment: Alignment.bottomLeft,
               child: Container(
+                width: double.infinity,
                 margin: resolvedMargin,
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(
-                    maxWidth: MediaQuery.of(overlayContext).size.width * 0.78,
-                  ),
-                  child: Material(
-                    color: resolvedBackground,
-                    elevation: 0,
-                    shape: resolvedShape,
-                    clipBehavior: Clip.antiAlias,
-                    child: DefaultTextStyle(
-                      style: const TextStyle(
+                child: Material(
+                  color: resolvedBackground,
+                  elevation: 0,
+                  shape: resolvedShape,
+                  clipBehavior: Clip.antiAlias,
+                  child: DefaultTextStyle(
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: _messageFontSize,
+                      fontWeight: FontWeight.w600,
+                      height: 1.3,
+                    ),
+                    child: IconTheme(
+                      data: const IconThemeData(
                         color: Colors.white,
-                        fontSize: _messageFontSize,
-                        fontWeight: FontWeight.w600,
-                        height: 1.3,
+                        size: 18,
                       ),
-                      child: IconTheme(
-                        data: const IconThemeData(
-                          color: Colors.white,
-                          size: 18,
-                        ),
-                        child: Padding(
-                          padding: resolvedPadding,
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(_icon(type)),
-                              const SizedBox(width: 10),
-                              Flexible(
-                                child: Text(
-                                  resolvedMessage,
-                                  maxLines: 3,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
+                      child: Padding(
+                        padding: resolvedPadding,
+                        child: Row(
+                          children: [
+                            Icon(_icon(type)),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                resolvedMessage,
+                                maxLines: 3,
+                                overflow: TextOverflow.ellipsis,
                               ),
-                              if (snackBar.action != null) ...[
-                                const SizedBox(width: 8),
-                                Theme(
-                                  data: Theme.of(context).copyWith(
-                                    textButtonTheme: TextButtonThemeData(
-                                      style: TextButton.styleFrom(
-                                        foregroundColor: Colors.white,
-                                        textStyle: const TextStyle(
-                                          fontSize: _actionFontSize,
-                                          fontWeight: FontWeight.w700,
-                                        ),
+                            ),
+                            if (snackBar.action != null) ...[
+                              const SizedBox(width: 8),
+                              Theme(
+                                data: Theme.of(context).copyWith(
+                                  textButtonTheme: TextButtonThemeData(
+                                    style: TextButton.styleFrom(
+                                      foregroundColor: Colors.white,
+                                      textStyle: const TextStyle(
+                                        fontSize: _actionFontSize,
+                                        fontWeight: FontWeight.w700,
                                       ),
                                     ),
                                   ),
-                                  child: snackBar.action!,
                                 ),
-                              ],
+                                child: snackBar.action!,
+                              ),
                             ],
-                          ),
+                          ],
                         ),
                       ),
                     ),
