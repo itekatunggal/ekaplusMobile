@@ -136,3 +136,10 @@ class MemberRegistrationShippingDistrictsLoaded extends MemberRegistrationState 
 
   const MemberRegistrationShippingDistrictsLoaded(this.addressId, this.districts);
 }
+
+class MemberRegistrationShippingVillagesLoaded extends MemberRegistrationState {
+  final String addressId;
+  final List<VillageModel> villages;
+
+  const MemberRegistrationShippingVillagesLoaded(this.addressId, this.villages);
+}

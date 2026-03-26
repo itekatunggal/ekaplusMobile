@@ -578,8 +578,8 @@ class _MemberConfirmationDialogState extends State<MemberConfirmationDialog> {
                   ),
                   Expanded(
                     child: _buildDataItem(
-                      label: 'Kode Pos',
-                      value: _value(['company_postal_code', 'postal_code']),
+                      label: 'Kelurahan/Desa',
+                      value: _value(['village']),
                     ),
                   ),
                 ],
@@ -593,7 +593,8 @@ class _MemberConfirmationDialogState extends State<MemberConfirmationDialog> {
 
   Widget _buildShippingAddressSection() {
     final shippingAddresses =
-        (widget.formData['customer_shipping_address'] ??
+        (widget.formData['customer_register_address'] ??
+                widget.formData['customer_shipping_address'] ??
                 widget.formData['shipping_addresses'])
             as List<dynamic>?;
     final count = shippingAddresses?.length ?? 0;
@@ -692,6 +693,7 @@ class _MemberConfirmationDialogState extends State<MemberConfirmationDialog> {
         address['same_as_company_address'] == 1;
     final isDefault =
         address['is_default'] == true || address['is_default'] == 1;
+    final type = _asString(address['type']);
 
     return Container(
       margin: EdgeInsets.only(top: index > 0 ? 12 : 0),
@@ -737,6 +739,27 @@ class _MemberConfirmationDialogState extends State<MemberConfirmationDialog> {
                   ),
                 ),
               ],
+              if ((type ?? '').trim().isNotEmpty) ...[
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEFF6FF),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    type!,
+                    style: const TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF1D4ED8),
+                    ),
+                  ),
+                ),
+              ],
               if (isSameAsCompany) ...[
                 const SizedBox(width: 8),
                 Container(
@@ -778,6 +801,8 @@ class _MemberConfirmationDialogState extends State<MemberConfirmationDialog> {
             ],
           ),
           const SizedBox(height: 12),
+          _buildDataItem(label: 'Email PIC', value: address['pic_email']),
+          const SizedBox(height: 12),
           _buildDataItem(label: 'Alamat', value: address['address']),
           const SizedBox(height: 12),
           Row(
@@ -807,8 +832,8 @@ class _MemberConfirmationDialogState extends State<MemberConfirmationDialog> {
               ),
               Expanded(
                 child: _buildDataItem(
-                  label: 'Kode Pos',
-                  value: address['postal_code'],
+                  label: 'Kelurahan/Desa',
+                  value: address['village'],
                 ),
               ),
             ],

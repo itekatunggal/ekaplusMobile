@@ -46,6 +46,7 @@ class MemberRegistration extends Equatable {
 
   final String nik;
   final String? npwp;
+  final bool taxStatus;
   final String? ktpImage;
   final String? npwpImage;
 
@@ -94,6 +95,7 @@ class MemberRegistration extends Equatable {
     this.rejectNotes,
     required this.nik,
     this.npwp,
+    this.taxStatus = false,
     this.ktpImage,
     this.npwpImage,
     required this.branch,
@@ -140,6 +142,7 @@ class MemberRegistration extends Equatable {
     rejectNotes,
     nik,
     npwp,
+    taxStatus,
     ktpImage,
     npwpImage,
     branch,

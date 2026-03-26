@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../../../../constant.dart';
 import '../../../member/domain/entities/member_registration.dart';
 import 'package:intl/intl.dart';
+import '../utils/member_status_helper.dart';
 
 class MemberRegistrationCard extends StatelessWidget {
   final MemberRegistration registration;
@@ -17,7 +18,8 @@ class MemberRegistrationCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDraft = _isDraft(registration);
+    final normalizedStatus = MemberStatusHelper.normalize(registration.status);
+    final isDraft = MemberStatusHelper.isDraft(registration.status);
     final companyName = registration.businessName;
     final branchName =
         registration.branch.city != null &&
@@ -25,7 +27,9 @@ class MemberRegistrationCard extends StatelessWidget {
         ? '${registration.branch.branchName} - ${registration.branch.city}'
         : registration.branch.branchName;
     final dateLabel = isDraft ? 'Diupdate' : 'Diajukan';
-    final displayDate = isDraft ? registration.updatedAt : registration.createdAt;
+    final displayDate = isDraft
+        ? registration.updatedAt
+        : registration.createdAt;
     final formattedDate = DateFormat(
       'dd MMM yyyy, HH:mm',
       'id_ID',
@@ -76,7 +80,7 @@ class MemberRegistrationCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  _buildStatusBadge(registration),
+                  _buildStatusBadge(normalizedStatus),
                 ],
               ),
             ),
@@ -132,15 +136,23 @@ class MemberRegistrationCard extends StatelessWidget {
                       ),
                     ],
                   ),
-                  if (_isRejected(registration) &&
+                  if (MemberStatusHelper.isRejected(registration.status) &&
                       ((registration.rejectReason ?? '').trim().isNotEmpty ||
-                          (registration.rejectNotes ?? '').trim().isNotEmpty)) ...[
+                          (registration.rejectNotes ?? '')
+                              .trim()
+                              .isNotEmpty)) ...[
                     const SizedBox(height: 8),
                     if ((registration.rejectReason ?? '').trim().isNotEmpty)
-                      _buildRejectItem('Alasan Reject', registration.rejectReason!),
+                      _buildRejectItem(
+                        'Alasan Reject',
+                        registration.rejectReason!,
+                      ),
                     if ((registration.rejectNotes ?? '').trim().isNotEmpty) ...[
                       const SizedBox(height: 6),
-                      _buildRejectItem('Catatan Reject', registration.rejectNotes!),
+                      _buildRejectItem(
+                        'Catatan Reject',
+                        registration.rejectNotes!,
+                      ),
                     ],
                   ],
                 ],
@@ -152,29 +164,28 @@ class MemberRegistrationCard extends StatelessWidget {
     );
   }
 
-  Widget _buildStatusBadge(MemberRegistration register) {
+  Widget _buildStatusBadge(String normalizedStatus) {
     Color backgroundColor;
     Color textColor;
-    // String text;
 
-    switch (register.docstatus) {
-      case 1:
+    switch (normalizedStatus.toLowerCase()) {
+      case 'approved':
         backgroundColor = Colors.green[50]!;
         textColor = Colors.green[700]!;
         break;
-      case 2:
+      case 'rejected':
         backgroundColor = Colors.red[50]!;
         textColor = Colors.red[700]!;
         break;
-      case 0:
+      case 'draft':
+        backgroundColor = Colors.grey[100]!;
+        textColor = Colors.grey[700]!;
+        break;
+      case 'request':
+      case 'in review':
       default:
-        if (_isRejected(register)) {
-          backgroundColor = Colors.red[50]!;
-          textColor = Colors.red[700]!;
-        } else {
-          backgroundColor = Colors.orange[50]!;
-          textColor = Colors.orange[700]!;
-        }
+        backgroundColor = Colors.orange[50]!;
+        textColor = Colors.orange[700]!;
         break;
     }
 
@@ -186,7 +197,7 @@ class MemberRegistrationCard extends StatelessWidget {
         border: Border.all(color: textColor.withOpacity(0.3)),
       ),
       child: Text(
-        register.status,
+        normalizedStatus,
         style: TextStyle(
           fontFamily: AppFonts.primaryFont,
           fontSize: 10,
@@ -195,15 +206,6 @@ class MemberRegistrationCard extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  bool _isRejected(MemberRegistration register) {
-    final status = register.status.trim().toLowerCase();
-    return status == 'rejected' || status == 'reject';
-  }
-
-  bool _isDraft(MemberRegistration register) {
-    return register.status.trim().toLowerCase() == 'draft';
   }
 
   Widget _buildRejectItem(String label, String value) {

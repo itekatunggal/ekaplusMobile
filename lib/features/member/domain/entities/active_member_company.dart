@@ -47,6 +47,8 @@ class ActiveMemberCompany extends Equatable {
   final String? customerCompanyCity;
   final String? customerCompanyDistrict;
   final String? customerCompanyPostalCode;
+  final bool customerTaxStatus;
+  final String? customerNpwp;
 
   final DateTime? createdAt;
 
@@ -92,6 +94,8 @@ class ActiveMemberCompany extends Equatable {
     this.customerCompanyCity,
     this.customerCompanyDistrict,
     this.customerCompanyPostalCode,
+    this.customerTaxStatus = false,
+    this.customerNpwp,
     this.createdAt,
   });
 
@@ -157,6 +161,8 @@ class ActiveMemberCompany extends Equatable {
     customerCompanyCity,
     customerCompanyDistrict,
     customerCompanyPostalCode,
+    customerTaxStatus,
+    customerNpwp,
     createdAt,
   ];
 }

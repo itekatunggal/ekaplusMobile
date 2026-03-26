@@ -13,7 +13,7 @@ import 'package:ekaplus_ekatunggal/features/member/domain/entities/active_member
 import 'package:ekaplus_ekatunggal/features/member/domain/entities/customer_contact_option.dart';
 import 'package:ekaplus_ekatunggal/features/member/domain/entities/member_registration.dart';
 import 'package:flutter/services.dart' show rootBundle;
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show debugPrint, kDebugMode, kIsWeb;
 import 'package:ekaplus_ekatunggal/features/member/data/models/member_registration_model.dart';
 import 'package:http/http.dart' as http;
 
@@ -77,6 +77,58 @@ class MemberRemoteDataSourceImpl implements MemberRemoteDataSource {
 
   MemberRemoteDataSourceImpl({required this.client});
 
+  void _logSaveRegistrationDebug({
+    required String stage,
+    Uri? uri,
+    String? method,
+    Map<String, dynamic>? payload,
+    Map<String, File>? files,
+    int? statusCode,
+    String? responseBody,
+    Object? error,
+  }) {
+    if (!kDebugMode) return;
+
+    debugPrint('========== CUSTOMER REGISTER DEBUG: $stage ==========');
+    if (method != null) debugPrint('METHOD: $method');
+    if (uri != null) debugPrint('URL: $uri');
+    if (payload != null) {
+      const encoder = JsonEncoder.withIndent('  ');
+      debugPrint('PAYLOAD:');
+      debugPrint(encoder.convert(payload));
+      debugPrint(
+        'VILLAGE DEBUG: company_village=${payload['company_village']}, village=${payload['village']}',
+      );
+      final shipping = payload['customer_register_address'];
+      if (shipping is List) {
+        for (var i = 0; i < shipping.length; i++) {
+          final row = shipping[i];
+          if (row is Map) {
+            debugPrint(
+              'SHIPPING[$i] VILLAGE DEBUG: company_village=${row['company_village']}, village=${row['village']}',
+            );
+          }
+        }
+      }
+    }
+    if (files != null) {
+      final fileInfo = files.map(
+        (key, value) =>
+            MapEntry(key, {'path': value.path, 'exists': value.existsSync()}),
+      );
+      const encoder = JsonEncoder.withIndent('  ');
+      debugPrint('FILES:');
+      debugPrint(encoder.convert(fileInfo));
+    }
+    if (statusCode != null) debugPrint('STATUS CODE: $statusCode');
+    if (responseBody != null && responseBody.isNotEmpty) {
+      debugPrint('RESPONSE BODY:');
+      debugPrint(responseBody);
+    }
+    if (error != null) debugPrint('ERROR: $error');
+    debugPrint('====================================================');
+  }
+
   String _normalizePhoneForDb(String raw) {
     final digits = raw.replaceAll(RegExp(r'[^0-9]'), '');
     if (digits.isEmpty) return raw.trim();
@@ -131,9 +183,13 @@ class MemberRemoteDataSourceImpl implements MemberRemoteDataSource {
       'company_province',
       'company_city',
       'company_district',
+      'village',
+      'company_village',
       'company_postal_code',
       'same_as_company_address',
-      'customer_shipping_address',
+      'customer_register_address',
+      'tax_status',
+      'npwp',
     };
 
     final payload = <String, dynamic>{};
@@ -151,9 +207,9 @@ class MemberRemoteDataSourceImpl implements MemberRemoteDataSource {
         payload['branch_owner_phone'].toString(),
       );
     }
-    final shipping = payload['customer_shipping_address'];
+    final shipping = payload['customer_register_address'];
     if (shipping is List) {
-      payload['customer_shipping_address'] = shipping.map((e) {
+      payload['customer_register_address'] = shipping.map((e) {
         if (e is! Map) return e;
         final row = Map<String, dynamic>.from(e);
         if ((row['pic_phone'] ?? '').toString().trim().isNotEmpty) {
@@ -354,6 +410,94 @@ class MemberRemoteDataSourceImpl implements MemberRemoteDataSource {
 
   String _normalizeMemberRefType(dynamic value) {
     return value?.toString().trim().toLowerCase() ?? '';
+  }
+
+  bool _isApprovedStatus(String? rawStatus) {
+    final normalized = rawStatus?.trim().toLowerCase() ?? '';
+    return normalized == 'approved' || normalized == 'approve';
+  }
+
+  ActiveMemberCompany _activeCompanyFromApprovedRegistration(
+    MemberRegistration registration,
+  ) {
+    final branchCity = (registration.branch.city ?? '').trim();
+    final displayName = registration.businessName.trim();
+    final fallbackGcName = displayName.isEmpty
+        ? (registration.gcid?.name ?? registration.name)
+        : displayName;
+
+    return ActiveMemberCompany(
+      memberOfId: registration.gcid?.id ?? registration.gpid?.id ?? 0,
+      refType: registration.gcid != null ? 'gcid' : 'gpid',
+      refId: registration.gcid?.id ?? registration.gpid?.id ?? 0,
+      userId: registration.user.id,
+      memberOfStatus: registration.status,
+      memberIsOwner: true,
+      branchCustomerId: registration.bcid?.id,
+      branchCustomerCode: registration.bcid?.name,
+      branchId: registration.branch.id == 0 ? null : registration.branch.id,
+      branchName: registration.branch.branchName,
+      branchCity: branchCity.isEmpty ? null : branchCity,
+      branchOwnerName: registration.branchOwnerName,
+      branchOwnerPhone: registration.branchOwnerPhone,
+      branchOwnerEmail: registration.branchOwnerEmail,
+      branchOwnerPlaceOfBirth: registration.branchOwnerPlaceOfBirth,
+      branchOwnerDateOfBirth: registration.branchOwnerDateOfBirth,
+      gcidId: registration.gcid?.id,
+      gcName: fallbackGcName,
+      gpidId: registration.gpid?.id,
+      gpCode: registration.gpid?.name,
+      customerRegisterId: registration.id,
+      customerRegisterStatus: registration.status,
+      customerOwnerName: registration.user.fullName,
+      customerOwnerEmail: registration.user.email,
+      customerOwnerPhone: registration.user.phone,
+      customerOwnerPlaceOfBirth: registration.user.placeOfBirth,
+      customerOwnerDateOfBirth: registration.user.dateOfBirth
+          ?.toIso8601String(),
+      customerCompanyName: registration.businessName,
+      customerCompanyType: registration.entity,
+      customerCompanyTitle: registration.companyTitle,
+      customerProductNeed: registration.productNeed,
+      customerCompanyAddress: registration.address,
+      customerCompanyProvince: registration.province,
+      customerCompanyCity: registration.city,
+      customerCompanyDistrict: registration.district,
+      customerCompanyPostalCode: registration.postalCode,
+      customerTaxStatus: registration.taxStatus,
+      customerNpwp: registration.npwp,
+      createdAt: registration.createdAt,
+    );
+  }
+
+  Future<List<ActiveMemberCompany>> _loadApprovedRegistrationFallback(
+    int userId,
+  ) async {
+    final registrations = await loadAllRegistrations(
+      filters: [
+        ['created_by', '=', '$userId'],
+      ],
+    );
+
+    final approved =
+        registrations
+            .where((registration) => _isApprovedStatus(registration.status))
+            .toList()
+          ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+
+    final deduped = <String, ActiveMemberCompany>{};
+    for (final registration in approved) {
+      final company = _activeCompanyFromApprovedRegistration(registration);
+      final dedupeKey = [
+        company.branchCustomerId ?? 0,
+        company.gcidId ?? 0,
+        company.gpidId ?? 0,
+        company.displayName.toLowerCase(),
+      ].join('|');
+      deduped.putIfAbsent(dedupeKey, () => company);
+    }
+
+    return deduped.values.toList();
   }
 
   Future<String> _authToken() async => (await SessionManager.getToken()) ?? '';
@@ -609,8 +753,19 @@ class MemberRemoteDataSourceImpl implements MemberRemoteDataSource {
               '${ApiConfig.baseUrl}/api/resource/customer_register/$editingId',
             )
           : Uri.parse('${ApiConfig.baseUrl}/api/resource/customer_register');
+      final method = editingId != null
+          ? (files.isEmpty ? 'PUT' : 'PUT multipart')
+          : (files.isEmpty ? 'POST' : 'POST multipart');
       late final int statusCode;
       late final String responseBody;
+
+      _logSaveRegistrationDebug(
+        stage: 'REQUEST',
+        uri: uri,
+        method: method,
+        payload: requestPayload,
+        files: files,
+      );
 
       if (files.isEmpty) {
         final response = await HttpRequestHandler.guard(
@@ -689,6 +844,16 @@ class MemberRemoteDataSourceImpl implements MemberRemoteDataSource {
         responseBody = await response.stream.bytesToString();
       }
 
+      _logSaveRegistrationDebug(
+        stage: 'RESPONSE',
+        uri: uri,
+        method: method,
+        payload: requestPayload,
+        files: files,
+        statusCode: statusCode,
+        responseBody: responseBody,
+      );
+
       if (statusCode < 200 || statusCode >= 300) {
         throw _buildSaveException(responseBody, statusCode);
       }
@@ -711,6 +876,12 @@ class MemberRemoteDataSourceImpl implements MemberRemoteDataSource {
 
       return result;
     } catch (e) {
+      _logSaveRegistrationDebug(
+        stage: 'ERROR',
+        payload: registration,
+        files: files,
+        error: e,
+      );
       if (e is Exception) rethrow;
       throw Exception('Failed to save registration: $e');
     }
@@ -950,7 +1121,7 @@ class MemberRemoteDataSourceImpl implements MemberRemoteDataSource {
     if (memberOfRows.isEmpty &&
         gcidMembershipRows.isEmpty &&
         legacyBcidMembershipRows.isEmpty) {
-      return [];
+      return _loadApprovedRegistrationFallback(user.id);
     }
 
     final gpidMemberById = <int, Map<String, dynamic>>{
@@ -993,7 +1164,8 @@ class MemberRemoteDataSourceImpl implements MemberRemoteDataSource {
       if (id > 0) dedupedGroupCustomerById[id] = row;
     }
     final groupCustomerById = {
-      for (final entry in dedupedGroupCustomerById.entries) entry.key: entry.value,
+      for (final entry in dedupedGroupCustomerById.entries)
+        entry.key: entry.value,
     };
     final groupCustomerByGpid = <int, Map<String, dynamic>>{};
     for (final row in groupCustomerById.values) {
@@ -1140,9 +1312,7 @@ class MemberRemoteDataSourceImpl implements MemberRemoteDataSource {
       final nb = nationalBrandById[nbid];
 
       final mo =
-          gcidMemberById[gcid] ??
-          gpidMemberById[gpid] ??
-          legacyMembership;
+          gcidMemberById[gcid] ?? gpidMemberById[gpid] ?? legacyMembership;
 
       final branchObj = bc['branch'];
       final compactName = compactMethodNameByBcid[bcid];
@@ -1167,9 +1337,7 @@ class MemberRemoteDataSourceImpl implements MemberRemoteDataSource {
           memberIsSharing: _isTruthy(mo['is_sharing']),
           shareFromUserId: _safeNullableInt(mo['share_from']),
           branchCustomerId: _safeNullableInt(bc['id']),
-          branchCustomerCode:
-              _safeNullableString(bc['name']) ??
-              compactName,
+          branchCustomerCode: _safeNullableString(bc['name']) ?? compactName,
           branchId: _safeNullableInt(bc['branch_id'] ?? bc['branch']),
           branchName: branchName,
           branchCity: branchCity,
@@ -1235,12 +1403,86 @@ class MemberRemoteDataSourceImpl implements MemberRemoteDataSource {
           customerCompanyPostalCode: _safeNullableString(
             defaultAddress == null ? null : defaultAddress['postal_code'],
           ),
+          customerTaxStatus: _isTruthy(bc['tax_status']),
+          customerNpwp: _safeNullableString(bc['npwp']),
           createdAt: _safeNullableDate(mo['created_at']),
         ),
       );
     }
 
-    result.sort((a, b) {
+    final approvedFallback = await _loadApprovedRegistrationFallback(user.id);
+    final resultByKey = <String, ActiveMemberCompany>{};
+    for (final company in result) {
+      final key = [
+        company.branchCustomerId ?? 0,
+        company.gcidId ?? 0,
+        company.gpidId ?? 0,
+        company.displayName.toLowerCase(),
+      ].join('|');
+      resultByKey[key] = company.customerRegisterStatus == null
+          ? ActiveMemberCompany(
+              memberOfId: company.memberOfId,
+              refType: company.refType,
+              refId: company.refId,
+              userId: company.userId,
+              memberOfStatus: company.memberOfStatus,
+              memberIsOwner: company.memberIsOwner,
+              memberIsSharing: company.memberIsSharing,
+              shareFromUserId: company.shareFromUserId,
+              branchCustomerId: company.branchCustomerId,
+              branchCustomerCode: company.branchCustomerCode,
+              branchId: company.branchId,
+              branchName: company.branchName,
+              branchCity: company.branchCity,
+              branchOwnerName: company.branchOwnerName,
+              branchOwnerPhone: company.branchOwnerPhone,
+              branchOwnerEmail: company.branchOwnerEmail,
+              branchOwnerPlaceOfBirth: company.branchOwnerPlaceOfBirth,
+              branchOwnerDateOfBirth: company.branchOwnerDateOfBirth,
+              gcidId: company.gcidId,
+              gcName: company.gcName,
+              gpidId: company.gpidId,
+              gpCode: company.gpCode,
+              gpName: company.gpName,
+              nbidId: company.nbidId,
+              nbName: company.nbName,
+              customerRegisterId: company.customerRegisterId,
+              customerRegisterStatus: 'approved',
+              customerOwnerName: company.customerOwnerName,
+              customerOwnerEmail: company.customerOwnerEmail,
+              customerOwnerPhone: company.customerOwnerPhone,
+              customerOwnerPlaceOfBirth: company.customerOwnerPlaceOfBirth,
+              customerOwnerDateOfBirth: company.customerOwnerDateOfBirth,
+              customerCompanyName: company.customerCompanyName,
+              customerCompanyType: company.customerCompanyType,
+              customerCompanyTitle: company.customerCompanyTitle,
+              customerProductNeed: company.customerProductNeed,
+              customerCompanyAddress: company.customerCompanyAddress,
+              customerCompanyProvince: company.customerCompanyProvince,
+              customerCompanyCity: company.customerCompanyCity,
+              customerCompanyDistrict: company.customerCompanyDistrict,
+              customerCompanyPostalCode: company.customerCompanyPostalCode,
+              customerTaxStatus: company.customerTaxStatus,
+              customerNpwp: company.customerNpwp,
+              createdAt: company.createdAt,
+            )
+          : company;
+    }
+    for (final company in approvedFallback) {
+      final key = [
+        company.branchCustomerId ?? 0,
+        company.gcidId ?? 0,
+        company.gpidId ?? 0,
+        company.displayName.toLowerCase(),
+      ].join('|');
+      resultByKey[key] = company;
+    }
+
+    final mergedResult = resultByKey.values.toList();
+    mergedResult.sort((a, b) {
+      final approvedCmp = (_isApprovedStatus(b.customerRegisterStatus) ? 1 : 0)
+          .compareTo(_isApprovedStatus(a.customerRegisterStatus) ? 1 : 0);
+      if (approvedCmp != 0) return approvedCmp;
       final gcCmp = (a.gcName ?? '').toLowerCase().compareTo(
         (b.gcName ?? '').toLowerCase(),
       );
@@ -1250,7 +1492,7 @@ class MemberRemoteDataSourceImpl implements MemberRemoteDataSource {
       );
     });
 
-    return result;
+    return mergedResult;
   }
 
   ActiveCompanyAddress _mapAddressRow(Map<String, dynamic> row) {
@@ -1452,6 +1694,8 @@ class MemberRemoteDataSourceImpl implements MemberRemoteDataSource {
       companyTitle: _safeNullableString(gc?['company_title']),
       companyName: _safeNullableString(gc?['company_name']),
       productNeed: _safeNullableString(bc['product_need']),
+      taxStatus: _isTruthy(bc['tax_status']),
+      npwp: _safeNullableString(bc['npwp']),
       memberIsOwner: membershipSource?.memberIsOwner ?? false,
       memberIsSharing: membershipSource?.memberIsSharing ?? false,
       addresses: addressRows.map(_mapAddressRow).toList(),

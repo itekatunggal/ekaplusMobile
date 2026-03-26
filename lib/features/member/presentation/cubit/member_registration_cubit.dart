@@ -432,5 +432,30 @@ class MemberRegistrationCubit extends Cubit<MemberRegistrationState> {
       client.close();
     }
   }
+
+  Future<void> loadShippingVillages(String addressId, String districtId) async {
+    final client = _createHttpClient();
+    try {
+      final res = await client.get(
+        Uri.parse('$_wilayahApiBase/villages/$districtId.json'),
+      );
+
+      if (res.statusCode != 200) {
+        _emitSafe(const MemberRegistrationError('Gagal memuat data desa'));
+        return;
+      }
+
+      final json = jsonDecode(res.body);
+      final villages = (json['data'] as List)
+          .map((e) => VillageModel.fromJson(e))
+          .toList();
+
+      _emitSafe(MemberRegistrationShippingVillagesLoaded(addressId, villages));
+    } catch (e) {
+      _emitSafe(MemberRegistrationError('Error loading villages: $e'));
+    } finally {
+      client.close();
+    }
+  }
 }
 

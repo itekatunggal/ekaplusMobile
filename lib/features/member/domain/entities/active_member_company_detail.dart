@@ -23,6 +23,8 @@ class ActiveMemberCompanyDetail extends Equatable {
   final String? companyTitle;
   final String? companyName;
   final String? productNeed;
+  final bool taxStatus;
+  final String? npwp;
   final bool memberIsOwner;
   final bool memberIsSharing;
   final List<ActiveCompanyAddress> addresses;
@@ -51,6 +53,8 @@ class ActiveMemberCompanyDetail extends Equatable {
     this.companyTitle,
     this.companyName,
     this.productNeed,
+    this.taxStatus = false,
+    this.npwp,
     this.memberIsOwner = false,
     this.memberIsSharing = false,
     this.addresses = const [],
@@ -90,6 +94,8 @@ class ActiveMemberCompanyDetail extends Equatable {
     companyTitle,
     companyName,
     productNeed,
+    taxStatus,
+    npwp,
     memberIsOwner,
     memberIsSharing,
     addresses,

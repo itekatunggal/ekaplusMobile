@@ -8,6 +8,7 @@ import 'package:ekaplus_ekatunggal/features/auth/presentation/cubit/auth_session
 import 'package:ekaplus_ekatunggal/features/member/domain/usecases/get_member_registrations_by_user_id.dart';
 import 'package:ekaplus_ekatunggal/features/member/domain/entities/member_registration.dart';
 import 'package:ekaplus_ekatunggal/features/member/presentation/cubit/active_company_cubit.dart';
+import 'package:ekaplus_ekatunggal/features/member/presentation/utils/member_status_helper.dart';
 import 'package:ekaplus_ekatunggal/injection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -26,6 +27,7 @@ class _AccountLoggedInViewState extends State<AccountLoggedInView> {
   final GetMemberRegistrationsByUserId _getMemberRegistrationsByUserId =
       myinjection<GetMemberRegistrationsByUserId>();
   MemberRegistration? _latestRegistration;
+  bool _hasPendingCompanyRegistration = false;
   bool _isLoadingRegistration = true;
   int? _lastLoadedUserId;
 
@@ -48,6 +50,7 @@ class _AccountLoggedInViewState extends State<AccountLoggedInView> {
         if (!mounted) return;
         setState(() {
           _latestRegistration = null;
+          _hasPendingCompanyRegistration = false;
           _isLoadingRegistration = false;
         });
       },
@@ -60,6 +63,10 @@ class _AccountLoggedInViewState extends State<AccountLoggedInView> {
             : null;
         setState(() {
           _latestRegistration = latest;
+          _hasPendingCompanyRegistration = registrations.any(
+            (registration) =>
+                MemberStatusHelper.isPendingSubmission(registration.status),
+          );
           _isLoadingRegistration = false;
         });
       },
@@ -849,23 +856,35 @@ class _AccountLoggedInViewState extends State<AccountLoggedInView> {
         activeState is ActiveCompanyReady &&
         (activeState.activeCompany?.displayName.trim().isNotEmpty ?? false);
 
-    if (hasActiveCompany) {
+    if (_hasPendingCompanyRegistration) {
+      buttonText = 'Lihat Pengajuan Perusahaan';
+      onPressed = () {
+        context.pushNamed('memberList', extra: {'initialTabIndex': 0});
+      };
+    } else if (hasActiveCompany) {
       buttonText = 'Tambah Perusahaan / Cabang';
       onPressed = () {
-        _handleCompanyRegistrationTap(currentUser, routeName: 'companySelection');
+        _handleCompanyRegistrationTap(
+          currentUser,
+          routeName: 'companySelection',
+        );
       };
     } else if (_latestRegistration == null) {
       buttonText = 'Daftar Member';
       onPressed = () {
-        _handleCompanyRegistrationTap(currentUser, routeName: 'memberRegistration');
+        _handleCompanyRegistrationTap(
+          currentUser,
+          routeName: 'memberRegistration',
+        );
       };
     } else {
-      final status = _latestRegistration!.status;
-
-      if (status == 'approved') {
+      if (MemberStatusHelper.isApproved(_latestRegistration!.status)) {
         buttonText = 'Hubungkan Perusahaan';
         onPressed = () {
-          _handleCompanyRegistrationTap(currentUser, routeName: 'companySelection');
+          _handleCompanyRegistrationTap(
+            currentUser,
+            routeName: 'companySelection',
+          );
         };
       } else {
         buttonText = 'Lihat Pengajuan Perusahaan';
@@ -874,7 +893,6 @@ class _AccountLoggedInViewState extends State<AccountLoggedInView> {
         };
       }
     }
-
     return SizedBox(
       width: double.infinity,
       height: buttonHeight,
@@ -899,6 +917,19 @@ class _AccountLoggedInViewState extends State<AccountLoggedInView> {
   }
 
   void _handleCompanyRegistrationTap(User user, {required String routeName}) {
+    if (_hasPendingCompanyRegistration &&
+        routeName != 'memberList' &&
+        routeName != 'addBCID') {
+      AppSnackbar.show(
+        context,
+        message:
+            'Masih ada pengajuan berstatus Request/In Review. Selesaikan atau tunggu hasil review terlebih dahulu.',
+        type: AppSnackbarType.warning,
+      );
+      context.pushNamed('memberList', extra: {'initialTabIndex': 0});
+      return;
+    }
+
     final phone = user.phone.trim();
     final email = user.email.trim();
     final noPassword = (user.password ?? '').isEmpty;

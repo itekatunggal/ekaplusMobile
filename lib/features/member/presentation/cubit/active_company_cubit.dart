@@ -2,6 +2,7 @@ import 'package:bloc/bloc.dart';
 import 'package:ekaplus_ekatunggal/core/utils/session_manager.dart';
 import 'package:ekaplus_ekatunggal/features/member/domain/entities/active_member_company.dart';
 import 'package:ekaplus_ekatunggal/features/member/domain/usecases/get_active_member_companies_by_user_id.dart';
+import 'package:ekaplus_ekatunggal/features/member/presentation/utils/member_status_helper.dart';
 
 abstract class ActiveCompanyState {
   const ActiveCompanyState();
@@ -41,44 +42,68 @@ class ActiveCompanyCubit extends Cubit<ActiveCompanyState> {
 
   Future<void> loadCompaniesAndResolveActive({bool force = false}) async {
     if (!force && state is ActiveCompanyLoading) return;
+    final previousReadyState = state is ActiveCompanyReady
+        ? state as ActiveCompanyReady
+        : null;
     emit(const ActiveCompanyLoading());
 
     try {
       final result = await getActiveMemberCompaniesByUserId.execute();
-      await result.fold((failure) async {
-        emit(ActiveCompanyError(failure.message ?? 'Gagal memuat perusahaan aktif'));
-      }, (companies) async {
-        if (companies.isEmpty) {
-          await SessionManager.clearActiveBranchCustomerId();
-          emit(const ActiveCompanyReady(companies: [], activeCompany: null, activeBcid: null));
-          return;
-        }
+      await result.fold(
+        (failure) async {
+          emit(
+            ActiveCompanyError(
+              failure.message ?? 'Gagal memuat perusahaan aktif',
+            ),
+          );
+        },
+        (companies) async {
+          if (companies.isEmpty) {
+            if (previousReadyState != null &&
+                previousReadyState.activeCompany != null) {
+              emit(previousReadyState);
+              return;
+            }
+            emit(
+              const ActiveCompanyReady(
+                companies: [],
+                activeCompany: null,
+                activeBcid: null,
+              ),
+            );
+            return;
+          }
 
-        final storedBcid = await SessionManager.getActiveBranchCustomerId();
-        ActiveMemberCompany? selected;
-        if (storedBcid != null && storedBcid > 0) {
-          for (final company in companies) {
-            if (company.branchCustomerId == storedBcid) {
-              selected = company;
-              break;
+          final storedBcid = await SessionManager.getActiveBranchCustomerId();
+          ActiveMemberCompany? selected;
+          if (storedBcid != null && storedBcid > 0) {
+            for (final company in companies) {
+              if (company.branchCustomerId == storedBcid) {
+                selected = company;
+                break;
+              }
             }
           }
-        }
-        selected ??= companies.first;
-        final resolvedBcid = selected.branchCustomerId;
-        if (resolvedBcid != null && resolvedBcid > 0) {
-          await SessionManager.saveActiveBranchCustomerId(resolvedBcid);
-        } else {
-          await SessionManager.clearActiveBranchCustomerId();
-        }
-        emit(
-          ActiveCompanyReady(
-            companies: companies,
-            activeCompany: selected,
-            activeBcid: resolvedBcid,
-          ),
-        );
-      });
+          selected ??= companies.firstWhere(
+            (company) =>
+                MemberStatusHelper.isApproved(company.customerRegisterStatus),
+            orElse: () => companies.first,
+          );
+          final resolvedBcid = selected.branchCustomerId;
+          if (resolvedBcid != null && resolvedBcid > 0) {
+            await SessionManager.saveActiveBranchCustomerId(resolvedBcid);
+          } else {
+            await SessionManager.clearActiveBranchCustomerId();
+          }
+          emit(
+            ActiveCompanyReady(
+              companies: companies,
+              activeCompany: selected,
+              activeBcid: resolvedBcid,
+            ),
+          );
+        },
+      );
     } catch (e) {
       emit(ActiveCompanyError('Gagal memuat perusahaan aktif: $e'));
     }

@@ -46,6 +46,7 @@ class CompanyInfoSectionWidget extends StatefulWidget {
 
 class _CompanyInfoSectionWidgetState extends State<CompanyInfoSectionWidget> {
   final List<String> _companyTypes = ['Company', 'Individual'];
+  final List<String> _taxStatusOptions = ['PKP', 'Non PKP'];
   final List<String> _companyTitles = ['PT', 'CV', 'UD'];
   final List<String> _individualTitles = ['Toko', 'Home Industri', 'Freelance'];
   final List<String> _productNeeds = [
@@ -265,29 +266,34 @@ class _CompanyInfoSectionWidgetState extends State<CompanyInfoSectionWidget> {
               ),
             const SizedBox(height: 12),
 
-            // // NIK Field
-            // _buildTextField(
-            //   label: 'NIK *',
-            //   controller: widget.formState.nikController,
-            //   keyboardType: TextInputType.number,
-            //   maxLength: 16,
-            //   errorText: widget.nikError,
-            //   icon: Icons.badge_outlined,
-            //   inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-            // ),
-            // const SizedBox(height: 12),
+            _buildDropdownField(
+              label: 'Status Perpajakan',
+              value: widget.formState.isPKP ? 'PKP' : 'Non PKP',
+              items: _taxStatusOptions,
+              onChanged: (value) {
+                setState(() {
+                  widget.formState.isPKP = value == 'PKP';
+                  if (!widget.formState.isPKP) {
+                    widget.formState.npwpController.clear();
+                  }
+                });
+              },
+              icon: Icons.receipt_long_outlined,
+            ),
+            const SizedBox(height: 12),
 
-            // NPWP Field
-            // _buildTextField(
-            //   label: 'NPWP',
-            //   controller: widget.formState.npwpController,
-            //   keyboardType: TextInputType.number,
-            //   maxLength: 15,
-            //   errorText: widget.npwpError,
-            //   icon: Icons.credit_card_outlined,
-            //   inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-            // ),
-            // const SizedBox(height: 12),
+            if (widget.formState.isPKP) ...[
+              _buildTextField(
+                label: 'NPWP',
+                controller: widget.formState.npwpController,
+                keyboardType: TextInputType.number,
+                maxLength: 20,
+                errorText: widget.npwpError,
+                icon: Icons.credit_card_outlined,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              ),
+              const SizedBox(height: 12),
+            ],
 
             // Kebutuhan Produk
             _buildDropdownField(

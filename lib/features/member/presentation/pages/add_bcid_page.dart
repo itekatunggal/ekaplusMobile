@@ -10,7 +10,9 @@ import '../../../../constant.dart';
 import '../../../../injection.dart';
 import '../../domain/entities/active_member_company.dart';
 import '../../domain/usecases/get_active_member_companies_by_user_id.dart';
+import '../../domain/usecases/get_member_registrations_by_user_id.dart';
 import '../enums/member_registration_intent.dart';
+import '../utils/member_status_helper.dart';
 
 class AddBCIDPage extends StatefulWidget {
   const AddBCIDPage({super.key});
@@ -22,10 +24,13 @@ class AddBCIDPage extends StatefulWidget {
 class _AddBCIDPageState extends State<AddBCIDPage> {
   final GetActiveMemberCompaniesByUserId _getActiveMemberCompaniesByUserId =
       myinjection<GetActiveMemberCompaniesByUserId>();
+  final GetMemberRegistrationsByUserId _getMemberRegistrationsByUserId =
+      myinjection<GetMemberRegistrationsByUserId>();
 
   bool _isLoading = true;
   List<ActiveMemberCompany> _parentGcOptions = [];
   ActiveMemberCompany? _selectedParent;
+  bool _hasPendingNewCompanyRequest = false;
 
   @override
   void initState() {
@@ -34,6 +39,7 @@ class _AddBCIDPageState extends State<AddBCIDPage> {
   }
 
   Future<void> _loadGcOptions() async {
+    await _loadRegistrationState();
     final result = await _getActiveMemberCompaniesByUserId.execute();
     if (!mounted) return;
 
@@ -60,6 +66,18 @@ class _AddBCIDPageState extends State<AddBCIDPage> {
     setState(() {
       _parentGcOptions = rows;
       _isLoading = false;
+    });
+  }
+
+  Future<void> _loadRegistrationState() async {
+    final result = await _getMemberRegistrationsByUserId.execute();
+    if (!mounted) return;
+
+    result.fold((_) => _hasPendingNewCompanyRequest = false, (registrations) {
+      _hasPendingNewCompanyRequest = registrations.any(
+        (registration) =>
+            MemberStatusHelper.isPendingSubmission(registration.status),
+      );
     });
   }
 
@@ -96,7 +114,8 @@ class _AddBCIDPageState extends State<AddBCIDPage> {
       );
       if (memberOfResponse.statusCode != 200) return const [];
 
-      final memberOfBody = jsonDecode(memberOfResponse.body) as Map<String, dynamic>;
+      final memberOfBody =
+          jsonDecode(memberOfResponse.body) as Map<String, dynamic>;
       final memberRows = memberOfBody['data'];
       if (memberRows is! List || memberRows.isEmpty) return const [];
 
@@ -185,7 +204,8 @@ class _AddBCIDPageState extends State<AddBCIDPage> {
 
   void _continueToForm() {
     if (_selectedParent == null) {
-      AppSnackbar.showRaw(context, 
+      AppSnackbar.showRaw(
+        context,
         const SnackBar(
           content: Text('Pilih Group Customer terlebih dahulu'),
           backgroundColor: Colors.red,
@@ -385,7 +405,7 @@ class _AddBCIDPageState extends State<AddBCIDPage> {
                           ),
                           const Divider(height: 20),
                           _kvStack(
-                            'Branch Customer',
+                            'List Branch Customer',
                             _selectedParent!.displayName,
                             icon: Icons.location_on,
                           ),
@@ -453,13 +473,20 @@ class _AddBCIDPageState extends State<AddBCIDPage> {
             ),
             const SizedBox(height: 16),
             ElevatedButton(
-              onPressed: () => context.pushNamed(
-                'memberRegistration',
-                extra: {
-                  'intent': MemberRegistrationIntent.newCompany.routeValue,
-                },
+              onPressed: _hasPendingNewCompanyRequest
+                  ? null
+                  : () => context.pushNamed(
+                      'memberRegistration',
+                      extra: {
+                        'intent':
+                            MemberRegistrationIntent.newCompany.routeValue,
+                      },
+                    ),
+              child: Text(
+                _hasPendingNewCompanyRequest
+                    ? 'Masih Ada Pengajuan Berjalan'
+                    : 'Tambah Perusahaan Baru',
               ),
-              child: const Text('Tambah Perusahaan Baru'),
             ),
           ],
         ),

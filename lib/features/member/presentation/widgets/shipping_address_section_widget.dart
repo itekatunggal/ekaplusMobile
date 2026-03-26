@@ -10,6 +10,7 @@ import '../../data/models/province_model.dart';
 import '../../data/models/regency_model.dart';
 import '../../data/models/district_model.dart';
 import '../../data/models/shipping_address_model.dart';
+import '../../data/models/village_model.dart';
 
 /// Widget untuk section alamat pengiriman dengan support multiple addresses
 class ShippingAddressSectionWidget extends StatefulWidget {
@@ -37,6 +38,7 @@ class _ShippingAddressSectionWidgetState
   final Map<String, bool> _isLoadingProvinces = {};
   final Map<String, bool> _isLoadingRegencies = {};
   final Map<String, bool> _isLoadingDistricts = {};
+  final Map<String, bool> _isLoadingVillages = {};
 
   @override
   void initState() {
@@ -114,13 +116,34 @@ class _ShippingAddressSectionWidgetState
   ) {
     setState(() {
       address.selectedDistrict = district;
+      address.resetVillage();
+      _isLoadingVillages[address.id] = true;
+    });
+    if (district != null) {
+      context.read<MemberRegistrationCubit>().loadShippingVillages(
+        address.id,
+        district.code,
+      );
+    } else {
+      setState(() => _isLoadingVillages[address.id] = false);
+    }
+    widget.onStateChanged();
+  }
+
+  void _onVillageChanged(
+    ShippingAddressModel address,
+    VillageModel? village,
+  ) {
+    setState(() {
+      address.selectedVillage = village;
     });
     widget.onStateChanged();
   }
 
   void _onSameAsCompanyToggled(ShippingAddressModel address, bool value) {
     if (value && !_isCompanyAddressComplete()) {
-      AppSnackbar.showRaw(context, 
+      AppSnackbar.showRaw(
+        context,
         const SnackBar(
           content: Text('Lengkapi alamat perusahaan terlebih dahulu'),
           backgroundColor: Colors.red,
@@ -158,7 +181,7 @@ class _ShippingAddressSectionWidgetState
         widget.formState.selectedProvince != null &&
         widget.formState.selectedRegency != null &&
         widget.formState.selectedDistrict != null &&
-        widget.formState.postalCodeController.text.trim().isNotEmpty;
+        widget.formState.selectedVillage != null;
   }
 
   bool _hasActiveSameAsCompanyAddress() {
@@ -183,7 +206,8 @@ class _ShippingAddressSectionWidgetState
 
   void _addNewAddress() {
     if (widget.formState.shippingAddresses.length >= _maxShippingAddresses) {
-      AppSnackbar.showRaw(context, 
+      AppSnackbar.showRaw(
+        context,
         const SnackBar(
           content: Text('Maksimal 3 alamat pengiriman'),
           backgroundColor: Colors.orange,
@@ -297,11 +321,14 @@ class _ShippingAddressSectionWidgetState
             );
           }
         } else if (state is MemberRegistrationShippingDistrictsLoaded) {
+          ShippingAddressModel? targetAddress;
+          DistrictModel? matchedDistrict;
           setState(() {
             final address = widget.formState.shippingAddresses.firstWhere(
               (a) => a.id == state.addressId,
               orElse: () => widget.formState.shippingAddresses.first,
             );
+            targetAddress = address;
             address.districts = state.districts;
             final selected = address.selectedDistrict;
             if (selected != null) {
@@ -312,16 +339,49 @@ class _ShippingAddressSectionWidgetState
                 return d.name == selected.name;
               });
               if (matched.isNotEmpty) {
-                address.selectedDistrict = matched.first;
+                matchedDistrict = matched.first;
+                address.selectedDistrict = matchedDistrict;
               }
             }
             _isLoadingDistricts[state.addressId] = false;
+          });
+          if (targetAddress != null &&
+              matchedDistrict != null &&
+              targetAddress!.selectedVillage != null &&
+              targetAddress!.villages.isEmpty) {
+            _isLoadingVillages[targetAddress!.id] = true;
+            context.read<MemberRegistrationCubit>().loadShippingVillages(
+              targetAddress!.id,
+              matchedDistrict!.code,
+            );
+          }
+        } else if (state is MemberRegistrationShippingVillagesLoaded) {
+          setState(() {
+            final address = widget.formState.shippingAddresses.firstWhere(
+              (a) => a.id == state.addressId,
+              orElse: () => widget.formState.shippingAddresses.first,
+            );
+            address.villages = state.villages;
+            final selected = address.selectedVillage;
+            if (selected != null) {
+              final matched = state.villages.where((v) {
+                if (selected.code.isNotEmpty) {
+                  return v.code == selected.code;
+                }
+                return v.name == selected.name;
+              });
+              if (matched.isNotEmpty) {
+                address.selectedVillage = matched.first;
+              }
+            }
+            _isLoadingVillages[state.addressId] = false;
           });
         } else if (state is MemberRegistrationError) {
           setState(() {
             _isLoadingProvinces.clear();
             _isLoadingRegencies.clear();
             _isLoadingDistricts.clear();
+            _isLoadingVillages.clear();
           });
         }
       },
@@ -339,23 +399,27 @@ class _ShippingAddressSectionWidgetState
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             child: TextButton.icon(
-              onPressed: widget.formState.shippingAddresses.length >=
+              onPressed:
+                  widget.formState.shippingAddresses.length >=
                       _maxShippingAddresses
                   ? null
                   : _addNewAddress,
               icon: Icon(
                 Icons.add_circle_outline,
-                color: widget.formState.shippingAddresses.length >=
+                color:
+                    widget.formState.shippingAddresses.length >=
                         _maxShippingAddresses
                     ? Colors.grey
                     : AppColors.primaryColor,
               ),
               label: Text(
-                widget.formState.shippingAddresses.length >= _maxShippingAddresses
+                widget.formState.shippingAddresses.length >=
+                        _maxShippingAddresses
                     ? 'Maksimal 3 alamat pengiriman'
                     : 'Tambah Alamat Pengiriman',
                 style: TextStyle(
-                  color: widget.formState.shippingAddresses.length >=
+                  color:
+                      widget.formState.shippingAddresses.length >=
                           _maxShippingAddresses
                       ? Colors.grey
                       : AppColors.primaryColor,
@@ -439,7 +503,7 @@ class _ShippingAddressSectionWidgetState
               label: 'Label Alamat',
               controller: address.labelController,
               icon: Icons.label_outline,
-              textCapitalization: TextCapitalization.words,
+              textCapitalization: TextCapitalization.characters,
               errorText: widget.errors['shippingLabel_$index'],
             ),
             const SizedBox(height: 16),
@@ -448,7 +512,7 @@ class _ShippingAddressSectionWidgetState
               label: 'Nama Penanggung Jawab',
               controller: address.picNameController,
               icon: Icons.person_outline,
-              textCapitalization: TextCapitalization.words,
+              textCapitalization: TextCapitalization.characters,
               errorText: widget.errors['shippingPicName_$index'],
             ),
             const SizedBox(height: 16),
@@ -460,6 +524,15 @@ class _ShippingAddressSectionWidgetState
               keyboardType: TextInputType.phone,
               errorText: widget.errors['shippingPicPhone_$index'],
               inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            ),
+            const SizedBox(height: 16),
+
+            _buildTextField(
+              label: 'Email Penanggung Jawab',
+              controller: address.picEmailController,
+              icon: Icons.email_outlined,
+              keyboardType: TextInputType.emailAddress,
+              errorText: widget.errors['shippingPicEmail_$index'],
             ),
             const SizedBox(height: 12),
 
@@ -479,7 +552,8 @@ class _ShippingAddressSectionWidgetState
                 dense: true,
                 contentPadding: const EdgeInsets.symmetric(horizontal: 12),
                 value: address.isDefault,
-                onChanged: (value) => _onDefaultChanged(address, value ?? false),
+                onChanged: (value) =>
+                    _onDefaultChanged(address, value ?? false),
                 activeColor: AppColors.secondaryColor,
                 controlAffinity: ListTileControlAffinity.leading,
                 title: const Text(
@@ -505,7 +579,7 @@ class _ShippingAddressSectionWidgetState
                   _buildTextField(
                     label: 'Alamat Lengkap',
                     controller: address.addressController,
-                    textCapitalization: TextCapitalization.words,
+                    textCapitalization: TextCapitalization.characters,
                     icon: Icons.home_outlined,
                     maxLines: 3,
                     errorText: widget.errors['shippingAddress_$index'],
@@ -524,16 +598,20 @@ class _ShippingAddressSectionWidgetState
                   _buildDistrictDropdown(address, index),
                   const SizedBox(height: 16),
 
+                  // Village Dropdown
+                  _buildVillageDropdown(address, index),
+                  const SizedBox(height: 16),
+
                   // Kode Pos
-                  _buildTextField(
-                    label: 'Kode Pos',
-                    controller: address.postalCodeController,
-                    icon: Icons.local_post_office_outlined,
-                    keyboardType: TextInputType.number,
-                    maxLength: 5,
-                    errorText: widget.errors['shippingPostalCode_$index'],
-                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                  ),
+                  // _buildTextField(
+                  //   label: 'Kode Pos',
+                  //   controller: address.postalCodeController,
+                  //   icon: Icons.local_post_office_outlined,
+                  //   keyboardType: TextInputType.number,
+                  //   maxLength: 5,
+                  //   errorText: widget.errors['shippingPostalCode_$index'],
+                  //   inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  // ),
                 ],
               ),
           ],
@@ -593,10 +671,7 @@ class _ShippingAddressSectionWidgetState
               .map(
                 (province) => Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 12),
-                  child: Text(
-                    province.name,
-                    overflow: TextOverflow.ellipsis,
-                  ),
+                  child: Text(province.name, overflow: TextOverflow.ellipsis),
                 ),
               )
               .toList(),
@@ -660,10 +735,7 @@ class _ShippingAddressSectionWidgetState
               .map(
                 (regency) => Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 12),
-                  child: Text(
-                    regency.name,
-                    overflow: TextOverflow.ellipsis,
-                  ),
+                  child: Text(regency.name, overflow: TextOverflow.ellipsis),
                 ),
               )
               .toList(),
@@ -735,10 +807,7 @@ class _ShippingAddressSectionWidgetState
               .map(
                 (district) => Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 12),
-                  child: Text(
-                    district.name,
-                    overflow: TextOverflow.ellipsis,
-                  ),
+                  child: Text(district.name, overflow: TextOverflow.ellipsis),
                 ),
               )
               .toList(),
@@ -752,6 +821,78 @@ class _ShippingAddressSectionWidgetState
             padding: const EdgeInsets.only(top: 4, left: 12),
             child: Text(
               'Pilih kota/kabupaten terlebih dahulu',
+              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildVillageDropdown(ShippingAddressModel address, int index) {
+    final isLoading = _isLoadingVillages[address.id] ?? false;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Kelurahan/Desa',
+          style: TextStyle(
+            fontSize: 12,
+            color: Colors.black54,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 8),
+        DropdownButtonFormField<VillageModel>(
+          value: address.selectedVillage,
+          isDense: true,
+          decoration: InputDecoration(
+            prefixIcon: const Icon(Icons.place_outlined, size: 20),
+            suffixIcon: isLoading
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: Padding(
+                      padding: EdgeInsets.all(12),
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  )
+                : null,
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+            errorText: widget.errors['shippingVillage_$index'],
+            hintText: 'Pilih Kelurahan/Desa',
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 12,
+            ),
+          ),
+          items: address.villages.map((village) {
+            return DropdownMenuItem(
+              value: village,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: Text(village.name),
+              ),
+            );
+          }).toList(),
+          selectedItemBuilder: (context) => address.villages
+              .map(
+                (village) => Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: Text(village.name, overflow: TextOverflow.ellipsis),
+                ),
+              )
+              .toList(),
+          onChanged: address.selectedDistrict == null || isLoading
+              ? null
+              : (value) => _onVillageChanged(address, value),
+          isExpanded: true,
+        ),
+        if (address.selectedDistrict == null)
+          Padding(
+            padding: const EdgeInsets.only(top: 4, left: 12),
+            child: Text(
+              'Pilih kecamatan terlebih dahulu',
               style: TextStyle(fontSize: 12, color: Colors.grey[600]),
             ),
           ),
@@ -802,7 +943,10 @@ class _ShippingAddressSectionWidgetState
             'Kecamatan',
             formState.selectedDistrict?.name ?? '-',
           ),
-          _buildPreviewRow('Kode Pos', formState.postalCodeController.text),
+          _buildPreviewRow(
+            'Kelurahan/Desa',
+            formState.selectedVillage?.name ?? '-',
+          ),
         ],
       ),
     );

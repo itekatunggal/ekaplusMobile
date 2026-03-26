@@ -13,6 +13,7 @@ import 'package:ekaplus_ekatunggal/features/member/data/models/district_model.da
 import 'package:ekaplus_ekatunggal/features/member/data/models/province_model.dart';
 import 'package:ekaplus_ekatunggal/features/member/data/models/regency_model.dart';
 import 'package:ekaplus_ekatunggal/features/member/data/models/shipping_address_model.dart';
+import 'package:ekaplus_ekatunggal/features/member/data/models/village_model.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -355,6 +356,8 @@ class _MemberRegistrationPageState extends State<MemberRegistrationPage> {
         : registration.entity;
     _formState.companyTitle = registration.companyTitle;
     _formState.productNeed = registration.productNeed;
+    _formState.isPKP = registration.taxStatus;
+    _formState.npwpController.text = registration.npwp ?? '';
     _prefillCompanyNameAndSuffix(
       registration.businessName,
       registration.companyTitle,
@@ -374,6 +377,13 @@ class _MemberRegistrationPageState extends State<MemberRegistrationPage> {
     _formState.selectedDistrict = registration.district.isEmpty
         ? null
         : DistrictModel(code: '', name: registration.district, regencyId: '');
+    _formState.selectedVillage = registration.village.isEmpty
+        ? null
+        : VillageModel(
+            code: '',
+            name: registration.village,
+            districtId: '',
+          );
     _formState.branchPicNameController.text =
         registration.branchOwnerName ?? '';
     _formState.branchPicPhoneController.text =
@@ -402,6 +412,10 @@ class _MemberRegistrationPageState extends State<MemberRegistrationPage> {
       if (_formState.selectedRegency != null &&
           _formState.selectedRegency!.code.isNotEmpty) {
         _memberCubit.loadDistricts(_formState.selectedRegency!.code);
+      }
+      if (_formState.selectedDistrict != null &&
+          _formState.selectedDistrict!.code.isNotEmpty) {
+        _memberCubit.loadVillages(_formState.selectedDistrict!.code);
       }
     });
   }
@@ -484,12 +498,18 @@ class _MemberRegistrationPageState extends State<MemberRegistrationPage> {
       final shipping = <ShippingAddressModel>[];
       for (final item in data) {
         if (item is! Map<String, dynamic>) continue;
+        final rowType = (item['type'] ?? '').toString().trim().toLowerCase();
+        if (rowType.isNotEmpty && rowType != 'shipping') {
+          continue;
+        }
         final model = ShippingAddressModel.create();
+        model.type = (item['type'] ?? 'Shipping').toString();
         model.labelController.text = (item['label'] ?? '').toString();
         model.addressController.text = (item['address'] ?? '').toString();
         model.postalCodeController.text = (item['postal_code'] ?? '')
             .toString();
         model.picNameController.text = (item['pic_name'] ?? '').toString();
+        model.picEmailController.text = (item['pic_email'] ?? '').toString();
         model.picPhoneController.text = _displayPhone(
           (item['pic_phone'] ?? '').toString(),
         );
@@ -503,12 +523,13 @@ class _MemberRegistrationPageState extends State<MemberRegistrationPage> {
                 (_formState.selectedRegency?.name ?? '') &&
             (item['district']?.toString() ?? '') ==
                 (_formState.selectedDistrict?.name ?? '') &&
-            model.postalCodeController.text.trim() ==
-                _formState.postalCodeController.text.trim();
+            (item['village']?.toString() ?? '') ==
+                (_formState.selectedVillage?.name ?? '');
 
         final provinceName = (item['province'] ?? '').toString();
         final cityName = (item['city'] ?? '').toString();
         final districtName = (item['district'] ?? '').toString();
+        final villageName = (item['village'] ?? '').toString();
         if (provinceName.isNotEmpty) {
           model.selectedProvince = ProvinceModel(code: '', name: provinceName);
         }
@@ -524,6 +545,13 @@ class _MemberRegistrationPageState extends State<MemberRegistrationPage> {
             code: '',
             name: districtName,
             regencyId: '',
+          );
+        }
+        if (villageName.isNotEmpty) {
+          model.selectedVillage = VillageModel(
+            code: '',
+            name: villageName,
+            districtId: '',
           );
         }
         shipping.add(model);
@@ -932,6 +960,7 @@ class _MemberRegistrationPageState extends State<MemberRegistrationPage> {
         errors.containsKey('province') ||
         errors.containsKey('regency') ||
         errors.containsKey('district') ||
+        errors.containsKey('village') ||
         errors.containsKey('postalCode')) {
       target = _addressKey;
     } else if (_hasShippingAddressError(errors)) {
@@ -1254,7 +1283,7 @@ class _MemberRegistrationPageState extends State<MemberRegistrationPage> {
                             companyNameError: _errors['companyName'],
                             productNeedError: _errors['productNeed'],
                             // nikError: _errors['nik'],
-                            // npwpError: _errors['npwp'],
+                            npwpError: _errors['npwp'],
                             branchError: _errors['branch'],
                             lockCompanyIdentityFields: _isBcidMode,
                           ),
@@ -1268,7 +1297,7 @@ class _MemberRegistrationPageState extends State<MemberRegistrationPage> {
                             provinceError: _errors['province'],
                             regencyError: _errors['regency'],
                             districtError: _errors['district'],
-                            // villageError: _errors['village'],
+                            villageError: _errors['village'],
                             // rtError: _errors['rt'],
                             // rwError: _errors['rw'],
                             postalCodeError: _errors['postalCode'],

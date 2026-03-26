@@ -17,19 +17,28 @@ class AuthSessionCubit extends Cubit<AuthSessionState> {
     required this.saveLoginUser,
     required this.getUserInfo,
     required this.getActiveMemberCompaniesByUserId,
-  })
-    : super(AuthSessionInitial());
+  }) : super(AuthSessionInitial());
 
   Future<UserStatus> _resolveUserStatus() async {
     try {
       final result = await getActiveMemberCompaniesByUserId.execute();
-      return result.fold(
-        (_) => UserStatus.loggedIn,
-        (companies) =>
-            companies.isNotEmpty ? UserStatus.member : UserStatus.loggedIn,
+      return await result.fold<Future<UserStatus>>(
+        (_) async => UserStatus.loggedIn,
+        (companies) async {
+          if (companies.isNotEmpty) {
+            return UserStatus.member;
+          }
+          final storedBcid = await SessionManager.getActiveBranchCustomerId();
+          return storedBcid != null && storedBcid > 0
+              ? UserStatus.member
+              : UserStatus.loggedIn;
+        },
       );
     } catch (_) {
-      return UserStatus.loggedIn;
+      final storedBcid = await SessionManager.getActiveBranchCustomerId();
+      return storedBcid != null && storedBcid > 0
+          ? UserStatus.member
+          : UserStatus.loggedIn;
     }
   }
 

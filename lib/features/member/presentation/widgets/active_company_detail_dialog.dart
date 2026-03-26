@@ -137,6 +137,11 @@ class ActiveCompanyDetailDialog extends StatelessWidget {
                           _itemStack('Kebutuhan', company.customerProductNeed),
                           const SizedBox(height: 14),
                           _itemStack(
+                            'Status Perpajakan',
+                            company.customerTaxStatus ? 'PKP' : 'NON PKP',
+                          ),
+                          const SizedBox(height: 14),
+                          _itemStack(
                             'Alamat Perusahaan',
                             _joinAddress([
                               company.customerCompanyAddress,
@@ -432,6 +437,7 @@ class ActiveCompanyDetailDialog extends StatelessWidget {
       final type = (row['type'] ?? '').toString().trim();
       final rowPicName = (row['pic_name'] ?? '').toString().trim();
       final rowPicPhone = (row['pic_phone'] ?? '').toString().trim();
+      final rowPicEmail = (row['pic_email'] ?? '').toString().trim();
       final picName = rowPicName.isNotEmpty
           ? rowPicName
           : (type.toLowerCase() == 'office'
@@ -441,6 +447,11 @@ class ActiveCompanyDetailDialog extends StatelessWidget {
           ? (_displayPhone(rowPicPhone) ?? rowPicPhone)
           : (type.toLowerCase() == 'office'
                 ? (_displayPhone(company.branchOwnerPhone) ?? '')
+                : '');
+      final picEmail = rowPicEmail.isNotEmpty
+          ? rowPicEmail
+          : (type.toLowerCase() == 'office'
+                ? (company.branchOwnerEmail ?? '').trim()
                 : '');
       final isDefault = row['is_default'] == 1 || row['is_default'] == true;
       final address = _joinAddress([
@@ -520,6 +531,7 @@ class ActiveCompanyDetailDialog extends StatelessWidget {
               const SizedBox(height: 12),
               _item('PIC', picName),
               _item('No. HP PIC', picPhone),
+              _item('Email PIC', picEmail),
               _item('Alamat', address),
             ],
           ),

@@ -21,6 +21,7 @@ import '../widgets/active_company_detail_dialog.dart';
 import '../widgets/active_member_card.dart';
 import '../widgets/member_registration_card.dart';
 import '../widgets/member_confirmation_dialog.dart';
+import '../utils/member_status_helper.dart';
 
 class MemberListPage extends StatefulWidget {
   final int initialTabIndex;
@@ -385,9 +386,8 @@ class _MemberListPageState extends State<MemberListPage>
   }
 
   Future<void> _showRegistrationDetail(MemberRegistration registration) async {
-    final status = registration.status.toLowerCase();
-    final isDraft = status == 'draft';
-    final isRejected = status == 'reject' || status == 'rejected';
+    final isDraft = MemberStatusHelper.isDraft(registration.status);
+    final isRejected = MemberStatusHelper.isRejected(registration.status);
     final canEdit = isDraft || isRejected;
     final shippingAddresses = await _loadShippingAddresses(registration.id);
     if (!mounted) return;
@@ -655,10 +655,12 @@ class _MemberListPageState extends State<MemberListPage>
       'company_province': registration.province,
       'company_city': registration.city,
       'company_district': registration.district,
+      'village': registration.village,
       'company_postal_code': registration.postalCode,
-      'customer_shipping_address': shippingAddresses,
+      'customer_register_address': shippingAddresses,
       'reject_reason': registration.rejectReason,
       'reject_notes': registration.rejectNotes,
+      'status': MemberStatusHelper.normalize(registration.status),
     };
   }
 
@@ -709,6 +711,10 @@ class _MemberListPageState extends State<MemberListPage>
 
       return data.whereType<Map>().map((e) {
         final row = Map<String, dynamic>.from(e);
+        final type = (row['type'] ?? '').toString().trim().toLowerCase();
+        if (type.isNotEmpty && type != 'shipping') {
+          return <String, dynamic>{};
+        }
         final picPhone = (row['pic_phone'] ?? '').toString().trim();
         if (picPhone.isNotEmpty) {
           final digits = picPhone.replaceAll(RegExp(r'[^0-9]'), '');
@@ -719,7 +725,7 @@ class _MemberListPageState extends State<MemberListPage>
           }
         }
         return row;
-      }).toList();
+      }).where((row) => row.isNotEmpty).toList();
     } catch (_) {
       return const [];
     }

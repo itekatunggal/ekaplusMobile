@@ -87,16 +87,27 @@ class _RegisterFormPageState extends State<RegisterFormPage> {
   }
 
   // Helper: Capitalize each word (untuk save ke DB)
-  String _capitalizeWords(String text) {
+  // String _capitalizeWords(String text) {
+  //   if (text.isEmpty) return text;
+
+  //   return text
+  //       .trim()
+  //       .split(' ')
+  //       .where((word) => word.isNotEmpty)
+  //       .map((word) {
+  //         return word[0].toUpperCase() + word.substring(1).toLowerCase();
+  //       })
+  //       .join(' ');
+  // }
+
+  String _uppercaseWords(String text) {
     if (text.isEmpty) return text;
 
     return text
         .trim()
         .split(' ')
         .where((word) => word.isNotEmpty)
-        .map((word) {
-          return word[0].toUpperCase() + word.substring(1).toLowerCase();
-        })
+        .map((word) => word.toUpperCase())
         .join(' ');
   }
 
@@ -132,14 +143,16 @@ class _RegisterFormPageState extends State<RegisterFormPage> {
   }
 
   // Auto-copy JSON to clipboard (fire-and-forget ok)
-  Future<void> _autoCopyJsonToClipboard() async { return; /*
+  Future<void> _autoCopyJsonToClipboard() async {
+    return; /*
     try {
       debugPrint('✅ JSON AUTO-COPIED TO CLIPBOARD!');
       debugPrint('📁 Also saved to: ${storageService.getAssetsFilePath()}');
     } catch (e) {
       debugPrint('⚠️ Could not copy to clipboard: $e');
     }
-  */ }
+  */
+  }
 
   // Validators
   String? _validateName(String? value) {
@@ -264,7 +277,8 @@ class _RegisterFormPageState extends State<RegisterFormPage> {
     if (!_formKey.currentState!.validate()) return;
 
     if (_selectedGender == null) {
-      AppSnackbar.showRaw(context, 
+      AppSnackbar.showRaw(
+        context,
         const SnackBar(
           content: Text('Silakan pilih jenis kelamin'),
           backgroundColor: AppColors.primaryColor,
@@ -278,20 +292,20 @@ class _RegisterFormPageState extends State<RegisterFormPage> {
     setState(() => _isNavigating = true);
 
     // Clean and capitalize data before saving
-    final firstName = _capitalizeWords(_cleanText(_firstNameController.text));
-    final lastName = _capitalizeWords(_cleanText(_lastNameController.text));
+    final firstName = _uppercaseWords(_cleanText(_firstNameController.text));
+    final lastName = _uppercaseWords(_cleanText(_lastNameController.text));
     final fullName = '$firstName $lastName'.trim();
-    final birthPlace = _capitalizeWords(_cleanText(_birthPlaceController.text));
+    final birthPlace = _uppercaseWords(_cleanText(_birthPlaceController.text));
     final email = _cleanText(_emailController.text).toLowerCase();
     final username = _usernameController.text.trim().isEmpty
         ? null
         : _cleanText(_usernameController.text).toLowerCase();
 
-    debugPrint('📝 Registering user...');
-    debugPrint('Phone: ${widget.phoneNumber}');
-    debugPrint('Full Name: $fullName');
-    debugPrint('Email: $email');
-    debugPrint('Gender: $_selectedGender');
+    // debugPrint('📝 Registering user...');
+    // debugPrint('Phone: ${widget.phoneNumber}');
+    // debugPrint('Full Name: $fullName');
+    // debugPrint('Email: $email');
+    // debugPrint('Gender: $_selectedGender');
 
     // Dispatch event (bloc will handle saving)
     context.read<AuthBloc>().add(
@@ -330,7 +344,8 @@ class _RegisterFormPageState extends State<RegisterFormPage> {
             FocusScope.of(context).unfocus();
 
             if (mounted && !_isDisposed) {
-              AppSnackbar.showRaw(context, 
+              AppSnackbar.showRaw(
+                context,
                 const SnackBar(
                   content: Text('Registrasi berhasil — mengarahkan ke login'),
                   backgroundColor: Colors.green,
@@ -362,7 +377,8 @@ class _RegisterFormPageState extends State<RegisterFormPage> {
             // Re-enable button so user can retry
             if (mounted && !_isDisposed) {
               setState(() => _isNavigating = false);
-              AppSnackbar.showRaw(context, 
+              AppSnackbar.showRaw(
+                context,
                 SnackBar(
                   content: Text(state.message),
                   backgroundColor: AppColors.primaryColor,

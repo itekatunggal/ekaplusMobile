@@ -45,6 +45,17 @@ class BranchModel {
 }
 
 class MemberRegistrationModel {
+  static bool _safeBool(dynamic v) {
+    if (v == null) return false;
+    if (v is bool) return v;
+    if (v is num) return v != 0;
+    final normalized = v.toString().trim().toLowerCase();
+    return normalized == '1' ||
+        normalized == 'true' ||
+        normalized == 'yes' ||
+        normalized == 'pkp';
+  }
+
   static String _displayPhone(dynamic v) {
     final raw = _safeString(v).trim();
     if (raw.isEmpty) return raw;
@@ -247,6 +258,7 @@ class MemberRegistrationModel {
           : _safeString(json['reject_notes']),
       nik: _safeString(json['nik']),
       npwp: _safeString(json['npwp']).isEmpty ? null : _safeString(json['npwp']),
+      taxStatus: _safeBool(json['tax_status']),
       ktpImage: _safeString(json['ktp_image']).isEmpty ? null : _safeString(json['ktp_image']),
       npwpImage: _safeString(json['npwp_image']).isEmpty
           ? null
@@ -286,6 +298,7 @@ class MemberRegistrationModel {
       'postal_code': entity.postalCode,
       'nik': entity.nik,
       'npwp': entity.npwp,
+      'tax_status': entity.taxStatus ? 1 : 0,
       'branch_id': entity.branch.id,
       'gpid_id': entity.gpid?.id,
       'gcid_id': entity.gcid?.id,
@@ -313,6 +326,8 @@ class MemberRegistrationModel {
       'rt': entity.rt,
       'rw': entity.rw,
       'postal_code': entity.postalCode,
+      'npwp': entity.npwp,
+      'tax_status': entity.taxStatus ? 1 : 0,
       'branch_id': entity.branch.id,
       'contact_person': entity.contactPerson,
       'branch_owner': entity.branchOwnerName,

@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import '../../../../constant.dart';
 import '../../domain/entities/active_member_company.dart';
+import '../utils/member_status_helper.dart';
 
 class ActiveMemberCard extends StatelessWidget {
   final ActiveMemberCompany company;
@@ -30,6 +31,9 @@ class ActiveMemberCard extends StatelessWidget {
     final picBranchPhone = (company.branchOwnerPhone ?? '').trim().isEmpty
         ? '-'
         : company.branchOwnerPhone!.trim();
+    final normalizedStatus = MemberStatusHelper.normalize(
+      company.customerRegisterStatus,
+    );
     final borderRadius = BorderRadius.circular(12);
 
     return AnimatedContainer(
@@ -62,58 +66,57 @@ class ActiveMemberCard extends StatelessWidget {
           splashColor: AppColors.primaryColor.withOpacity(0.18),
           highlightColor: AppColors.primaryColor.withOpacity(0.08),
           child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Header with active badge
-                Ink(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: isActiveSelected
-                        ? Colors.green[50]
-                        : Colors.grey[50],
-                    borderRadius: const BorderRadius.only(
-                      topLeft: Radius.circular(12),
-                      topRight: Radius.circular(12),
-                    ),
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header with active badge
+              Ink(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: isActiveSelected ? Colors.green[50] : Colors.grey[50],
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(12),
+                    topRight: Radius.circular(12),
                   ),
-                  child: Row(
-                    children: [
-                      Ink(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Icon(
-                          Icons.business,
-                          size: 24,
-                          color: isActiveSelected
-                              ? Colors.green[700]
-                              : Colors.grey[700],
-                        ),
+                ),
+                child: Row(
+                  children: [
+                    Ink(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(8),
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              companyName,
-                              style: TextStyle(
-                                fontFamily: AppFonts.primaryFont,
-                                fontSize: 14,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.blackColor,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
+                      child: Icon(
+                        Icons.business,
+                        size: 24,
+                        color: isActiveSelected
+                            ? Colors.green[700]
+                            : Colors.grey[700],
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            companyName,
+                            style: TextStyle(
+                              fontFamily: AppFonts.primaryFont,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.blackColor,
                             ),
-                            const SizedBox(height: 4),
-                            AnimatedOpacity(
-                              duration: const Duration(milliseconds: 180),
-                              opacity: isActiveSelected ? 1 : 0,
-                              child: Row(
-                                children: [
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 4),
+                          AnimatedOpacity(
+                            duration: const Duration(milliseconds: 180),
+                            opacity: 1,
+                            child: Row(
+                              children: [
+                                if (isActiveSelected) ...[
                                   Container(
                                     width: 8,
                                     height: 8,
@@ -123,73 +126,74 @@ class ActiveMemberCard extends StatelessWidget {
                                     ),
                                   ),
                                   const SizedBox(width: 6),
-                                  Text(
-                                    'Aktif',
-                                    style: TextStyle(
-                                      fontFamily: AppFonts.primaryFont,
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.green[700],
-                                    ),
-                                  ),
                                 ],
-                              ),
+                                Text(
+                                  isActiveSelected ? 'Aktif' : normalizedStatus,
+                                  style: TextStyle(
+                                    fontFamily: AppFonts.primaryFont,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: _statusColor(normalizedStatus),
+                                  ),
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
-                      if (onInfoTap != null)
-                        IconButton(
-                          onPressed: onInfoTap,
-                          icon: const Icon(Icons.info_outline),
-                          tooltip: 'Detail',
-                        ),
-                    ],
-                  ),
+                    ),
+                    if (onInfoTap != null)
+                      IconButton(
+                        onPressed: onInfoTap,
+                        icon: const Icon(Icons.info_outline),
+                        tooltip: 'Detail',
+                      ),
+                  ],
                 ),
+              ),
 
-                // Body
-                Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Company Type
-                      // _buildInfoRow(
-                      //   Icons.workspace_premium_outlined,
-                      //   'NB',
-                      //   nationalBrand,
-                      // ),
+              // Body
+              Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Company Type
+                    // _buildInfoRow(
+                    //   Icons.workspace_premium_outlined,
+                    //   'NB',
+                    //   nationalBrand,
+                    // ),
 
-                      // const SizedBox(height: 8),
-                      _buildInfoRow(
-                        Icons.person_outline,
-                        'PIC Branch name',
-                        picBranchName,
-                      ),
+                    // const SizedBox(height: 8),
+                    _buildInfoRow(
+                      Icons.person_outline,
+                      'PIC Branch name',
+                      picBranchName,
+                    ),
 
-                      const SizedBox(height: 8),
-                      _buildInfoRow(
-                        Icons.phone_outlined,
-                        'No. HP PIC Branch',
-                        picBranchPhone,
-                      ),
+                    const SizedBox(height: 8),
+                    _buildInfoRow(
+                      Icons.phone_outlined,
+                      'No. HP PIC Branch',
+                      picBranchPhone,
+                    ),
 
-                      const SizedBox(height: 8),
+                    const SizedBox(height: 8),
 
-                      // Branch
-                      _buildInfoRow(
-                        Icons.location_on_outlined,
-                        'Cabang yang dipilih',
-                        branchName,
-                      ),
-                    ],
-                  ),
+                    // Branch
+                    _buildInfoRow(
+                      Icons.location_on_outlined,
+                      'Cabang yang dipilih',
+                      branchName,
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
+      ),
     );
   }
 
@@ -221,5 +225,20 @@ class ActiveMemberCard extends StatelessWidget {
         ),
       ],
     );
+  }
+
+  Color _statusColor(String status) {
+    switch (status.toLowerCase()) {
+      case 'approved':
+        return Colors.green[700]!;
+      case 'rejected':
+        return Colors.red[700]!;
+      case 'draft':
+        return Colors.grey[700]!;
+      case 'request':
+      case 'in review':
+      default:
+        return Colors.orange[700]!;
+    }
   }
 }

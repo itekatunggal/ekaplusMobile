@@ -20,6 +20,10 @@ class MemberRegistrationFormState {
     if (digits.startsWith('62')) return digits;
     return digits;
   }
+
+  String _uppercaseText(String raw) {
+    return raw.trim().toUpperCase();
+  }
   // === IDENTITY SECTION (Read-only from User data) ===
   // Controllers untuk data identitas yang sudah ada
   final TextEditingController namaController;
@@ -264,9 +268,11 @@ class MemberRegistrationFormState {
         province: selectedProvince,
         regency: selectedRegency,
         district: selectedDistrict,
+        village: selectedVillage,
         companyProvinces: provinces,
         companyRegencies: regencies,
         companyDistricts: districts,
+        companyVillages: villages,
       );
     }
   }
@@ -321,9 +327,6 @@ class MemberRegistrationFormState {
     if (phoneController.text.trim().isEmpty) {
       errors['ownerPhone'] = 'No. HP pemilik wajib diisi';
     }
-    if (emailController.text.trim().isEmpty) {
-      errors['ownerEmail'] = 'Email pemilik wajib diisi';
-    }
     if (birthPlaceController.text.trim().isEmpty) {
       errors['birthPlace'] = 'Tempat lahir wajib diisi';
     }
@@ -335,9 +338,6 @@ class MemberRegistrationFormState {
     }
     if (branchPicPhoneController.text.trim().isEmpty) {
       errors['branchPicPhone'] = 'No. HP PIC Branch wajib diisi';
-    }
-    if (branchPicEmailController.text.trim().isEmpty) {
-      errors['branchPicEmail'] = 'Email PIC Branch wajib diisi';
     }
 
     // Company Type
@@ -403,9 +403,9 @@ class MemberRegistrationFormState {
     if (selectedDistrict == null) {
       errors['district'] = 'Pilih kecamatan';
     }
-    // if (selectedVillage == null) {
-    //   errors['village'] = 'Pilih kelurahan/desa';
-    // }
+    if (selectedVillage == null) {
+      errors['village'] = 'Pilih kelurahan/desa';
+    }
 
     // RT/RW
     // if (rtController.text.trim().isEmpty) {
@@ -416,11 +416,11 @@ class MemberRegistrationFormState {
     // }
 
     // Postal Code
-    if (postalCodeController.text.trim().isEmpty) {
-      errors['postalCode'] = 'Kode pos tidak boleh kosong';
-    } else if (postalCodeController.text.trim().length != 5) {
-      errors['postalCode'] = 'Kode pos harus 5 digit';
-    }
+    // if (postalCodeController.text.trim().isEmpty) {
+    //   errors['postalCode'] = 'Kode pos tidak boleh kosong';
+    // } else if (postalCodeController.text.trim().length != 5) {
+    //   errors['postalCode'] = 'Kode pos harus 5 digit';
+    // }
 
     // Shipping Addresses: minimal 1 alamat pengiriman valid
     if (shippingAddresses.isEmpty) {
@@ -499,7 +499,8 @@ class MemberRegistrationFormState {
           shipping.postalCodeController.text.trim().isNotEmpty ||
           shipping.selectedProvince != null ||
           shipping.selectedRegency != null ||
-          shipping.selectedDistrict != null) {
+          shipping.selectedDistrict != null ||
+          shipping.selectedVillage != null) {
         return true;
       }
     }
@@ -533,31 +534,44 @@ class MemberRegistrationFormState {
     final allShippingSameAsCompany =
         hasShipping && shippingAddresses.every((e) => e.sameAsCompanyAddress);
 
-    final customerShippingAddress = shippingAddresses
+    final customerRegisterAddress = shippingAddresses
         .map(
           (e) => {
             'label': e.labelController.text.trim().isEmpty
-                ? 'Alamat Pengiriman'
-                : e.labelController.text.trim(),
+                ? 'ALAMAT PENGIRIMAN'
+                : _uppercaseText(e.labelController.text),
+            'type': 'Shipping',
             'address': e.sameAsCompanyAddress
-                ? addressController.text.trim()
-                : e.addressController.text.trim(),
+                ? _uppercaseText(addressController.text)
+                : _uppercaseText(e.addressController.text),
             'province': e.sameAsCompanyAddress
-                ? selectedProvince?.name
-                : e.selectedProvince?.name,
+                ? selectedProvince?.name.toUpperCase()
+                : e.selectedProvince?.name.toUpperCase(),
             'city': e.sameAsCompanyAddress
-                ? selectedRegency?.name
-                : e.selectedRegency?.name,
+                ? selectedRegency?.name.toUpperCase()
+                : e.selectedRegency?.name.toUpperCase(),
             'district': e.sameAsCompanyAddress
-                ? selectedDistrict?.name
-                : e.selectedDistrict?.name,
-            'postal_code': e.sameAsCompanyAddress
-                ? postalCodeController.text.trim()
-                : e.postalCodeController.text.trim(),
-            'pic_name': e.picNameController.text.trim(),
+                ? selectedDistrict?.name.toUpperCase()
+                : e.selectedDistrict?.name.toUpperCase(),
+            'village': e.sameAsCompanyAddress
+                ? selectedVillage?.name.toUpperCase()
+                : e.selectedVillage?.name.toUpperCase(),
+            'company_village': e.sameAsCompanyAddress
+                ? selectedVillage?.name.toUpperCase()
+                : e.selectedVillage?.name.toUpperCase(),
+            if ((e.sameAsCompanyAddress
+                    ? postalCodeController.text.trim()
+                    : e.postalCodeController.text.trim())
+                .isNotEmpty)
+              'postal_code': e.sameAsCompanyAddress
+                  ? postalCodeController.text.trim()
+                  : e.postalCodeController.text.trim(),
+            'pic_name': _uppercaseText(e.picNameController.text),
             'pic_phone': e.picPhoneController.text.trim().isEmpty
                 ? ''
                 : _normalizePhoneForDb(e.picPhoneController.text.trim()),
+            if (e.picEmailController.text.trim().isNotEmpty)
+              'pic_email': e.picEmailController.text.trim(),
             'is_default': e.isDefault ? 1 : 0,
             'country':
                 'Indonesia', // ini hanya untuk sementara (api development belum di build ulang) nanti hapus yaaa!!!
@@ -574,20 +588,24 @@ class MemberRegistrationFormState {
       // Registration Metadata
       // 'type': registrationType,
       'source': 'ekaplus',
-      'owner_name': namaController.text.trim(),
-      'owner_full_name': namaController.text.trim(),
+      'owner_name': _uppercaseText(namaController.text),
+      'owner_full_name': _uppercaseText(namaController.text),
       'owner_phone': _normalizePhoneForDb(phoneController.text.trim()),
-      'owner_email': emailController.text.trim(),
-      'owner_place_of_birth': birthPlaceController.text.trim(),
+      if (emailController.text.trim().isNotEmpty)
+        'owner_email': emailController.text.trim(),
+      'owner_place_of_birth': _uppercaseText(birthPlaceController.text),
       'owner_date_of_birth': _formatDateForApi(
         dateOfBirthController.text.trim(),
       ),
-      'branch_owner': branchPicNameController.text.trim(),
+      'branch_owner': _uppercaseText(branchPicNameController.text),
       'branch_owner_phone': branchPicPhoneController.text.trim().isEmpty
           ? ''
           : _normalizePhoneForDb(branchPicPhoneController.text.trim()),
-      'branch_owner_email': branchPicEmailController.text.trim(),
-      'branch_owner_place_of_birth': branchPicBirthPlaceController.text.trim(),
+      if (branchPicEmailController.text.trim().isNotEmpty)
+        'branch_owner_email': branchPicEmailController.text.trim(),
+      'branch_owner_place_of_birth': _uppercaseText(
+        branchPicBirthPlaceController.text,
+      ),
       'branch_owner_date_of_birth': _formatDateForApi(
         branchPicDateOfBirthController.text.trim(),
       ),
@@ -597,8 +615,9 @@ class MemberRegistrationFormState {
       'company_title': companyTitle,
       'company_name': companyNameFormatted,
       'product_need': productNeed,
+      'tax_status': isPKP ? 1 : 0,
+      if (npwpController.text.trim().isNotEmpty) 'npwp': npwpController.text.trim(),
       // 'nik': nikController.text.trim(),
-      // 'npwp': npwpController.text.trim(),
 
       // Branch
       'branch_id': selectedBranch?.id,
@@ -606,17 +625,19 @@ class MemberRegistrationFormState {
       'branch_area': selectedBranch?.area,
 
       // Company Address
-      'company_address': addressController.text.trim(),
-      'company_province': selectedProvince?.name,
-      'company_city': selectedRegency?.name,
-      'company_district': selectedDistrict?.name,
-      // 'village': selectedVillage?.name,
+      'company_address': _uppercaseText(addressController.text),
+      'company_province': selectedProvince?.name.toUpperCase(),
+      'company_city': selectedRegency?.name.toUpperCase(),
+      'company_district': selectedDistrict?.name.toUpperCase(),
+      'village': selectedVillage?.name.toUpperCase(),
+      'company_village': selectedVillage?.name.toUpperCase(),
       // 'rt': rtController.text.trim(),
       // 'rw': rwController.text.trim(),
-      'company_postal_code': postalCodeController.text.trim(),
+      if (postalCodeController.text.trim().isNotEmpty)
+        'company_postal_code': postalCodeController.text.trim(),
 
       'same_as_company_address': allShippingSameAsCompany ? 1 : 0,
-      if (hasShipping) 'customer_shipping_address': customerShippingAddress,
+      if (hasShipping) 'customer_register_address': customerRegisterAddress,
       // Supporting Data
       // 'contact_person': contactPersonController.text.trim(),
       // 'factory_address': factoryAddressController.text.trim(),

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'province_model.dart';
 import 'regency_model.dart';
 import 'district_model.dart';
+import 'village_model.dart';
 
 /// Model untuk menyimpan data alamat pengiriman
 class ShippingAddressModel {
@@ -13,14 +14,18 @@ class ShippingAddressModel {
   final TextEditingController labelController; // Label alamat (Rumah, Kantor, dll)
   final TextEditingController picNameController;
   final TextEditingController picPhoneController;
+  final TextEditingController picEmailController;
+  String type;
 
   ProvinceModel? selectedProvince;
   RegencyModel? selectedRegency;
   DistrictModel? selectedDistrict;
+  VillageModel? selectedVillage;
 
   List<ProvinceModel> provinces;
   List<RegencyModel> regencies;
   List<DistrictModel> districts;
+  List<VillageModel> villages;
 
   bool sameAsCompanyAddress;
   bool isDefault;
@@ -32,22 +37,28 @@ class ShippingAddressModel {
     TextEditingController? labelController,
     TextEditingController? picNameController,
     TextEditingController? picPhoneController,
+    TextEditingController? picEmailController,
     this.selectedProvince,
     this.selectedRegency,
     this.selectedDistrict,
+    this.selectedVillage,
     List<ProvinceModel>? provinces,
     List<RegencyModel>? regencies,
     List<DistrictModel>? districts,
+    List<VillageModel>? villages,
     this.sameAsCompanyAddress = false,
     this.isDefault = false,
+    this.type = 'Shipping',
   })  : addressController = addressController ?? TextEditingController(),
         postalCodeController = postalCodeController ?? TextEditingController(),
         labelController = labelController ?? TextEditingController(),
         picNameController = picNameController ?? TextEditingController(),
         picPhoneController = picPhoneController ?? TextEditingController(),
+        picEmailController = picEmailController ?? TextEditingController(),
         provinces = provinces ?? [],
         regencies = regencies ?? [],
-        districts = districts ?? [];
+        districts = districts ?? [],
+        villages = villages ?? [];
 
   /// Factory constructor untuk membuat instance baru dengan ID unik
   factory ShippingAddressModel.create() {
@@ -63,18 +74,22 @@ class ShippingAddressModel {
     required ProvinceModel? province,
     required RegencyModel? regency,
     required DistrictModel? district,
+    required VillageModel? village,
     required List<ProvinceModel> companyProvinces,
     required List<RegencyModel> companyRegencies,
     required List<DistrictModel> companyDistricts,
+    required List<VillageModel> companyVillages,
   }) {
     addressController.text = address;
     postalCodeController.text = postalCode;
     selectedProvince = province;
     selectedRegency = regency;
     selectedDistrict = district;
+    selectedVillage = village;
     provinces = companyProvinces;
     regencies = companyRegencies;
     districts = companyDistricts;
+    villages = companyVillages;
   }
 
   /// Clear all fields
@@ -84,11 +99,15 @@ class ShippingAddressModel {
     labelController.clear();
     picNameController.clear();
     picPhoneController.clear();
+    picEmailController.clear();
+    type = 'Shipping';
     selectedProvince = null;
     selectedRegency = null;
     selectedDistrict = null;
+    selectedVillage = null;
     regencies = [];
     districts = [];
+    villages = [];
   }
 
   /// Reset cascading dropdowns
@@ -101,6 +120,12 @@ class ShippingAddressModel {
   void resetDistrict() {
     selectedDistrict = null;
     districts = [];
+    resetVillage();
+  }
+
+  void resetVillage() {
+    selectedVillage = null;
+    villages = [];
   }
 
   /// Dispose controllers
@@ -110,6 +135,7 @@ class ShippingAddressModel {
     labelController.dispose();
     picNameController.dispose();
     picPhoneController.dispose();
+    picEmailController.dispose();
   }
 
   /// Validate shipping address
@@ -128,6 +154,13 @@ class ShippingAddressModel {
       errors['shippingPicPhone_$index'] = 'No HP penanggung jawab wajib diisi';
     } else if (picPhoneController.text.trim().length < 10) {
       errors['shippingPicPhone_$index'] = 'No HP penanggung jawab tidak valid';
+    }
+    if (picEmailController.text.trim().isNotEmpty &&
+        !RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(
+          picEmailController.text.trim(),
+        )) {
+      errors['shippingPicEmail_$index'] =
+          'Email penanggung jawab tidak valid';
     }
 
     // Skip address-region validation if same as company address
@@ -149,10 +182,8 @@ class ShippingAddressModel {
       errors['shippingDistrict_$index'] = 'Pilih kecamatan';
     }
 
-    if (postalCodeController.text.trim().isEmpty) {
-      errors['shippingPostalCode_$index'] = 'Kode pos tidak boleh kosong';
-    } else if (postalCodeController.text.trim().length != 5) {
-      errors['shippingPostalCode_$index'] = 'Kode pos harus 5 digit';
+    if (selectedVillage == null) {
+      errors['shippingVillage_$index'] = 'Pilih kelurahan/desa';
     }
 
     return errors;
@@ -164,6 +195,7 @@ class ShippingAddressModel {
       'label': labelController.text.trim().isEmpty
           ? 'Alamat Pengiriman'
           : labelController.text.trim(),
+      'type': type,
       'address': addressController.text.trim(),
       'province': selectedProvince?.name,
       'province_code': selectedProvince?.code,
@@ -171,9 +203,12 @@ class ShippingAddressModel {
       'city_code': selectedRegency?.code,
       'district': selectedDistrict?.name,
       'district_code': selectedDistrict?.code,
-      'postal_code': postalCodeController.text.trim(),
+      'village': selectedVillage?.name,
+      if (postalCodeController.text.trim().isNotEmpty)
+        'postal_code': postalCodeController.text.trim(),
       'pic_name': picNameController.text.trim(),
       'pic_phone': picPhoneController.text.trim(),
+      'pic_email': picEmailController.text.trim(),
       'is_default': isDefault ? 1 : 0,
       'same_as_company': sameAsCompanyAddress,
     };

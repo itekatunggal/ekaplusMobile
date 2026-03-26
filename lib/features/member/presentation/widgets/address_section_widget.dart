@@ -4,14 +4,14 @@
 
 import 'package:ekaplus_ekatunggal/constant.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:flutter/services.dart' show TextInputFormatter;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../cubit/member_registration_cubit.dart';
 import '../utils/member_registration_form_state.dart';
 import '../../data/models/province_model.dart';
 import '../../data/models/regency_model.dart';
 import '../../data/models/district_model.dart';
-// import '../../data/models/village_model.dart';
+import '../../data/models/village_model.dart';
 
 /// Widget untuk section alamat dengan cascading dropdowns
 class AddressSectionWidget extends StatefulWidget {
@@ -98,14 +98,17 @@ class _AddressSectionWidgetState extends State<AddressSectionWidget> {
 
     if (district != null) {
       context.read<MemberRegistrationCubit>().loadVillages(district.code);
+    } else {
+      setState(() => _isLoadingVillages = false);
     }
   }
 
-  // void _onVillageChanged(VillageModel? village) {
-  //   setState(() {
-  //     widget.formState.selectedVillage = village;
-  //   });
-  // }
+  void _onVillageChanged(VillageModel? village) {
+    setState(() {
+      widget.formState.selectedVillage = village;
+    });
+    widget.onStateChanged();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -135,7 +138,9 @@ class _AddressSectionWidgetState extends State<AddressSectionWidget> {
               widget.formState.regencies.isEmpty &&
               !_isLoadingRegencies) {
             _isLoadingRegencies = true;
-            context.read<MemberRegistrationCubit>().loadRegencies(matchedProvince!.code);
+            context.read<MemberRegistrationCubit>().loadRegencies(
+              matchedProvince!.code,
+            );
           }
         } else if (state is MemberRegistrationRegenciesLoaded) {
           RegencyModel? matchedRegency;
@@ -161,7 +166,9 @@ class _AddressSectionWidgetState extends State<AddressSectionWidget> {
               widget.formState.districts.isEmpty &&
               !_isLoadingDistricts) {
             _isLoadingDistricts = true;
-            context.read<MemberRegistrationCubit>().loadDistricts(matchedRegency!.code);
+            context.read<MemberRegistrationCubit>().loadDistricts(
+              matchedRegency!.code,
+            );
           }
         } else if (state is MemberRegistrationDistrictsLoaded) {
           setState(() {
@@ -218,7 +225,7 @@ class _AddressSectionWidgetState extends State<AddressSectionWidget> {
               _buildTextField(
                 label: 'Alamat Lengkap *',
                 controller: widget.formState.addressController,
-                textCapitalization: TextCapitalization.words,
+                textCapitalization: TextCapitalization.characters,
                 icon: Icons.home_outlined,
                 maxLines: 3,
                 errorText: widget.addressError,
@@ -239,8 +246,8 @@ class _AddressSectionWidgetState extends State<AddressSectionWidget> {
               const SizedBox(height: 16),
 
               // Village Dropdown
-              // _buildVillageDropdown(),
-              // const SizedBox(height: 16),
+              _buildVillageDropdown(),
+              const SizedBox(height: 16),
 
               // RT & RW Row
               // Row(
@@ -273,16 +280,16 @@ class _AddressSectionWidgetState extends State<AddressSectionWidget> {
               // const SizedBox(height: 16),
 
               // Kode Pos
-              _buildTextField(
-                label: 'Kode Pos *',
-                controller: widget.formState.postalCodeController,
-                icon: Icons.local_post_office_outlined,
-                keyboardType: TextInputType.number,
-                maxLength: 5,
-                errorText: widget.postalCodeError,
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                onChanged: (_) => widget.onStateChanged(),
-              ),
+              // _buildTextField(
+              //   label: 'Kode Pos *',
+              //   controller: widget.formState.postalCodeController,
+              //   icon: Icons.local_post_office_outlined,
+              //   keyboardType: TextInputType.number,
+              //   maxLength: 5,
+              //   errorText: widget.postalCodeError,
+              //   inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              //   onChanged: (_) => widget.onStateChanged(),
+              // ),
             ],
           ),
         ),
@@ -339,10 +346,7 @@ class _AddressSectionWidgetState extends State<AddressSectionWidget> {
               .map(
                 (province) => Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 12),
-                  child: Text(
-                    province.name,
-                    overflow: TextOverflow.ellipsis,
-                  ),
+                  child: Text(province.name, overflow: TextOverflow.ellipsis),
                 ),
               )
               .toList(),
@@ -402,10 +406,7 @@ class _AddressSectionWidgetState extends State<AddressSectionWidget> {
               .map(
                 (regency) => Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 12),
-                  child: Text(
-                    regency.name,
-                    overflow: TextOverflow.ellipsis,
-                  ),
+                  child: Text(regency.name, overflow: TextOverflow.ellipsis),
                 ),
               )
               .toList(),
@@ -476,10 +477,7 @@ class _AddressSectionWidgetState extends State<AddressSectionWidget> {
               .map(
                 (district) => Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 12),
-                  child: Text(
-                    district.name,
-                    overflow: TextOverflow.ellipsis,
-                  ),
+                  child: Text(district.name, overflow: TextOverflow.ellipsis),
                 ),
               )
               .toList(),
@@ -501,60 +499,75 @@ class _AddressSectionWidgetState extends State<AddressSectionWidget> {
     );
   }
 
-  // Widget _buildVillageDropdown() {
-  //   return Column(
-  //     crossAxisAlignment: CrossAxisAlignment.start,
-  //     children: [
-  //       Text(
-  //         'Kelurahan/Desa *',
-  //         style: const TextStyle(
-  //           fontSize: 12,
-  //           color: Colors.black54,
-  //           fontWeight: FontWeight.w500,
-  //         ),
-  //       ),
-  //       const SizedBox(height: 8),
-  //       DropdownButtonFormField<VillageModel>(
-  //         initialValue: widget.formState.selectedVillage,
-  //         decoration: InputDecoration(
-  //           prefixIcon: _isLoadingVillages
-  //               ? const SizedBox(
-  //                   width: 20,
-  //                   height: 20,
-  //                   child: Padding(
-  //                     padding: EdgeInsets.all(12),
-  //                     child: CircularProgressIndicator(strokeWidth: 2),
-  //                   ),
-  //                 )
-  //               : const Icon(Icons.place_outlined, size: 20),
-  //           border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-  //           errorText: widget.villageError,
-  //           hintText: 'Pilih Kelurahan/Desa',
-  //           contentPadding: const EdgeInsets.symmetric(
-  //             horizontal: 16,
-  //             vertical: 12,
-  //           ),
-  //         ),
-  //         items: widget.formState.villages.map((village) {
-  //           return DropdownMenuItem(value: village, child: Text(village.name));
-  //         }).toList(),
-  //         onChanged:
-  //             widget.formState.selectedDistrict == null || _isLoadingVillages
-  //             ? null
-  //             : _onVillageChanged,
-  //         isExpanded: true,
-  //       ),
-  //       if (widget.formState.selectedDistrict == null)
-  //         Padding(
-  //           padding: const EdgeInsets.only(top: 4, left: 12),
-  //           child: Text(
-  //             'Pilih kecamatan terlebih dahulu',
-  //             style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-  //           ),
-  //         ),
-  //     ],
-  //   );
-  // }
+  Widget _buildVillageDropdown() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Kelurahan/Desa *',
+          style: TextStyle(
+            fontSize: 12,
+            color: Colors.black54,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 8),
+        DropdownButtonFormField<VillageModel>(
+          initialValue: widget.formState.selectedVillage,
+          isDense: true,
+          decoration: InputDecoration(
+            prefixIcon: _isLoadingVillages
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: Padding(
+                      padding: EdgeInsets.all(12),
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  )
+                : const Icon(Icons.place_outlined, size: 20),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+            errorText: widget.villageError,
+            hintText: 'Pilih Kelurahan/Desa',
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 12,
+            ),
+          ),
+          items: widget.formState.villages.map((village) {
+            return DropdownMenuItem(
+              value: village,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: Text(village.name),
+              ),
+            );
+          }).toList(),
+          selectedItemBuilder: (context) => widget.formState.villages
+              .map(
+                (village) => Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: Text(village.name, overflow: TextOverflow.ellipsis),
+                ),
+              )
+              .toList(),
+          onChanged:
+              widget.formState.selectedDistrict == null || _isLoadingVillages
+              ? null
+              : _onVillageChanged,
+          isExpanded: true,
+        ),
+        if (widget.formState.selectedDistrict == null)
+          Padding(
+            padding: const EdgeInsets.only(top: 4, left: 12),
+            child: Text(
+              'Pilih kecamatan terlebih dahulu',
+              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+            ),
+          ),
+      ],
+    );
+  }
 
   Widget _buildTextField({
     required String label,
