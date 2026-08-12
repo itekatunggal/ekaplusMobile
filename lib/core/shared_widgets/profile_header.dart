@@ -40,6 +40,8 @@ class _ProfileHeaderState extends State<ProfileHeader> {
         : const <ActiveMemberCompany>[];
     final activeBcid = state is ActiveCompanyReady ? state.activeBcid : null;
 
+    print("List BCID: ${companies}");
+
     await showDialog(
       context: context,
       barrierDismissible: true,

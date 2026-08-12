@@ -379,7 +379,7 @@ class _ProductPageState extends State<ProductPage> {
                 fontSize: 14,
                 fontWeight: FontWeight.w400,
               ),
-              prefixIcon: Icon(
+              prefixIcon: FaIcon(
                 FontAwesomeIcons.magnifyingGlass,
                 color: Colors.grey.shade600,
                 size: 16,
@@ -415,9 +415,9 @@ class _ProductPageState extends State<ProductPage> {
               children: [
                 IconButton(
                   onPressed: () => _showFilterBottomSheet(context),
-                  icon: const Icon(
+                  icon: const FaIcon(
                     FontAwesomeIcons.sliders,
-                    color: Colors.white, // Icon putih
+                    color: Colors.white,
                     size: 20,
                   ),
                 ),
@@ -429,7 +429,7 @@ class _ProductPageState extends State<ProductPage> {
                     child: Container(
                       padding: const EdgeInsets.all(4),
                       decoration: BoxDecoration(
-                        color: AppColors.secondaryColor, // Badge kuning
+                        color: AppColors.secondaryColor,
                         shape: BoxShape.circle,
                       ),
                       constraints: const BoxConstraints(
@@ -731,7 +731,6 @@ class _ProductPageState extends State<ProductPage> {
                                   return ProductCard(
                                     product: product,
                                     onTap: () {
-                                      // Save scroll position before navigation
                                       if (_scrollController.hasClients) {
                                         _savedScrollPosition =
                                             _scrollController.offset;
@@ -806,10 +805,6 @@ class _ProductPageState extends State<ProductPage> {
               onTap: onRemove,
               child: Container(
                 padding: const EdgeInsets.all(2),
-                // decoration: BoxDecoration(
-                //   color: Colors.black.withOpacity(0.1),
-                //   shape: BoxShape.circle,
-                // ),
                 child: Icon(Icons.close, size: 14, color: Color(0xC6000000)),
               ),
             ),

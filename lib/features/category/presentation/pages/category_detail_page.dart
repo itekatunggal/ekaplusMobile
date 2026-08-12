@@ -232,7 +232,7 @@ class _CategoryDetailPageState extends State<CategoryDetailPage> {
           pinned: true,
           backgroundColor: AppColors.primaryColor,
           leading: IconButton(
-            icon: const Icon(FontAwesomeIcons.arrowLeft, color: Colors.white),
+            icon: const FaIcon(FontAwesomeIcons.arrowLeft, color: Colors.white),
             onPressed: () => context.pop(),
           ),
           flexibleSpace: FlexibleSpaceBar(

@@ -36,25 +36,25 @@ android {
     }
 
     signingConfigs {
-        create("release") {
+    create("release") {
+        if (keystorePropertiesFile.exists()) {
             keyAlias = keystoreProperties["keyAlias"] as String
             keyPassword = keystoreProperties["keyPassword"] as String
             storeFile = file(keystoreProperties["storeFile"] as String)
             storePassword = keystoreProperties["storePassword"] as String
         }
     }
+}
 
-    buildTypes {
-        release {
+   buildTypes {
+    release {
+        if (keystorePropertiesFile.exists()) {
             signingConfig = signingConfigs.getByName("release")
-            isMinifyEnabled = true
-            isShrinkResources = true
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
-            )
         }
+        isMinifyEnabled = true
+        isShrinkResources = true
     }
+}
 }
 
 flutter {

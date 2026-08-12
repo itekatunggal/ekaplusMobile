@@ -11,7 +11,7 @@ class CustomHeaderAppBar extends StatelessWidget
   final Color backgroundColor;
   final VoidCallback? onBackPressed;
   final VoidCallback? onLeadingPressed;
-  final IconData? leadingIcon;
+  final FaIconData? leadingIcon;
   final bool showBackButton;
 
   const CustomHeaderAppBar({
@@ -46,7 +46,7 @@ class CustomHeaderAppBar extends StatelessWidget
                     minWidth: 36,
                     minHeight: 36,
                   ),
-                  icon: Icon(
+                  icon: FaIcon(
                     leadingIcon ?? FontAwesomeIcons.arrowLeft,
                     color: AppColors.whiteColor,
                     size: 18,

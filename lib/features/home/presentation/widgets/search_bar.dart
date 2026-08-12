@@ -30,7 +30,7 @@ class HomeSearchBar extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Icon(
+            FaIcon(
               FontAwesomeIcons.magnifyingGlass,
               size: 16,
               color: Colors.grey[600],

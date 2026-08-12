@@ -116,7 +116,7 @@ class _SearchPageState extends State<SearchPage> {
               fontSize: 14,
               fontWeight: FontWeight.w400,
             ),
-            prefixIcon: Icon(
+            prefixIcon: FaIcon(
               FontAwesomeIcons.magnifyingGlass,
               color: Colors.grey.shade600,
               size: 16,
@@ -322,7 +322,7 @@ class _SearchPageState extends State<SearchPage> {
                           color: Colors.red.shade50,
                           borderRadius: BorderRadius.circular(8),
                         ),
-                        child: Icon(
+                        child: FaIcon(
                           FontAwesomeIcons.fire,
                           size: 16,
                           color: AppColors.primaryColor,
@@ -359,17 +359,6 @@ class _SearchPageState extends State<SearchPage> {
             child: Container(
               margin: const EdgeInsets.symmetric(horizontal: 15),
               padding: const EdgeInsets.all(20),
-              // decoration: BoxDecoration(
-              //   color: AppColors.background,
-              //   // borderRadius: BorderRadius.circular(12),
-              //   // boxShadow: [
-              //   //   BoxShadow(
-              //   //     color: Colors.black.withOpacity(0.04),
-              //   //     blurRadius: 8,
-              //   //     offset: const Offset(0, 2),
-              //   //   ),
-              //   // ],
-              // ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -381,7 +370,7 @@ class _SearchPageState extends State<SearchPage> {
                           color: Colors.teal.shade50,
                           borderRadius: BorderRadius.circular(8),
                         ),
-                        child: Icon(
+                        child: FaIcon(
                           FontAwesomeIcons.layerGroup,
                           size: 16,
                           color: Colors.teal.shade700,
@@ -539,7 +528,7 @@ class _SearchPageState extends State<SearchPage> {
           ),
           child: Row(
             children: [
-              Icon(
+              FaIcon(
                 FontAwesomeIcons.circleCheck,
                 size: 16,
                 color: Colors.green.shade600,
@@ -599,12 +588,11 @@ class _SearchPageState extends State<SearchPage> {
         decoration: BoxDecoration(
           color: Colors.grey.shade100,
           borderRadius: BorderRadius.circular(20),
-          // border: Border.all(color: Colors.grey.shade300),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
+            FaIcon(
               FontAwesomeIcons.magnifyingGlass,
               size: 10,
               color: Colors.grey.shade600,
@@ -639,7 +627,7 @@ class _SearchPageState extends State<SearchPage> {
                 color: Colors.grey.shade100,
                 shape: BoxShape.circle,
               ),
-              child: Icon(
+              child: FaIcon(
                 FontAwesomeIcons.magnifyingGlass,
                 size: 48,
                 color: Colors.grey.shade400,

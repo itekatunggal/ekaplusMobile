@@ -24,7 +24,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
       toolbarHeight: 80,
       leading: IconButton(
         padding: const EdgeInsets.symmetric(vertical: 0, horizontal: 20),
-        icon: const Icon(
+        icon: const FaIcon(
           FontAwesomeIcons.arrowLeft,
           color: AppColors.whiteColor,
           size: 20,

@@ -28,7 +28,7 @@ class WishlistEmptyState extends StatelessWidget {
               children: [
                 const Spacer(),
 
-                Icon(
+                FaIcon(
                   FontAwesomeIcons.solidHeart,
                   size: 72 * scale,
                   color: const Color(0xffD43834),

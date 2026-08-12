@@ -10,6 +10,7 @@ class ApiConfig {
   // Base URL - Ganti sesuai dengan server Anda
   static const String baseUrl = 'https://api-ekaplus.ekatunggal.com';
   static const String baseImageUrl = 'https://api-ekaplus.ekatunggal.com/files';
+  static const String baseTransaksiUrl = 'https://etm-bogor.ekatunggal.com';
 
   // Development/Production toggle
   static const bool isDevelopment = true;
@@ -37,12 +38,24 @@ class ApiConfig {
   static String get users => '$baseUrl/users/get_all.php';
   static String get usersById => '$baseUrl/users/get_by_id.php';
 
-  /// Get full URL for any endpoint
+  // API Endpoints - Transaksi
+  static String get transaksi => '$baseTransaksiUrl/transaksi/get_all.php';
+  static String get transaksiById => '$baseTransaksiUrl/transaksi/get_by_id.php';
+
+  // Get full URL for any endpoint
   static String getUrl(String endpoint) {
     if (endpoint.startsWith('http')) {
       return endpoint;
     }
     return '$baseUrl/$endpoint';
+  }
+
+  // Get full URL specifically for transaksi endpoints
+  static String getTransaksiUrl(String endpoint) {
+    if (endpoint.startsWith('http')) {
+      return endpoint;
+    }
+    return '$baseTransaksiUrl/$endpoint';
   }
 
   static String getImageUrl(String? relativePath) {

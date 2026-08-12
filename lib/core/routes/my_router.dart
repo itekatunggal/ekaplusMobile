@@ -40,6 +40,11 @@ import 'package:ekaplus_ekatunggal/features/auth/presentation/pages/register_pag
 import 'package:ekaplus_ekatunggal/features/search/presentation/bloc/search_bloc.dart';
 import 'package:ekaplus_ekatunggal/features/search/presentation/pages/search_page.dart';
 import 'package:ekaplus_ekatunggal/features/wishlist/presentation/pages/wishlist_page.dart';
+import 'package:ekaplus_ekatunggal/features/report/presentation/pages/penjualan_page.dart';
+import 'package:ekaplus_ekatunggal/features/report/presentation/pages/tabInvoice_page.dart';
+import 'package:ekaplus_ekatunggal/features/invoice/presentation/pages/invoice_page.dart';
+import 'package:ekaplus_ekatunggal/features/salesOrder/presentation/pages/salesOrder_page.dart';
+import 'package:ekaplus_ekatunggal/features/transaksi/transaksi.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
@@ -127,6 +132,21 @@ class MyRouter {
             name: 'wishlist',
             path: '/wishlist',
             builder: (context, state) => const WishlistPage(),
+          ),
+          GoRoute(
+            name: 'report',
+            path: '/report',
+            builder: (context, state) => const PenjualanPage(),
+          ),
+          // GoRoute(
+          //   name: 'invoice',
+          //   path: '/invoice',
+          //   builder: (context, state) => const InvoicePage(),
+          // ),
+          GoRoute(
+            name: 'transaksi',
+            path: '/transaksi',
+            builder: (context, state) => const TransaksiPage(),
           ),
           GoRoute(
             name: 'account',
@@ -666,7 +686,10 @@ class AppShell extends StatelessWidget {
   int _locationToIndex(String path) {
     if (path.startsWith('/category')) return 1;
     if (path.startsWith('/wishlist')) return 2;
-    if (path.startsWith('/account')) return 3;
+    if (path.startsWith('/report')) return 3;
+    // if (path.startsWith('/invoice')) return 4;
+    if (path.startsWith('/transaksi')) return 4;
+    if (path.startsWith('/account')) return 5;
     return 0;
   }
 
@@ -674,6 +697,9 @@ class AppShell extends StatelessWidget {
     'home',
     'category',
     'wishlist',
+    'report',
+    // 'invoice',
+    'transaksi',
     'account',
   ];
 
