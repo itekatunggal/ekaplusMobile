@@ -726,14 +726,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ekaplus_ekatunggal/features/member/presentation/cubit/active_company_cubit.dart';
-import 'package:ekaplus_ekatunggal/features/salesOrder/data/services/sales_order_service.dart';
 import 'package:ekaplus_ekatunggal/features/salesOrder/data/services/sales_order_detail_service.dart';
 import 'package:ekaplus_ekatunggal/features/salesOrder/data/models/sales_order_model.dart';
-import 'package:ekaplus_ekatunggal/features/salesOrder/data/models/sales_order_detail_model.dart';
 import 'package:ekaplus_ekatunggal/features/salesOrder/presentation/cubit/sales_order_cubit.dart';
 import 'package:ekaplus_ekatunggal/features/salesOrder/data/services/branch_credential_service.dart';
-import 'salesOrder_detail_page.dart';
+import 'sales_order_detail_page.dart';
 
+/// Displays the sales order list.
 class SalesOrderPage extends StatefulWidget {
   const SalesOrderPage({super.key});
 
@@ -751,32 +750,35 @@ class _SalesOrderPageState extends State<SalesOrderPage> {
   // ── Filter state ──────────────────────────────────────────
   DateTime? _filterStartDate;
   DateTime? _filterEndDate;
-  String?   _filterStatus;
+  String? _filterStatus;
 
-  static const Color kRed   = Color(0xFFC0392B);
+  static const Color kRed = Color(0xFFC0392B);
   static const Color kGreen = Color(0xFF27AE60);
 
-  static const List<String> _statusOptions = [
-    'Semua',
-    'Completed',
-    'Closed',
-  ];
+  static const List<String> _statusOptions = ['Semua', 'Completed', 'Closed'];
 
   bool get _hasActiveFilter =>
       _filterStartDate != null ||
-      _filterEndDate   != null ||
+      _filterEndDate != null ||
       (_filterStatus != null && _filterStatus != 'Semua');
 
   @override
   void initState() {
     super.initState();
+    final activeCompanyCubit = context.read<ActiveCompanyCubit>();
+    final salesOrderCubit = context.read<SalesOrderCubit>();
     Future.microtask(() {
-      final activeState = context.read<ActiveCompanyCubit>().state;
-      final branchCode  = (activeState as ActiveCompanyReady?)?.activeCompany?.branchName         ?? '';
-      final bcid        = (activeState as ActiveCompanyReady?)?.activeCompany?.branchCustomerCode ?? '';
+      final activeState = activeCompanyCubit.state;
+      final branchCode =
+          (activeState as ActiveCompanyReady?)?.activeCompany?.branchName ?? '';
+      final bcid =
+          (activeState as ActiveCompanyReady?)
+              ?.activeCompany
+              ?.branchCustomerCode ??
+          '';
       debugPrint("INIT - branchCode: $branchCode");
       if (branchCode.isNotEmpty || bcid.isNotEmpty) {
-        context.read<SalesOrderCubit>().loadSalesOrder(branchCode: branchCode, bcid: bcid);
+        salesOrderCubit.loadSalesOrder(branchCode: branchCode, bcid: bcid);
       } else {
         debugPrint("branchCode kosong, API tidak dipanggil");
       }
@@ -794,23 +796,50 @@ class _SalesOrderPageState extends State<SalesOrderPage> {
     if (_filterStartDate != null || _filterEndDate != null) {
       filtered = filtered.where((i) {
         DateTime? orderDate;
-        try { orderDate = DateTime.parse(i.dueDate); } catch (_) { return true; }
+        try {
+          orderDate = DateTime.parse(i.dueDate);
+        } catch (_) {
+          return true;
+        }
 
-        if (_filterStartDate != null && orderDate.isBefore(
-            DateTime(_filterStartDate!.year, _filterStartDate!.month, _filterStartDate!.day)))
+        if (_filterStartDate != null &&
+            orderDate.isBefore(
+              DateTime(
+                _filterStartDate!.year,
+                _filterStartDate!.month,
+                _filterStartDate!.day,
+              ),
+            )) {
           return false;
-        if (_filterEndDate != null && orderDate.isAfter(
-            DateTime(_filterEndDate!.year, _filterEndDate!.month, _filterEndDate!.day, 23, 59, 59)))
+        }
+        if (_filterEndDate != null &&
+            orderDate.isAfter(
+              DateTime(
+                _filterEndDate!.year,
+                _filterEndDate!.month,
+                _filterEndDate!.day,
+                23,
+                59,
+                59,
+              ),
+            )) {
           return false;
+        }
         return true;
       }).toList();
     }
 
     if (_searchQuery.isNotEmpty) {
-      filtered = filtered.where((i) =>
-          i.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-          i.customer.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-          i.customerName.toLowerCase().contains(_searchQuery.toLowerCase())).toList();
+      filtered = filtered
+          .where(
+            (i) =>
+                i.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+                i.customer.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+                i.customerName.toLowerCase().contains(
+                  _searchQuery.toLowerCase(),
+                ),
+          )
+          .toList();
     }
 
     return filtered;
@@ -818,7 +847,7 @@ class _SalesOrderPageState extends State<SalesOrderPage> {
 
   List<SalesOrder> _pagedList(List<SalesOrder> filtered) {
     final start = (_currentPage - 1) * _itemsPerPage;
-    final end   = (start + _itemsPerPage).clamp(0, filtered.length);
+    final end = (start + _itemsPerPage).clamp(0, filtered.length);
     if (start >= filtered.length) return [];
     return filtered.sublist(start, end);
   }
@@ -834,16 +863,16 @@ class _SalesOrderPageState extends State<SalesOrderPage> {
   List<int> _visiblePages(int totalPages) {
     if (totalPages <= 5) return List.generate(totalPages, (i) => i + 1);
     int start = (_currentPage - 2).clamp(1, totalPages - 4);
-    int end   = (start + 4).clamp(5, totalPages);
-    start     = (end - 4).clamp(1, totalPages);
+    int end = (start + 4).clamp(5, totalPages);
+    start = (end - 4).clamp(1, totalPages);
     return List.generate(end - start + 1, (i) => start + i);
   }
 
   // ── Filter sheet ──────────────────────────────────────────
   void _showFilterSheet() {
-    DateTime? tempStart  = _filterStartDate;
-    DateTime? tempEnd    = _filterEndDate;
-    String    tempStatus = _filterStatus ?? 'Semua';
+    DateTime? tempStart = _filterStartDate;
+    DateTime? tempEnd = _filterEndDate;
+    String tempStatus = _filterStatus ?? 'Semua';
 
     showModalBottomSheet(
       context: context,
@@ -855,11 +884,12 @@ class _SalesOrderPageState extends State<SalesOrderPage> {
       builder: (ctx) {
         return StatefulBuilder(
           builder: (ctx, setSheetState) {
-            String fmt(DateTime? d) =>
-                d == null ? '—' : '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
+            String fmt(DateTime? d) => d == null
+                ? '—'
+                : '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
 
             Future<void> pickDate({required bool isStart}) async {
-              final now    = DateTime.now();
+              final now = DateTime.now();
               final picked = await showDatePicker(
                 context: ctx,
                 initialDate: (isStart ? tempStart : tempEnd) ?? now,
@@ -874,15 +904,20 @@ class _SalesOrderPageState extends State<SalesOrderPage> {
               );
               if (picked != null) {
                 setSheetState(() {
-                  if (isStart) tempStart = picked;
-                  else         tempEnd   = picked;
+                  if (isStart) {
+                    tempStart = picked;
+                  } else {
+                    tempEnd = picked;
+                  }
                 });
               }
             }
 
             return Padding(
               padding: EdgeInsets.only(
-                left: 20, right: 20, top: 20,
+                left: 20,
+                right: 20,
+                top: 20,
                 bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
               ),
               child: Column(
@@ -892,7 +927,8 @@ class _SalesOrderPageState extends State<SalesOrderPage> {
                   // Handle
                   Center(
                     child: Container(
-                      width: 40, height: 4,
+                      width: 40,
+                      height: 4,
                       decoration: BoxDecoration(
                         color: Colors.black12,
                         borderRadius: BorderRadius.circular(2),
@@ -905,29 +941,42 @@ class _SalesOrderPageState extends State<SalesOrderPage> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text('Filter Sales Order',
-                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                      const Text(
+                        'Filter Sales Order',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                       if (_hasActiveFilter)
                         TextButton(
                           onPressed: () {
                             setState(() {
                               _filterStartDate = null;
-                              _filterEndDate   = null;
-                              _filterStatus    = null;
-                              _currentPage     = 1;
+                              _filterEndDate = null;
+                              _filterStatus = null;
+                              _currentPage = 1;
                             });
                             Navigator.pop(ctx);
                           },
-                          child: const Text('Reset',
-                              style: TextStyle(color: kRed, fontSize: 13)),
+                          child: const Text(
+                            'Reset',
+                            style: TextStyle(color: kRed, fontSize: 13),
+                          ),
                         ),
                     ],
                   ),
                   const SizedBox(height: 20),
 
                   // Rentang Tanggal
-                  const Text('Rentang Tanggal',
-                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.black54)),
+                  const Text(
+                    'Rentang Tanggal',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black54,
+                    ),
+                  ),
                   const SizedBox(height: 10),
                   Row(
                     children: [
@@ -951,23 +1000,36 @@ class _SalesOrderPageState extends State<SalesOrderPage> {
                     ],
                   ),
                   const SizedBox(height: 24),
-                  const Text('Status',
-                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.black54)),
+                  const Text(
+                    'Status',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black54,
+                    ),
+                  ),
                   const SizedBox(height: 10),
                   Wrap(
-                    spacing: 8, runSpacing: 8,
+                    spacing: 8,
+                    runSpacing: 8,
                     children: _statusOptions.map((s) {
                       final selected = tempStatus == s;
                       return GestureDetector(
                         onTap: () => setSheetState(() => tempStatus = s),
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 8,
+                          ),
                           decoration: BoxDecoration(
                             color: selected ? kRed : const Color(0xFFF5F5F5),
                             borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: selected ? kRed : Colors.black12),
+                            border: Border.all(
+                              color: selected ? kRed : Colors.black12,
+                            ),
                           ),
-                          child: Text(s,
+                          child: Text(
+                            s,
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w500,
@@ -985,9 +1047,11 @@ class _SalesOrderPageState extends State<SalesOrderPage> {
                       onPressed: () {
                         setState(() {
                           _filterStartDate = tempStart;
-                          _filterEndDate   = tempEnd;
-                          _filterStatus    = tempStatus == 'Semua' ? null : tempStatus;
-                          _currentPage     = 1;
+                          _filterEndDate = tempEnd;
+                          _filterStatus = tempStatus == 'Semua'
+                              ? null
+                              : tempStatus;
+                          _currentPage = 1;
                         });
                         Navigator.pop(ctx);
                       },
@@ -996,10 +1060,16 @@ class _SalesOrderPageState extends State<SalesOrderPage> {
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10)),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
                       ),
-                      child: const Text('Terapkan Filter',
-                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                      child: const Text(
+                        'Terapkan Filter',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ),
                   ),
                 ],
@@ -1012,10 +1082,13 @@ class _SalesOrderPageState extends State<SalesOrderPage> {
   }
 
   void _openDetail(SalesOrder salesOrder) async {
-    final activeState = context.read<ActiveCompanyCubit>().state as ActiveCompanyReady?;
-    final branchName  = activeState?.activeCompany?.branchName ?? '';
+    final activeState =
+        context.read<ActiveCompanyCubit>().state as ActiveCompanyReady?;
+    final branchName = activeState?.activeCompany?.branchName ?? '';
 
-    final credential = await BranchCredentialService().fetchCredential(branchName);
+    final credential = await BranchCredentialService().fetchCredential(
+      branchName,
+    );
     if (credential == null || !mounted) return;
 
     final detail = await SalesOrderDetailService().fetchDetail(
@@ -1061,7 +1134,11 @@ class _SalesOrderPageState extends State<SalesOrderPage> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                        const Icon(
+                          Icons.error_outline,
+                          size: 48,
+                          color: Colors.red,
+                        ),
                         const SizedBox(height: 12),
                         Text(state.message),
                         const SizedBox(height: 12),
@@ -1069,8 +1146,16 @@ class _SalesOrderPageState extends State<SalesOrderPage> {
                           onPressed: () {
                             final s = context.read<ActiveCompanyCubit>().state;
                             context.read<SalesOrderCubit>().loadSalesOrder(
-                              branchCode: (s as ActiveCompanyReady?)?.activeCompany?.branchName ?? '',
-                              bcid: (s as ActiveCompanyReady?)?.activeCompany?.branchCustomerCode ?? '',
+                              branchCode:
+                                  (s as ActiveCompanyReady?)
+                                      ?.activeCompany
+                                      ?.branchName ??
+                                  '',
+                              bcid:
+                                  (s as ActiveCompanyReady?)
+                                      ?.activeCompany
+                                      ?.branchCustomerCode ??
+                                  '',
                             );
                           },
                           child: const Text('Coba Lagi'),
@@ -1080,19 +1165,25 @@ class _SalesOrderPageState extends State<SalesOrderPage> {
                   );
                 }
                 if (state is SalesOrderLoaded) {
-                  final filtered   = _filteredList(state.items);
+                  final filtered = _filteredList(state.items);
                   final totalPages = _totalPages(filtered.length);
-                  final paged      = _pagedList(filtered);
+                  final paged = _pagedList(filtered);
 
                   if (filtered.isEmpty) {
                     return Center(
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.search_off, size: 48, color: Colors.black26),
+                          const Icon(
+                            Icons.search_off,
+                            size: 48,
+                            color: Colors.black26,
+                          ),
                           const SizedBox(height: 12),
-                          const Text('Tidak ada sales order ditemukan',
-                              style: TextStyle(color: Colors.black45)),
+                          const Text(
+                            'Tidak ada sales order ditemukan',
+                            style: TextStyle(color: Colors.black45),
+                          ),
                         ],
                       ),
                     );
@@ -1130,12 +1221,18 @@ class _SalesOrderPageState extends State<SalesOrderPage> {
             children: [
               GestureDetector(
                 onTap: () => Navigator.pop(context),
-                child: const Icon(Icons.arrow_back, color: Colors.white, size: 20),
+                child: const Icon(
+                  Icons.arrow_back,
+                  color: Colors.white,
+                  size: 20,
+                ),
               ),
               const SizedBox(width: 8),
               const Expanded(
-                child: Text('Laporan Pelanggan',
-                    style: TextStyle(color: Colors.white, fontSize: 15)),
+                child: Text(
+                  'Laporan Pelanggan',
+                  style: TextStyle(color: Colors.white, fontSize: 15),
+                ),
               ),
               GestureDetector(
                 onTap: _showFilterSheet,
@@ -1145,9 +1242,11 @@ class _SalesOrderPageState extends State<SalesOrderPage> {
                     const Icon(Icons.tune, color: Colors.white, size: 22),
                     if (_hasActiveFilter)
                       Positioned(
-                        top: -3, right: -3,
+                        top: -3,
+                        right: -3,
                         child: Container(
-                          width: 8, height: 8,
+                          width: 8,
+                          height: 8,
                           decoration: const BoxDecoration(
                             color: Colors.yellow,
                             shape: BoxShape.circle,
@@ -1208,18 +1307,20 @@ class _SalesOrderPageState extends State<SalesOrderPage> {
               spacing: 6,
               children: [
                 if (_filterStatus != null)
-                  _buildChip(_filterStatus!,
-                      onDelete: () => setState(() {
-                        _filterStatus = null;
-                        _currentPage  = 1;
-                      })),
+                  _buildChip(
+                    _filterStatus!,
+                    onDelete: () => setState(() {
+                      _filterStatus = null;
+                      _currentPage = 1;
+                    }),
+                  ),
                 if (_filterStartDate != null || _filterEndDate != null)
                   _buildChip(
                     '${fmt(_filterStartDate ?? _filterEndDate!)} → ${fmt(_filterEndDate ?? _filterStartDate!)}',
                     onDelete: () => setState(() {
                       _filterStartDate = null;
-                      _filterEndDate   = null;
-                      _currentPage     = 1;
+                      _filterEndDate = null;
+                      _currentPage = 1;
                     }),
                   ),
               ],
@@ -1253,7 +1354,8 @@ class _SalesOrderPageState extends State<SalesOrderPage> {
   }
 
   Widget _buildSalesOrderCard(SalesOrder so) {
-    final bool isBelumBayar = so.status == 'To Deliver and Bill' ||
+    final bool isBelumBayar =
+        so.status == 'To Deliver and Bill' ||
         so.status == 'To Bill' ||
         so.status == 'Draft' ||
         so.status == 'Belum Bayar';
@@ -1283,27 +1385,37 @@ class _SalesOrderPageState extends State<SalesOrderPage> {
                   Row(
                     children: [
                       Container(
-                        width: 36, height: 36,
+                        width: 36,
+                        height: 36,
                         decoration: BoxDecoration(
                           color: isBelumBayar
                               ? const Color(0xFFFDEDED)
                               : const Color(0xFFE8F5E9),
                           borderRadius: BorderRadius.circular(8),
                         ),
-                        child: Icon(Icons.receipt_outlined, size: 18,
-                            color: isBelumBayar ? kRed : kGreen),
+                        child: Icon(
+                          Icons.receipt_outlined,
+                          size: 18,
+                          color: isBelumBayar ? kRed : kGreen,
+                        ),
                       ),
                       const SizedBox(width: 10),
-                      Text(so.name,
-                          style: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.black87)),
+                      Text(
+                        so.name,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                      ),
                     ],
                   ),
                   // Badge status
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: (isBelumBayar ? kRed : kGreen).withOpacity(0.1),
                       borderRadius: BorderRadius.circular(20),
@@ -1369,18 +1481,25 @@ class _SalesOrderPageState extends State<SalesOrderPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(label,
-                  style: const TextStyle(
-                      fontSize: 10, color: Colors.black38, letterSpacing: 0.3)),
+              Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 10,
+                  color: Colors.black38,
+                  letterSpacing: 0.3,
+                ),
+              ),
               const SizedBox(height: 2),
-              Text(value,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: valueColor,
-                    fontWeight: valueBold ? FontWeight.w600 : FontWeight.normal,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis),
+              Text(
+                value,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: valueColor,
+                  fontWeight: valueBold ? FontWeight.w600 : FontWeight.normal,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
             ],
           ),
         ),
@@ -1389,8 +1508,8 @@ class _SalesOrderPageState extends State<SalesOrderPage> {
   }
 
   Widget _buildPagination(int totalPages, int totalItems) {
-    final startItem   = ((_currentPage - 1) * _itemsPerPage) + 1;
-    final endItem     = (_currentPage * _itemsPerPage).clamp(0, totalItems);
+    final startItem = ((_currentPage - 1) * _itemsPerPage) + 1;
+    final endItem = (_currentPage * _itemsPerPage).clamp(0, totalItems);
     final pageNumbers = _visiblePages(totalPages);
 
     return Padding(
@@ -1399,7 +1518,11 @@ class _SalesOrderPageState extends State<SalesOrderPage> {
         children: [
           Text(
             '$startItem–$endItem dari $totalItems data',
-            style: const TextStyle(fontSize: 11, color: Colors.black38, letterSpacing: 0.2),
+            style: const TextStyle(
+              fontSize: 11,
+              color: Colors.black38,
+              letterSpacing: 0.2,
+            ),
           ),
           const SizedBox(height: 10),
           Row(
@@ -1410,8 +1533,11 @@ class _SalesOrderPageState extends State<SalesOrderPage> {
                 onTap: _currentPage > 1
                     ? () => _goToPage(_currentPage - 1, totalPages)
                     : null,
-                child: Icon(Icons.chevron_left_rounded, size: 22,
-                    color: _currentPage > 1 ? kRed : Colors.black12),
+                child: Icon(
+                  Icons.chevron_left_rounded,
+                  size: 22,
+                  color: _currentPage > 1 ? kRed : Colors.black12,
+                ),
               ),
               const SizedBox(width: 8),
 
@@ -1421,8 +1547,14 @@ class _SalesOrderPageState extends State<SalesOrderPage> {
                 if (pageNumbers.first > 2)
                   const Padding(
                     padding: EdgeInsets.symmetric(horizontal: 6),
-                    child: Text('·····',
-                        style: TextStyle(color: Colors.black26, fontSize: 10, letterSpacing: 1)),
+                    child: Text(
+                      '·····',
+                      style: TextStyle(
+                        color: Colors.black26,
+                        fontSize: 10,
+                        letterSpacing: 1,
+                      ),
+                    ),
                   ),
               ],
 
@@ -1434,8 +1566,14 @@ class _SalesOrderPageState extends State<SalesOrderPage> {
                 if (pageNumbers.last < totalPages - 1)
                   const Padding(
                     padding: EdgeInsets.symmetric(horizontal: 6),
-                    child: Text('·····',
-                        style: TextStyle(color: Colors.black26, fontSize: 10, letterSpacing: 1)),
+                    child: Text(
+                      '·····',
+                      style: TextStyle(
+                        color: Colors.black26,
+                        fontSize: 10,
+                        letterSpacing: 1,
+                      ),
+                    ),
                   ),
                 _paginationItem(totalPages, totalPages),
               ],
@@ -1446,8 +1584,11 @@ class _SalesOrderPageState extends State<SalesOrderPage> {
                 onTap: _currentPage < totalPages
                     ? () => _goToPage(_currentPage + 1, totalPages)
                     : null,
-                child: Icon(Icons.chevron_right_rounded, size: 22,
-                    color: _currentPage < totalPages ? kRed : Colors.black12),
+                child: Icon(
+                  Icons.chevron_right_rounded,
+                  size: 22,
+                  color: _currentPage < totalPages ? kRed : Colors.black12,
+                ),
               ),
             ],
           ),
@@ -1515,19 +1656,31 @@ class _DatePickerButton extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Icon(Icons.calendar_month_outlined, size: 16,
-                color: hasValue ? kRed : Colors.black38),
+            Icon(
+              Icons.calendar_month_outlined,
+              size: 16,
+              color: hasValue ? kRed : Colors.black38,
+            ),
             const SizedBox(width: 8),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(label,
-                      style: TextStyle(fontSize: 10,
-                          color: hasValue ? kRed : Colors.black38)),
-                  Text(value,
-                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500,
-                          color: hasValue ? kRed : Colors.black45)),
+                  Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: hasValue ? kRed : Colors.black38,
+                    ),
+                  ),
+                  Text(
+                    value,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: hasValue ? kRed : Colors.black45,
+                    ),
+                  ),
                 ],
               ),
             ),

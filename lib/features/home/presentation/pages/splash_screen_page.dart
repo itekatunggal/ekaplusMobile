@@ -64,6 +64,7 @@ class _SplashScreenPageState extends State<SplashScreenPage>
                 const int totalChars = 4; // E K A +
 
                 return Row(
+                  key: const ValueKey('splash-wordmark'),
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [

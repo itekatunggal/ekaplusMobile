@@ -17,7 +17,6 @@ class SalesOrderDetailService {
         },
       );
 
-      print("detail status: ${response.statusCode}");
 
       if (response.statusCode == 200) {
         final body = jsonDecode(response.body);
@@ -26,7 +25,6 @@ class SalesOrderDetailService {
       }
       return null;
     } catch (e) {
-      print("fetchDetail error: $e");
       return null;
     }
   }

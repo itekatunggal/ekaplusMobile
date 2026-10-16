@@ -1362,7 +1362,10 @@ class MemberRemoteDataSourceImpl implements MemberRemoteDataSource {
             nb == null ? null : (nb['nb_name'] ?? nb['name']),
           ),
           customerRegisterId: null,
-          customerRegisterStatus: null,
+          // A company resolved from member_of -> BCID is already an active
+          // membership. Do not depend on the customer_register snapshot for
+          // its status or identity data.
+          customerRegisterStatus: 'approved',
           customerOwnerName: _safeNullableString(
             gc == null ? null : gc['owner_full_name'],
           ),
@@ -1410,79 +1413,11 @@ class MemberRemoteDataSourceImpl implements MemberRemoteDataSource {
       );
     }
 
-    final approvedFallback = await _loadApprovedRegistrationFallback(user.id);
-    final resultByKey = <String, ActiveMemberCompany>{};
-    for (final company in result) {
-      final key = [
-        company.branchCustomerId ?? 0,
-        company.gcidId ?? 0,
-        company.gpidId ?? 0,
-        company.displayName.toLowerCase(),
-      ].join('|');
-      resultByKey[key] = company.customerRegisterStatus == null
-          ? ActiveMemberCompany(
-              memberOfId: company.memberOfId,
-              refType: company.refType,
-              refId: company.refId,
-              userId: company.userId,
-              memberOfStatus: company.memberOfStatus,
-              memberIsOwner: company.memberIsOwner,
-              memberIsSharing: company.memberIsSharing,
-              shareFromUserId: company.shareFromUserId,
-              branchCustomerId: company.branchCustomerId,
-              branchCustomerCode: company.branchCustomerCode,
-              branchId: company.branchId,
-              branchName: company.branchName,
-              branchCity: company.branchCity,
-              branchOwnerName: company.branchOwnerName,
-              branchOwnerPhone: company.branchOwnerPhone,
-              branchOwnerEmail: company.branchOwnerEmail,
-              branchOwnerPlaceOfBirth: company.branchOwnerPlaceOfBirth,
-              branchOwnerDateOfBirth: company.branchOwnerDateOfBirth,
-              gcidId: company.gcidId,
-              gcName: company.gcName,
-              gpidId: company.gpidId,
-              gpCode: company.gpCode,
-              gpName: company.gpName,
-              nbidId: company.nbidId,
-              nbName: company.nbName,
-              customerRegisterId: company.customerRegisterId,
-              customerRegisterStatus: 'approved',
-              customerOwnerName: company.customerOwnerName,
-              customerOwnerEmail: company.customerOwnerEmail,
-              customerOwnerPhone: company.customerOwnerPhone,
-              customerOwnerPlaceOfBirth: company.customerOwnerPlaceOfBirth,
-              customerOwnerDateOfBirth: company.customerOwnerDateOfBirth,
-              customerCompanyName: company.customerCompanyName,
-              customerCompanyType: company.customerCompanyType,
-              customerCompanyTitle: company.customerCompanyTitle,
-              customerProductNeed: company.customerProductNeed,
-              customerCompanyAddress: company.customerCompanyAddress,
-              customerCompanyProvince: company.customerCompanyProvince,
-              customerCompanyCity: company.customerCompanyCity,
-              customerCompanyDistrict: company.customerCompanyDistrict,
-              customerCompanyPostalCode: company.customerCompanyPostalCode,
-              customerTaxStatus: company.customerTaxStatus,
-              customerNpwp: company.customerNpwp,
-              createdAt: company.createdAt,
-            )
-          : company;
-    }
-    for (final company in approvedFallback) {
-      final key = [
-        company.branchCustomerId ?? 0,
-        company.gcidId ?? 0,
-        company.gpidId ?? 0,
-        company.displayName.toLowerCase(),
-      ].join('|');
-      resultByKey[key] = company;
-    }
-
-    final mergedResult = resultByKey.values.toList();
-    mergedResult.sort((a, b) {
-      final approvedCmp = (_isApprovedStatus(b.customerRegisterStatus) ? 1 : 0)
-          .compareTo(_isApprovedStatus(a.customerRegisterStatus) ? 1 : 0);
-      if (approvedCmp != 0) return approvedCmp;
+    // The active-company list must reflect the current customer hierarchy.
+    // customer_register is only a fallback when no membership exists (see
+    // the early return above); merging it here reintroduced stale names and
+    // registrations that are no longer returned by memberofuser.
+    result.sort((a, b) {
       final gcCmp = (a.gcName ?? '').toLowerCase().compareTo(
         (b.gcName ?? '').toLowerCase(),
       );
@@ -1492,7 +1427,7 @@ class MemberRemoteDataSourceImpl implements MemberRemoteDataSource {
       );
     });
 
-    return mergedResult;
+    return result;
   }
 
   ActiveCompanyAddress _mapAddressRow(Map<String, dynamic> row) {

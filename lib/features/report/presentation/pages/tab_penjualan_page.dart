@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+/// Displays the sales report tab.
 class TabPenjualan extends StatefulWidget {
   const TabPenjualan({super.key});
 
@@ -45,9 +46,7 @@ class _TabPenjualanState extends State<TabPenjualan> {
       thickness: 4,
       radius: const Radius.circular(8),
       child: ScrollConfiguration(
-        behavior: ScrollConfiguration.of(context).copyWith(
-          overscroll: false,
-        ),
+        behavior: ScrollConfiguration.of(context).copyWith(overscroll: false),
         child: CustomScrollView(
           controller: _scrollController,
           physics: const ClampingScrollPhysics(),
@@ -102,8 +101,11 @@ class _TabPenjualanState extends State<TabPenjualan> {
                 SizedBox(height: 4),
                 Row(
                   children: [
-                    Icon(Icons.arrow_upward,
-                        color: Color(0xFF4CAF50), size: 14),
+                    Icon(
+                      Icons.arrow_upward,
+                      color: Color(0xFF4CAF50),
+                      size: 14,
+                    ),
                     SizedBox(width: 2),
                     Text(
                       '+37,5% vs Maret 2024',
@@ -158,21 +160,26 @@ class _TabPenjualanState extends State<TabPenjualan> {
               Text('Jan', style: TextStyle(fontSize: 10, color: Colors.grey)),
               Text('Feb', style: TextStyle(fontSize: 10, color: Colors.grey)),
               Text('Mar', style: TextStyle(fontSize: 10, color: Colors.grey)),
-              Text('Apr',
-                  style: TextStyle(
-                      fontSize: 10,
-                      color: Color(0xFFC0392B),
-                      fontWeight: FontWeight.bold)),
+              Text(
+                'Apr',
+                style: TextStyle(
+                  fontSize: 10,
+                  color: Color(0xFFC0392B),
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 14),
           const Divider(height: 1),
           const SizedBox(height: 10),
-          ..._salesData.map((item) => _buildSalesRow(
-                item['bulan'],
-                _formatRupiah(item['nilai']),
-                item['highlighted'],
-              )),
+          ..._salesData.map(
+            (item) => _buildSalesRow(
+              item['bulan'],
+              _formatRupiah(item['nilai']),
+              item['highlighted'],
+            ),
+          ),
           const SizedBox(height: 10),
           const Divider(height: 1),
           const SizedBox(height: 10),
@@ -221,8 +228,9 @@ class _TabPenjualanState extends State<TabPenjualan> {
                   color: isLast
                       ? const Color(0xFFC0392B)
                       : const Color(0xFFEEEEEE),
-                  borderRadius:
-                      const BorderRadius.vertical(top: Radius.circular(4)),
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(4),
+                  ),
                 ),
               ),
             ],
@@ -282,7 +290,11 @@ class _TabPenjualanState extends State<TabPenjualan> {
           const SizedBox(height: 14),
           _buildRingkasanRow('Rata-rata SO/bulan', '5,2 SO', isRed: false),
           const SizedBox(height: 10),
-          _buildRingkasanRow('Rata-rata nilai SO', 'Rp 7.250.000', isRed: false),
+          _buildRingkasanRow(
+            'Rata-rata nilai SO',
+            'Rp 7.250.000',
+            isRed: false,
+          ),
           const SizedBox(height: 10),
           _buildRingkasanRow('Frekuensi beli', 'Setiap 6 hari', isRed: true),
           const SizedBox(height: 10),
@@ -296,8 +308,10 @@ class _TabPenjualanState extends State<TabPenjualan> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label,
-            style: const TextStyle(color: Colors.black54, fontSize: 13)),
+        Text(
+          label,
+          style: const TextStyle(color: Colors.black54, fontSize: 13),
+        ),
         Text(
           value,
           style: TextStyle(

@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ekaplus_ekatunggal/features/member/presentation/cubit/active_company_cubit.dart';
-import 'package:ekaplus_ekatunggal/features/invoice/data/services/invoice_service.dart';
 import 'package:ekaplus_ekatunggal/features/invoice/data/services/invoice_detail_service.dart';
 import 'package:ekaplus_ekatunggal/features/invoice/data/models/invoice_model.dart';
-import 'package:ekaplus_ekatunggal/features/invoice/data/models/invoice_detail_model.dart';
 import 'package:ekaplus_ekatunggal/features/invoice/presentation/cubit/invoice_cubit.dart';
 import 'package:ekaplus_ekatunggal/features/salesOrder/data/services/branch_credential_service.dart';
 import 'invoice_detail_page.dart';
@@ -50,12 +48,14 @@ class _InvoicePageState extends State<InvoicePage> {
   @override
   void initState() {
     super.initState();
+    final activeCompanyCubit = context.read<ActiveCompanyCubit>();
+    final invoiceCubit = context.read<InvoiceCubit>();
     Future.microtask(() {
-      final activeState = context.read<ActiveCompanyCubit>().state;
+      final activeState = activeCompanyCubit.state;
       final branchCode  = (activeState as ActiveCompanyReady?)?.activeCompany?.branchName         ?? '';
       final bcid        = (activeState as ActiveCompanyReady?)?.activeCompany?.branchCustomerCode ?? '';
       if (branchCode.isNotEmpty || bcid.isNotEmpty) {
-        context.read<InvoiceCubit>().loadInvoices(branchCode: branchCode, bcid: bcid);
+        invoiceCubit.loadInvoices(branchCode: branchCode, bcid: bcid);
       }
     });
   }
@@ -73,11 +73,13 @@ class _InvoicePageState extends State<InvoicePage> {
         try { invoiceDate = DateTime.parse(i.dueDate); } catch (_) { return true; }
 
         if (_filterStartDate != null && invoiceDate.isBefore(
-            DateTime(_filterStartDate!.year, _filterStartDate!.month, _filterStartDate!.day)))
+            DateTime(_filterStartDate!.year, _filterStartDate!.month, _filterStartDate!.day))) {
           return false;
+        }
         if (_filterEndDate != null && invoiceDate.isAfter(
-            DateTime(_filterEndDate!.year, _filterEndDate!.month, _filterEndDate!.day, 23, 59, 59)))
+            DateTime(_filterEndDate!.year, _filterEndDate!.month, _filterEndDate!.day, 23, 59, 59))) {
           return false;
+        }
         return true;
       }).toList();
     }
@@ -149,8 +151,11 @@ class _InvoicePageState extends State<InvoicePage> {
               );
               if (picked != null) {
                 setSheetState(() {
-                  if (isStart) tempStart = picked;
-                  else         tempEnd   = picked;
+                  if (isStart) {
+                    tempStart = picked;
+                  } else {
+                    tempEnd   = picked;
+                  }
                 });
               }
             }

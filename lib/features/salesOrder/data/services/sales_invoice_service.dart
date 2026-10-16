@@ -27,8 +27,6 @@ class SalesInvoiceService {
         }),
       );
 
-      print('SalesInvoice status: ${response.statusCode}');
-      print('SalesInvoice body: ${response.body}');  // ← untuk debug
 
       if (response.statusCode == 200) {
         final json     = jsonDecode(response.body);
@@ -46,11 +44,9 @@ class SalesInvoiceService {
         }
         return [];
       } else {
-        print('SalesInvoice error: ${response.statusCode} ${response.body}');
         return null;
       }
     } catch (e) {
-      print('SalesInvoice exception: $e');
       return null;
     }
   }

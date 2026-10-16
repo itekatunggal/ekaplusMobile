@@ -49,7 +49,7 @@ class _LaporanPelangganPageState extends State<LaporanPelangganPage> {
     String result = '';
     int count = 0;
     for (int i = s.length - 1; i >= 0; i--) {
-      if (count > 0 && count % 3 == 0) result = '.' + result;
+      if (count > 0 && count % 3 == 0) result = '.$result';
       result = s[i] + result;
       count++;
     }

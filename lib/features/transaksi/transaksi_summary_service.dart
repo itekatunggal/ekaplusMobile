@@ -1,8 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
-import 'package:ekaplus_ekatunggal/features/salesOrder/data/services/branch_credential_service.dart';
-import 'package:ekaplus_ekatunggal/features/member/presentation/cubit/active_company_cubit.dart';
 
 class TransaksiSummaryService {
   Future<Map<String, int>> fetchInvoiceSummary({

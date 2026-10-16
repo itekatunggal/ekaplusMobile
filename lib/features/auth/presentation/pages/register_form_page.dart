@@ -294,7 +294,6 @@ class _RegisterFormPageState extends State<RegisterFormPage> {
     // Clean and capitalize data before saving
     final firstName = _uppercaseWords(_cleanText(_firstNameController.text));
     final lastName = _uppercaseWords(_cleanText(_lastNameController.text));
-    final fullName = '$firstName $lastName'.trim();
     final birthPlace = _uppercaseWords(_cleanText(_birthPlaceController.text));
     final email = _cleanText(_emailController.text).toLowerCase();
     final username = _usernameController.text.trim().isEmpty

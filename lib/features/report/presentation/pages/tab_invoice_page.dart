@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+/// Displays the invoice report tab.
 class TabInvoice extends StatefulWidget {
   const TabInvoice({super.key});
 
@@ -71,9 +72,7 @@ class _TabInvoiceState extends State<TabInvoice> {
       thickness: 4,
       radius: const Radius.circular(8),
       child: ScrollConfiguration(
-        behavior: ScrollConfiguration.of(context).copyWith(
-          overscroll: false,
-        ),
+        behavior: ScrollConfiguration.of(context).copyWith(overscroll: false),
         child: CustomScrollView(
           controller: _scrollController,
           physics: const ClampingScrollPhysics(),
@@ -127,7 +126,11 @@ class _TabInvoiceState extends State<TabInvoice> {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildLegendItem(const Color(0xFFC0392B), 'Belum Lunas', '47%'),
+                  _buildLegendItem(
+                    const Color(0xFFC0392B),
+                    'Belum Lunas',
+                    '47%',
+                  ),
                   const SizedBox(height: 10),
                   _buildLegendItem(const Color(0xFFF5C518), 'Sebagian', '25%'),
                   const SizedBox(height: 10),
@@ -188,8 +191,10 @@ class _TabInvoiceState extends State<TabInvoice> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label,
-            style: const TextStyle(color: Colors.black54, fontSize: 13)),
+        Text(
+          label,
+          style: const TextStyle(color: Colors.black54, fontSize: 13),
+        ),
         Text(
           value,
           style: TextStyle(
@@ -364,13 +369,7 @@ class _DonutChartPainter extends CustomPainter {
     for (final seg in segments) {
       paint.color = seg['color'] as Color;
       final sweep = (seg['sweep'] as double) - gap;
-      canvas.drawArc(
-        rect,
-        _toRad(startAngle),
-        _toRad(sweep),
-        false,
-        paint,
-      );
+      canvas.drawArc(rect, _toRad(startAngle), _toRad(sweep), false, paint);
       startAngle += seg['sweep'] as double;
     }
   }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+/// Displays the receivables report tab.
 class TabPiutang extends StatefulWidget {
   const TabPiutang({super.key});
 
@@ -11,11 +12,36 @@ class _TabPiutangState extends State<TabPiutang> {
   final ScrollController _scrollController = ScrollController();
 
   final List<Map<String, dynamic>> _distribusiData = const [
-    {'label': 'Belum jatuh tempo', 'nilai': 0, 'persen': 0.0, 'warna': Color(0xFFBDBDBD)},
-    {'label': '1 – 30 hari', 'nilai': 6250000, 'persen': 30.3, 'warna': Color(0xFFF5A623)},
-    {'label': '31 – 60 hari', 'nilai': 7900000, 'persen': 38.3, 'warna': Color(0xFFE74C3C)},
-    {'label': '61 – 90 hari', 'nilai': 4600000, 'persen': 22.3, 'warna': Color(0xFFC0392B)},
-    {'label': '> 90 hari', 'nilai': 1850000, 'persen': 9.0, 'warna': Color(0xFF922B21)},
+    {
+      'label': 'Belum jatuh tempo',
+      'nilai': 0,
+      'persen': 0.0,
+      'warna': Color(0xFFBDBDBD),
+    },
+    {
+      'label': '1 – 30 hari',
+      'nilai': 6250000,
+      'persen': 30.3,
+      'warna': Color(0xFFF5A623),
+    },
+    {
+      'label': '31 – 60 hari',
+      'nilai': 7900000,
+      'persen': 38.3,
+      'warna': Color(0xFFE74C3C),
+    },
+    {
+      'label': '61 – 90 hari',
+      'nilai': 4600000,
+      'persen': 22.3,
+      'warna': Color(0xFFC0392B),
+    },
+    {
+      'label': '> 90 hari',
+      'nilai': 1850000,
+      'persen': 9.0,
+      'warna': Color(0xFF922B21),
+    },
   ];
 
   final List<Map<String, dynamic>> _invoiceTerlambat = const [
@@ -60,9 +86,7 @@ class _TabPiutangState extends State<TabPiutang> {
       thickness: 4,
       radius: const Radius.circular(8),
       child: ScrollConfiguration(
-        behavior: ScrollConfiguration.of(context).copyWith(
-          overscroll: false,
-        ),
+        behavior: ScrollConfiguration.of(context).copyWith(overscroll: false),
         child: CustomScrollView(
           controller: _scrollController,
           physics: const ClampingScrollPhysics(),
@@ -192,10 +216,14 @@ class _TabPiutangState extends State<TabPiutang> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(item['label'],
-                  style: const TextStyle(fontSize: 13, color: Colors.black87)),
-              Text(_formatRupiah(item['nilai']),
-                  style: const TextStyle(fontSize: 13, color: Colors.black87)),
+              Text(
+                item['label'],
+                style: const TextStyle(fontSize: 13, color: Colors.black87),
+              ),
+              Text(
+                _formatRupiah(item['nilai']),
+                style: const TextStyle(fontSize: 13, color: Colors.black87),
+              ),
             ],
           ),
           const SizedBox(height: 6),

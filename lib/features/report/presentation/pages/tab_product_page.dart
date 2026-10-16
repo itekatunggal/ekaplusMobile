@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+/// Displays the product report tab.
 class TabProduk extends StatelessWidget {
   const TabProduk({super.key});
 
@@ -16,12 +17,7 @@ class TabProduk extends StatelessWidget {
       'total': 8500000,
       'persen': 30.9,
     },
-    {
-      'nama': 'Produk C - Add On',
-      'qty': 30,
-      'total': 4000000,
-      'persen': 14.5,
-    },
+    {'nama': 'Produk C - Add On', 'qty': 30, 'total': 4000000, 'persen': 14.5},
   ];
 
   String _formatRupiah(int nilai) {
@@ -95,8 +91,11 @@ class TabProduk extends StatelessWidget {
                 color: Colors.white24,
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: const Icon(Icons.inventory_2_outlined,
-                  color: Colors.white, size: 28),
+              child: const Icon(
+                Icons.inventory_2_outlined,
+                color: Colors.white,
+                size: 28,
+              ),
             ),
           ],
         ),
@@ -147,7 +146,9 @@ class TabProduk extends StatelessWidget {
                 child: Text(
                   produk['nama'],
                   style: const TextStyle(
-                      fontSize: 13, fontWeight: FontWeight.w600),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
               Text(
@@ -181,7 +182,9 @@ class TabProduk extends StatelessWidget {
             child: LinearProgressIndicator(
               value: produk['persen'] / 100,
               backgroundColor: const Color(0xFFEEEEEE),
-              valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFC0392B)),
+              valueColor: const AlwaysStoppedAnimation<Color>(
+                Color(0xFFC0392B),
+              ),
               minHeight: 6,
             ),
           ),

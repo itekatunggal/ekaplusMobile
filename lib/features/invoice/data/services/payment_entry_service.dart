@@ -43,11 +43,9 @@ class PaymentEntryService {
         }
         return [];
       } else {
-        print('PaymentEntry error: ${response.statusCode} ${response.body}');
         return null;
       }
     } catch (e) {
-      print('PaymentEntry exception: $e');
       return null;
     }
   }

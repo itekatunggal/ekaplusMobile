@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+/// Displays the payment report tab.
 class TabPembayaran extends StatelessWidget {
   const TabPembayaran({super.key});
 
@@ -225,10 +226,7 @@ class TabPembayaran extends StatelessWidget {
               children: const [
                 Text(
                   'Total Diterima',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                 ),
                 Text(
                   'Rp 63.650.000',
@@ -300,10 +298,7 @@ class TabPembayaran extends StatelessWidget {
             const SizedBox(height: 2),
             Text(
               item['status'] as String,
-              style: const TextStyle(
-                fontSize: 11,
-                color: Colors.black38,
-              ),
+              style: const TextStyle(fontSize: 11, color: Colors.black38),
             ),
           ],
         ),

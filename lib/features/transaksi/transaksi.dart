@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:ekaplus_ekatunggal/features/invoice/presentation/pages/invoice_page.dart';
-import 'package:ekaplus_ekatunggal/features/salesOrder/presentation/pages/salesOrder_page.dart';
+import 'package:ekaplus_ekatunggal/features/salesOrder/presentation/pages/sales_order_page.dart';
 import 'package:ekaplus_ekatunggal/features/invoice/presentation/cubit/invoice_cubit.dart';
 import 'package:ekaplus_ekatunggal/features/salesOrder/presentation/cubit/sales_order_cubit.dart';
 import 'package:ekaplus_ekatunggal/features/member/presentation/cubit/active_company_cubit.dart';

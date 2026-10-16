@@ -40,7 +40,6 @@ class SalesOrderCubit extends Cubit<SalesOrderState> {
 
     // Step 1: ambil token + url
     final credential = await _credentialService.fetchCredential(branchCode);
-    print("📡 Step 1 - url=${credential?.url}, token=${credential?.token}");
 
     if (credential == null || credential.token.isEmpty) {
       emit(SalesOrderUnauthorized('Credential tidak ditemukan untuk branch ini.'));
@@ -54,7 +53,6 @@ class SalesOrderCubit extends Cubit<SalesOrderState> {
       bcid: bcid,
       doctype: 'Sales Order',
     );
-    print("📦 Step 2 - status: ${result.status}, items: ${result.items.length}");
 
     if (result.status == SalesOrderFetchStatus.success) {
       emit(SalesOrderLoaded(result.items));

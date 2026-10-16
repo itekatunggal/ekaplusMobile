@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
-import 'package:ekaplus_ekatunggal/features/report/presentation/pages/tabPenjualan_page.dart';
-import 'package:ekaplus_ekatunggal/features/report/presentation/pages/tabProduct_page.dart';
-import 'package:ekaplus_ekatunggal/features/report/presentation/pages/tabPiutang_page.dart';
-import 'package:ekaplus_ekatunggal/features/report/presentation/pages/tabInvoice_page.dart';
-import 'package:ekaplus_ekatunggal/features/report/presentation/pages/tabBayar_page.dart';
+import 'package:ekaplus_ekatunggal/features/report/presentation/pages/tab_penjualan_page.dart';
+import 'package:ekaplus_ekatunggal/features/report/presentation/pages/tab_product_page.dart';
+import 'package:ekaplus_ekatunggal/features/report/presentation/pages/tab_piutang_page.dart';
+import 'package:ekaplus_ekatunggal/features/report/presentation/pages/tab_invoice_page.dart';
 
 class PenjualanPage extends StatefulWidget {
   const PenjualanPage({super.key});
@@ -15,7 +14,6 @@ class PenjualanPage extends StatefulWidget {
 
 class _PenjualanPageState extends State<PenjualanPage> {
   int _selectedTab = 0;
-  int _selectedNavIndex = 3;
 
   final List<String> _tabs = ['Penjualan', 'Produk', 'Rincian Piutang', 'Invoice'];
 

@@ -40,7 +40,6 @@ class InvoiceCubit extends Cubit<InvoiceState> {
 
     // Step 1: ambil token + url
     final credential = await _credentialService.fetchCredential(branchCode);
-    print("📡 Step 1 - url=${credential?.url}, token=${credential?.token}");
 
     if (credential == null || credential.token.isEmpty) {
       emit(InvoiceUnauthorized('Credential tidak ditemukan untuk branch ini.'));
@@ -54,7 +53,6 @@ class InvoiceCubit extends Cubit<InvoiceState> {
       bcid: bcid,
       doctype: 'Sales Invoice',
     );
-    print("📦 Step 2 - status: ${result.status}, items: ${result.items.length}");
 
     if (result.status == InvoiceFetchStatus.success) {
       emit(InvoiceLoaded(result.items));

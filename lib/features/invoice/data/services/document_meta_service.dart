@@ -34,8 +34,6 @@ class DocumentMetaService {
         },
       );
 
-      print("meta status: ${response.statusCode}");
-      print("meta body: ${response.body}");
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -44,7 +42,6 @@ class DocumentMetaService {
       }
       return null;
     } catch (e) {
-      print("fetchMeta error: $e");
       return null;
     }
   }

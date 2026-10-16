@@ -49,11 +49,9 @@ class DeliveryNoteService {
         }
         return [];
       } else {
-        print('DeliveryNote error: ${response.statusCode} ${response.body}');
         return null;
       }
     } catch (e) {
-      print('DeliveryNote exception: $e');
       return null;
     }
   }

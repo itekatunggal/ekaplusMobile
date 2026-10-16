@@ -1,48 +1,33 @@
-// lib/features/wishlist/data/models/wishlist_item_model.dart
 import 'package:ekaplus_ekatunggal/features/report/domain/entities/piutang_list.dart';
 
-class PiutangItemModel extends PiutangItem {
-  const PiutangItemModel({
+class PiutangListModel extends PiutangList {
+  const PiutangListModel({
     required super.id,
     required super.nomorInvoice,
     required super.jatuhTempo,
-    required super.total,
+    required super.telat,
     required super.nilai,
   });
 
-  factory PiutangItemModel.fromJson(Map<String, dynamic> json) {
-    return PiutangItemModel(
-      id: json['id'],
-      item: PiutangItemProduct(
-        id: json['item']['id'],
-        nomorInvoice: json['item']['nomorInvoice'],
-        jatuhTempo: json['item']['jatuhTempo'] ?? '',
-        telat: json['item']['telat'],
-        nilai: json['item']['nilai'] ?? '',
-      ),
+  factory PiutangListModel.fromJson(Map<String, dynamic> json) {
+    return PiutangListModel(
+      id: (json['id'] as num).toInt(),
+      nomorInvoice: json['nomorInvoice']?.toString() ?? '',
+      jatuhTempo: DateTime.parse(json['jatuhTempo'].toString()),
+      telat: json['telat']?.toString() ?? '',
+      nilai: json['nilai']?.toString() ?? '',
     );
   }
 
-  static List<PiutangItemModel> fromJsonList(List<dynamic> list) {
-    return list
-        .map((e) => PiutangItemModel.fromJson(e as Map<String, dynamic>))
-        .toList();
-  }
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'nomorInvoice': nomorInvoice,
+    'jatuhTempo': jatuhTempo.toIso8601String(),
+    'telat': telat,
+    'nilai': nilai,
+  };
 
-  Map<String, dynamic> toJson() {
-    return {
-      'id': item.id,
-      'item': {
-        'id': item.id,
-        'nomorInvoice': item.nomorInvoice,
-        'jatuhTempo': item.jatuh\,
-        'telat': item.telat,
-        'nilai': item.nilai,
-      },
-    };
-  }
-
-  static List<Map<String, dynamic>> toJsonList(List<PiutangItemModel> items) {
-    return items.map((e) => e.toJson()).toList();
-  }
+  static List<PiutangListModel> fromJsonList(List<dynamic> list) => list
+      .map((item) => PiutangListModel.fromJson(item as Map<String, dynamic>))
+      .toList();
 }

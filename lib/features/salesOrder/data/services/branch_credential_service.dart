@@ -24,7 +24,6 @@ class BranchCredential {
 
 class BranchCredentialService {
   Future<BranchCredential?> fetchCredential(String branchName) async {
-    print("🔍 fetchCredential branchName: $branchName");
     final spec = jsonEncode({
       "filters": [
         ["branch_name", "=", branchName]
@@ -38,8 +37,6 @@ class BranchCredentialService {
 
     try {
       final response = await http.get(uri, headers: ApiConfig.headers);
-      print("📡 credential status: ${response.statusCode}");
-      print("📡 credential body: ${response.body}");
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -47,7 +44,6 @@ class BranchCredentialService {
         if (list != null && list.isNotEmpty) {
           return BranchCredential.fromJson(list.first);
         } else {
-          print("credential list kosong");
         }
       }
       return null;

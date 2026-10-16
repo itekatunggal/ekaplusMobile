@@ -43,11 +43,9 @@ class SalesOrderService {
         }
         return [];
       } else {
-        print('SalesOrder error: ${response.statusCode} ${response.body}');
         return null;
       }
     } catch (e) {
-      print('SalesOrder exception: $e');
       return null;
     }
   }

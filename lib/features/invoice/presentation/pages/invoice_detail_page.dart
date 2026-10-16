@@ -547,12 +547,11 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage>
 
   Widget _tabDetail() {
     final addr     = _map('address');
-    final po       = _map('customerPO');
     final taxes    = _list('taxes');
     final int taxTotal = _i('taxTotal');
     final discount = _map('discount');
 
-    String _stripHtml(String? html, [String fallback = '-']) {
+    String stripHtml(String? html, [String fallback = '-']) {
       if (html == null || html.isEmpty) return fallback;
       return html
           .replaceAll(RegExp(r'<br\s*/?>', caseSensitive: false), '\n')
@@ -599,7 +598,7 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage>
                     title: 'ADDRESS AND CONTACT',
                     child: Column(children: [
                       _row(Icons.location_on_outlined,    'Customer Address',
-                          _stripHtml(addr['addressDisplay']?.toString() ?? '-')),
+                          stripHtml(addr['addressDisplay']?.toString() ?? '-')),
                       // _row(Icons.local_shipping_outlined, 'Shipping Address Name',
                       //     addr['shippingAddressName']?.toString() ?? '-'),
                       // _row(Icons.person_outline,          'Contact Person',
@@ -673,7 +672,6 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage>
 
   Widget _tabItem() {
     final items = _list('items');
-    final int grandTotal = _i('nilai');
     final displayItems = items.isNotEmpty
         ? items
         : [
@@ -1151,8 +1149,6 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage>
   }
 
   Widget _deliveryDetail(Map<String, dynamic> p) {
-    final grandTotal1 =
-        p['grandTotal'] is int ? p['grandTotal'] as int : 0;
     final items = _list('items');
     final displayItems = items.isNotEmpty
         ? items
@@ -1400,8 +1396,6 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage>
   }
 
   Widget _salesDetail(Map<String, dynamic> p) {
-    final grandTotal = (p['grand_total'] as num?)?.toInt() ?? 0;
-    final outstanding = (p['outstanding_amount'] as num?)?.toInt() ?? 0;
     final ScrollController scrollController = ScrollController();
     final items = _list('items');
     final displayItems = items.isNotEmpty
@@ -1553,45 +1547,6 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage>
     );
   }
 
-  }
-
-  Widget _rowMultiline(
-    IconData icon,
-    String label,
-    String value, {
-    Color valueColor = Colors.black87,
-  }) {
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(icon, size: 18, color: Colors.black26),
-              const SizedBox(width: 10),
-              SizedBox(
-                width: 120,
-                child: Text(label,
-                    style: const TextStyle(fontSize: 13, color: Colors.black45)),
-              ),
-              Expanded(
-                flex: 2,
-                child: Text(
-                  value,
-                  textAlign: TextAlign.left,
-                  style: TextStyle(
-                      fontSize: 13,
-                      color: valueColor,
-                      fontWeight: FontWeight.w500),
-                ),
-              ),
-            ],
-          ),
-        ),
-        const Divider(height: 1, color: Color(0xFFF5F5F5)),
-      ],
-    );
   }
 
 class _ColHeader extends StatelessWidget {
