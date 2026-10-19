@@ -10,6 +10,7 @@ import 'package:ekaplus_ekatunggal/features/auth/domain/usecases/reset_password_
 import 'package:ekaplus_ekatunggal/features/auth/domain/usecases/save_login_user.dart';
 import 'package:ekaplus_ekatunggal/features/auth/domain/usecases/update_profile_picture.dart';
 import 'package:ekaplus_ekatunggal/features/auth/domain/usecases/update_full_name.dart';
+import 'package:ekaplus_ekatunggal/features/auth/domain/usecases/update_personal_profile.dart';
 import 'package:ekaplus_ekatunggal/features/auth/domain/usecases/update_username.dart';
 import 'package:ekaplus_ekatunggal/features/auth/domain/usecases/request_phone_change.dart';
 import 'package:ekaplus_ekatunggal/features/auth/domain/usecases/verify_old_password.dart';
@@ -262,6 +263,7 @@ Future<void> init() async {
   myinjection.registerLazySingleton(() => CheckPassword(myinjection()));
   myinjection.registerLazySingleton(() => UpdateProfilePicture(myinjection()));
   myinjection.registerLazySingleton(() => UpdateFullName(myinjection()));
+  myinjection.registerLazySingleton(() => UpdatePersonalProfile(myinjection()));
   myinjection.registerLazySingleton(() => UpdateUsername(myinjection()));
   myinjection.registerLazySingleton(() => RequestPhoneChange(myinjection()));
   myinjection.registerLazySingleton(() => VerifyPhoneChange(myinjection()));

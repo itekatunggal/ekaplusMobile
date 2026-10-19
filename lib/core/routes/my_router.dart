@@ -7,6 +7,7 @@ import 'package:ekaplus_ekatunggal/features/account/presentation/pages/change_pa
 import 'package:ekaplus_ekatunggal/features/account/presentation/pages/edit_contact_page.dart';
 import 'package:ekaplus_ekatunggal/features/account/presentation/pages/edit_full_name_page.dart';
 import 'package:ekaplus_ekatunggal/features/account/presentation/pages/edit_username_page.dart';
+import 'package:ekaplus_ekatunggal/features/account/presentation/pages/edit_profile_page.dart';
 import 'package:ekaplus_ekatunggal/features/account/presentation/pages/new_password_page.dart';
 import 'package:ekaplus_ekatunggal/features/account/presentation/pages/select_avatar_page.dart';
 import 'package:ekaplus_ekatunggal/features/account/presentation/pages/verify_contact_complete_page.dart';
@@ -25,6 +26,7 @@ import 'package:ekaplus_ekatunggal/features/auth/domain/usecases/request_email_c
 import 'package:ekaplus_ekatunggal/features/auth/domain/usecases/request_phone_change.dart';
 import 'package:ekaplus_ekatunggal/features/auth/domain/usecases/reset_password_with_otp.dart';
 import 'package:ekaplus_ekatunggal/features/auth/domain/usecases/update_full_name.dart';
+import 'package:ekaplus_ekatunggal/features/auth/domain/usecases/update_personal_profile.dart';
 import 'package:ekaplus_ekatunggal/features/auth/domain/usecases/update_username.dart';
 import 'package:ekaplus_ekatunggal/features/auth/domain/usecases/verify_email_change.dart';
 import 'package:ekaplus_ekatunggal/features/auth/domain/usecases/verify_old_password.dart';
@@ -379,6 +381,26 @@ class MyRouter {
 
       // 1. Edit Name (No password needed)
       GoRoute(
+        path: '/account/edit-profile',
+        name: 'edit-profile',
+        pageBuilder: (context, state) => _smoothPage(
+          key: state.pageKey,
+          child: BlocProvider(
+            create: (context) => ProfileUpdateCubit(
+              updateFullName: getIt<UpdateFullName>(),
+              updatePersonalProfile: getIt<UpdatePersonalProfile>(),
+              updateUsername: getIt<UpdateUsername>(),
+              requestPhoneChange: getIt<RequestPhoneChange>(),
+              verifyPhoneChange: getIt<VerifyPhoneChange>(),
+              requestEmailChange: getIt<RequestEmailChange>(),
+              verifyEmailChange: getIt<VerifyEmailChange>(),
+            ),
+            child: const EditProfilePage(),
+          ),
+        ),
+      ),
+
+      GoRoute(
         path: '/account/edit-name',
         name: 'edit-name',
         builder: (context, state) {
@@ -386,6 +408,7 @@ class MyRouter {
           return BlocProvider(
             create: (context) => ProfileUpdateCubit(
               updateFullName: getIt<UpdateFullName>(),
+              updatePersonalProfile: getIt<UpdatePersonalProfile>(),
               updateUsername: getIt<UpdateUsername>(),
               requestPhoneChange: getIt<RequestPhoneChange>(),
               verifyPhoneChange: getIt<VerifyPhoneChange>(),
@@ -408,6 +431,7 @@ class MyRouter {
           return BlocProvider(
             create: (context) => ProfileUpdateCubit(
               updateFullName: getIt<UpdateFullName>(),
+              updatePersonalProfile: getIt<UpdatePersonalProfile>(),
               updateUsername: getIt<UpdateUsername>(),
               requestPhoneChange: getIt<RequestPhoneChange>(),
               verifyPhoneChange: getIt<VerifyPhoneChange>(),
@@ -451,6 +475,7 @@ class MyRouter {
             child: BlocProvider(
               create: (context) => ProfileUpdateCubit(
                 updateFullName: getIt<UpdateFullName>(),
+                updatePersonalProfile: getIt<UpdatePersonalProfile>(),
                 updateUsername: getIt<UpdateUsername>(),
                 requestPhoneChange: getIt<RequestPhoneChange>(),
                 verifyPhoneChange: getIt<VerifyPhoneChange>(),
@@ -533,6 +558,7 @@ class MyRouter {
             child: BlocProvider(
               create: (context) => ProfileUpdateCubit(
                 updateFullName: getIt<UpdateFullName>(),
+                updatePersonalProfile: getIt<UpdatePersonalProfile>(),
                 updateUsername: getIt<UpdateUsername>(),
                 requestPhoneChange: getIt<RequestPhoneChange>(),
                 verifyPhoneChange: getIt<VerifyPhoneChange>(),

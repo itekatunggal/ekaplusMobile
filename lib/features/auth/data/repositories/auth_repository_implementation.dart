@@ -191,12 +191,12 @@ class AuthRepositoryImplementation implements AuthRepository {
         updatedAt: DateTime.now(),
       );
 
-      await localDataSource.updateUser(user.id, {
+      final updatedUser = await localDataSource.updateUser(user.id, {
         'first_name': updated.firstName,
         'last_name': updated.lastName,
         'full_name': updated.fullName,
       });
-      return Right(updated);
+      return Right(updatedUser);
     } catch (e) {
       return Left(
         mapExceptionToFailure(e, fallbackMessage: 'Gagal memperbarui nama'),
@@ -222,16 +222,50 @@ class AuthRepositoryImplementation implements AuthRepository {
         );
       }
 
-      await localDataSource.updateUser(user.id, {'username': normalized});
-
-      final updated = user.copyWith(
-        username: normalized,
-        updatedAt: DateTime.now(),
-      );
+      final updated = await localDataSource.updateUser(user.id, {
+        'username': normalized,
+      });
       return Right(updated);
     } catch (e) {
       return Left(
         mapExceptionToFailure(e, fallbackMessage: 'Gagal memperbarui username'),
+      );
+    }
+  }
+
+  @override
+  Future<Either<Failure, User>> updatePersonalProfile({
+    required String fullName,
+    required String gender,
+    required String placeOfBirth,
+    required DateTime? dateOfBirth,
+  }) async {
+    try {
+      final user = await localDataSource.getCachedUser();
+      if (user == null) {
+        return const Left(CacheFailure(message: 'User tidak ditemukan'));
+      }
+
+      final normalizedName = fullName.trim();
+      if (normalizedName.isEmpty) {
+        return const Left(
+          ValidationFailure(message: 'Nama lengkap tidak boleh kosong'),
+        );
+      }
+
+      final nameParts = normalizedName.split(RegExp(r'\s+'));
+      final updated = await localDataSource.updateUser(user.id, {
+        'first_name': nameParts.first,
+        'last_name': nameParts.length > 1 ? nameParts.sublist(1).join(' ') : '',
+        'full_name': normalizedName,
+        'gender': gender.trim().toLowerCase(),
+        'place_of_birth': placeOfBirth.trim(),
+        'date_of_birth': dateOfBirth?.toUtc().toIso8601String(),
+      });
+      return Right(updated);
+    } catch (e) {
+      return Left(
+        mapExceptionToFailure(e, fallbackMessage: 'Gagal memperbarui profil'),
       );
     }
   }

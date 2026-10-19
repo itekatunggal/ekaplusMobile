@@ -1,4 +1,4 @@
-import 'package:ekaplus_ekatunggal/core/shared_widgets/custom_header.dart';
+import 'package:ekaplus_ekatunggal/constant.dart';
 import 'package:ekaplus_ekatunggal/core/shared_widgets/exit_confirmation_wrapper.dart';
 import 'package:ekaplus_ekatunggal/features/account/presentation/widgets/account_guest_view.dart';
 import 'package:ekaplus_ekatunggal/features/account/presentation/widgets/account_logged_in_view.dart';
@@ -8,173 +8,82 @@ import 'package:ekaplus_ekatunggal/features/auth/presentation/cubit/auth_session
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:ekaplus_ekatunggal/constant.dart';
 
 class AccountPage extends StatelessWidget {
   const AccountPage({super.key});
-
-  // Get responsive padding
-  double _getHorizontalPadding(double width) {
-    if (width >= 1200) return 80;
-    if (width >= 900) return 60;
-    if (width >= 600) return 40;
-    return 0;
-  }
-
-  // Get max content width for large screens
-  double _getMaxContentWidth(double width) {
-    if (width >= 1200) return 1000;
-    if (width >= 900) return 800;
-    if (width >= 600) return 600;
-    return width;
-  }
 
   @override
   Widget build(BuildContext context) {
     return ExitConfirmationWrapper(
       child: Scaffold(
-        backgroundColor: Colors.grey[50],
-        appBar: CustomHeaderAppBar(
-          title: 'Akun',
-          onLeadingPressed: () => context.goNamed('home'),
-        ),
-        body: LayoutBuilder(
-          builder: (context, constraints) {
-            final screenWidth = constraints.maxWidth;
-            final horizontalPadding = _getHorizontalPadding(screenWidth);
-            final maxContentWidth = _getMaxContentWidth(screenWidth);
-
-            return BlocBuilder<AuthSessionCubit, AuthSessionState>(
-              builder: (context, state) {
-                if (state is AuthSessionLoading) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        CircularProgressIndicator(
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            AppColors.primaryColor,
-                          ),
-                          strokeWidth: 3,
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Memuat data akun...',
-                          style: TextStyle(
-                            fontFamily: AppFonts.primaryFont,
-                            color: Colors.grey[600],
-                            fontSize: 14,
-                          ),
-                        ),
-                      ],
+        backgroundColor: const Color(0xFFF6F7F9),
+        appBar: AppBar(
+          elevation: 0,
+          toolbarHeight: 68,
+          backgroundColor: AppColors.primaryColor,
+          foregroundColor: Colors.white,
+          centerTitle: true,
+          leading: IconButton(
+            onPressed: () => context.goNamed('home'),
+            icon: const Icon(Icons.arrow_back_rounded),
+          ),
+          title: Text(
+            'Akun Saya',
+            style: TextStyle(
+              fontFamily: AppFonts.primaryFont,
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          actions: [
+            IconButton(
+              tooltip: 'Notifikasi',
+              onPressed: () => AppSnackbar.show(
+                context,
+                message: 'Notifikasi akun akan segera tersedia',
+                type: AppSnackbarType.info,
+              ),
+              icon: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  const Icon(Icons.notifications_none_rounded),
+                  Positioned(
+                    right: 0,
+                    top: 0,
+                    child: Container(
+                      width: 7,
+                      height: 7,
+                      decoration: const BoxDecoration(
+                        color: AppColors.secondaryColor,
+                        shape: BoxShape.circle,
+                      ),
                     ),
-                  );
-                }
-
-                Widget content;
-                if (state is AuthSessionAuthenticated) {
-                  content = Column(
-                    children: [
-                      // Profile section when logged in
-                      Container(
-                        width: double.infinity,
-                        color: AppColors.whiteColor,
-                        child: Center(
-                          child: Container(
-                            constraints: BoxConstraints(
-                              maxWidth: maxContentWidth,
-                            ),
-                            child: AccountLoggedInView(user: state.user),
-                          ),
-                        ),
-                      ),
-
-                      SizedBox(height: screenWidth >= 600 ? 20 : 16),
-
-                      // Divider with responsive styling
-                      Container(
-                        height: screenWidth >= 600 ? 12 : 8,
-                        color: Colors.grey[100],
-                      ),
-
-                      SizedBox(height: screenWidth >= 600 ? 20 : 16),
-
-                      // Others section
-                      Container(
-                        width: double.infinity,
-                        color: AppColors.whiteColor,
-                        child: Center(
-                          child: Container(
-                            constraints: BoxConstraints(
-                              maxWidth: maxContentWidth,
-                            ),
-                            child: const AccountOthersSection(),
-                          ),
-                        ),
-                      ),
-
-                      // Bottom spacing
-                      SizedBox(height: screenWidth >= 600 ? 32 : 24),
-                    ],
-                  );
-                } else {
-                  // Guest view
-                  content = Column(
-                    children: [
-                      // Guest promotion section
-                      Container(
-                        width: double.infinity,
-                        color: AppColors.whiteColor,
-                        child: Center(
-                          child: Container(
-                            constraints: BoxConstraints(
-                              maxWidth: maxContentWidth,
-                            ),
-                            child: const AccountGuestView(),
-                          ),
-                        ),
-                      ),
-
-                      SizedBox(height: screenWidth >= 600 ? 20 : 16),
-
-                      // Divider with responsive styling
-                      Container(
-                        height: screenWidth >= 600 ? 12 : 8,
-                        color: Colors.grey[100],
-                      ),
-
-                      SizedBox(height: screenWidth >= 600 ? 20 : 16),
-
-                      // Others section
-                      Container(
-                        width: double.infinity,
-                        color: AppColors.whiteColor,
-                        child: Center(
-                          child: Container(
-                            constraints: BoxConstraints(
-                              maxWidth: maxContentWidth,
-                            ),
-                            child: const AccountOthersSection(),
-                          ),
-                        ),
-                      ),
-
-                      // Bottom spacing
-                      SizedBox(height: screenWidth >= 600 ? 32 : 24),
-                    ],
-                  );
-                }
-
-                return SingleChildScrollView(
-                  physics: const BouncingScrollPhysics(),
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: horizontalPadding,
-                    ),
-                    child: content,
                   ),
-                );
-              },
+                ],
+              ),
+            ),
+            const SizedBox(width: 6),
+          ],
+        ),
+        body: BlocBuilder<AuthSessionCubit, AuthSessionState>(
+          builder: (context, state) {
+            if (state is AuthSessionLoading) {
+              return const Center(
+                child: CircularProgressIndicator(color: AppColors.primaryColor),
+              );
+            }
+            if (state is AuthSessionAuthenticated) {
+              return SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                padding: const EdgeInsets.only(top: 14),
+                child: AccountLoggedInView(user: state.user),
+              );
+            }
+            return const SingleChildScrollView(
+              physics: BouncingScrollPhysics(),
+              child: Column(
+                children: [AccountGuestView(), AccountOthersSection()],
+              ),
             );
           },
         ),

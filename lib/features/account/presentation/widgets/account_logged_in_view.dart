@@ -1,576 +1,138 @@
-// lib/features/account/presentation/widgets/account_logged_in_view.dart
 import 'package:ekaplus_ekatunggal/constant.dart';
 import 'package:ekaplus_ekatunggal/core/config/api_config.dart';
+import 'package:ekaplus_ekatunggal/core/shared_widgets/whatsapp_helper.dart';
 import 'package:ekaplus_ekatunggal/features/account/presentation/widgets/profile_picture_options.dart';
 import 'package:ekaplus_ekatunggal/features/auth/domain/entities/user.dart';
 import 'package:ekaplus_ekatunggal/features/auth/presentation/cubit/auth_session_cubit.dart';
 import 'package:ekaplus_ekatunggal/features/auth/presentation/cubit/auth_session_state.dart';
-import 'package:ekaplus_ekatunggal/features/member/domain/usecases/get_member_registrations_by_user_id.dart';
-import 'package:ekaplus_ekatunggal/features/member/domain/entities/member_registration.dart';
 import 'package:ekaplus_ekatunggal/features/member/presentation/cubit/active_company_cubit.dart';
-import 'package:ekaplus_ekatunggal/features/member/presentation/utils/member_status_helper.dart';
-import 'package:ekaplus_ekatunggal/injection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
-class AccountLoggedInView extends StatefulWidget {
-  final User user;
-
+class AccountLoggedInView extends StatelessWidget {
   const AccountLoggedInView({super.key, required this.user});
 
-  @override
-  State<AccountLoggedInView> createState() => _AccountLoggedInViewState();
-}
-
-class _AccountLoggedInViewState extends State<AccountLoggedInView> {
-  final GetMemberRegistrationsByUserId _getMemberRegistrationsByUserId =
-      myinjection<GetMemberRegistrationsByUserId>();
-  MemberRegistration? _latestRegistration;
-  bool _hasPendingCompanyRegistration = false;
-  bool _isLoadingRegistration = true;
-  int? _lastLoadedUserId;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadMemberRegistration();
-  }
-
-  Future<void> _loadMemberRegistration() async {
-    if (!mounted) return;
-    setState(() => _isLoadingRegistration = true);
-
-    final result = await _getMemberRegistrationsByUserId.execute();
-
-    if (!mounted) return;
-
-    result.fold(
-      (failure) {
-        if (!mounted) return;
-        setState(() {
-          _latestRegistration = null;
-          _hasPendingCompanyRegistration = false;
-          _isLoadingRegistration = false;
-        });
-      },
-      (registrations) {
-        if (!mounted) return;
-        final latest = registrations.isNotEmpty
-            ? (registrations.toList()
-                    ..sort((a, b) => b.createdAt.compareTo(a.createdAt)))
-                  .first
-            : null;
-        setState(() {
-          _latestRegistration = latest;
-          _hasPendingCompanyRegistration = registrations.any(
-            (registration) =>
-                MemberStatusHelper.isPendingSubmission(registration.status),
-          );
-          _isLoadingRegistration = false;
-        });
-      },
-    );
-  }
-
-  double _getResponsiveValue(
-    BuildContext context, {
-    required double mobile,
-    required double tablet,
-    required double desktop,
-  }) {
-    final width = MediaQuery.of(context).size.width;
-    if (width >= 900) return desktop;
-    if (width >= 600) return tablet;
-    return mobile;
-  }
+  final User user;
 
   @override
   Widget build(BuildContext context) {
-    final horizontalPadding = _getResponsiveValue(
-      context,
-      mobile: 16.0,
-      tablet: 24.0,
-      desktop: 32.0,
-    );
-
     return BlocBuilder<AuthSessionCubit, AuthSessionState>(
-      builder: (context, sessionState) {
-        final currentUser = sessionState is AuthSessionAuthenticated
-            ? sessionState.user
-            : widget.user;
-        final activeState = context.watch<ActiveCompanyCubit>().state;
-        if (sessionState is AuthSessionAuthenticated &&
-            (activeState is! ActiveCompanyReady &&
-                activeState is! ActiveCompanyLoading)) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (!mounted) return;
-            context.read<ActiveCompanyCubit>().loadCompaniesAndResolveActive();
-          });
-        }
-        if (sessionState is AuthSessionAuthenticated) {
-          final shouldForceReload = _lastLoadedUserId != currentUser.id;
-          _lastLoadedUserId = currentUser.id;
-          if (shouldForceReload) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (!mounted) return;
-              _loadMemberRegistration();
-              context.read<ActiveCompanyCubit>().loadCompaniesAndResolveActive(
-                force: true,
-              );
-            });
-          }
-        }
-
-        return Container(
-          width: double.infinity,
-          color: AppColors.whiteColor,
-          child: Column(
-            children: [
-              // Content with responsive padding
-              Padding(
-                padding: EdgeInsets.symmetric(
-                  horizontal: horizontalPadding,
-                  vertical: 14,
-                ),
-                child: Column(
-                  children: [
-                    // Profile Avatar & Name
-                    _buildProfileHeader(context, currentUser),
-
-                    SizedBox(
-                      height: _getResponsiveValue(
-                        context,
-                        mobile: 16,
-                        tablet: 20,
-                        desktop: 24,
+      builder: (context, state) {
+        final currentUser = state is AuthSessionAuthenticated
+            ? state.user
+            : user;
+        return Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 680),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 28),
+              child: Column(
+                children: [
+                  _ProfileCard(
+                    user: currentUser,
+                    onEdit: () => context.pushNamed('edit-profile'),
+                    onPhotoTap: () =>
+                        _showProfilePictureOptions(context, currentUser),
+                  ),
+                  const SizedBox(height: 14),
+                  _AccountSection(
+                    title: 'Preferensi Akun',
+                    children: [
+                      _AccountMenuItem(
+                        icon: Icons.notifications_none_rounded,
+                        title: 'Notifikasi Aplikasi',
+                        subtitle: 'Promo, pesanan, dan pembaruan',
+                        onTap: () =>
+                            _comingSoon(context, 'Pengaturan notifikasi'),
                       ),
-                    ),
-
-                    // Email Verification Warning Banner
-                    if (!currentUser.isEmailVerified) ...[
-                      _buildEmailVerificationBanner(context, currentUser),
-                      const SizedBox(height: 14),
                     ],
-
-                    // Nama Lengkap
-                    _buildInfoSection(
-                      label: 'Nama Lengkap',
-                      value: currentUser.fullName,
-                      context: context,
-                      userId: currentUser.phone,
-                      currentUser: currentUser,
-                    ),
-
-                    const Divider(height: 1),
-
-                    const SizedBox(height: 10),
-
-                    // Nomor Handphone
-                    _buildInfoSection(
-                      label: 'Nomor Handphone',
-                      value: currentUser.phone,
-                      context: context,
-                      userId: currentUser.phone,
-                      currentUser: currentUser,
-                    ),
-
-                    const Divider(height: 1),
-
-                    const SizedBox(height: 10),
-
-                    // Email
-                    _buildInfoSection(
-                      label: 'Email',
-                      value: currentUser.email,
-                      context: context,
-                      userId: currentUser.phone,
-                      currentUser: currentUser,
-                    ),
-
-                    const Divider(height: 1),
-                    SizedBox(
-                      height: _getResponsiveValue(
-                        context,
-                        mobile: 16,
-                        tablet: 20,
-                        desktop: 24,
+                  ),
+                  const SizedBox(height: 14),
+                  _AccountSection(
+                    title: 'Pengaturan & Keamanan Akun',
+                    children: [
+                      _AccountMenuItem(
+                        icon: Icons.person_outline_rounded,
+                        title: 'Data Diri / Ubah Profil',
+                        subtitle: 'Nama, email, username & keamanan',
+                        onTap: () => context.pushNamed('edit-profile'),
                       ),
-                    ),
-
-                    _buildCompanyCard(context),
-                    SizedBox(
-                      height: _getResponsiveValue(
-                        context,
-                        mobile: 14,
-                        tablet: 18,
-                        desktop: 22,
+                      _AccountMenuItem(
+                        icon: Icons.fingerprint_rounded,
+                        title: 'Keamanan Biometrik',
+                        badge: 'Segera',
+                        onTap: () => _comingSoon(context, 'Keamanan biometrik'),
                       ),
+                      _AccountMenuItem(
+                        icon: Icons.logout_rounded,
+                        iconColor: AppColors.primaryColor,
+                        iconBackground: const Color(0xFFFFF1F2),
+                        title: 'Keluar dari Akun',
+                        titleColor: AppColors.primaryColor,
+                        onTap: () => _showLogoutDialog(context),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  _AccountSection(
+                    title: 'Pusat Informasi & Bantuan',
+                    children: [
+                      _AccountMenuItem(
+                        icon: Icons.info_outline_rounded,
+                        iconColor: AppColors.primaryColor,
+                        iconBackground: const Color(0xFFFFF1F2),
+                        title: 'Tentang Ekatunggal',
+                        onTap: () => context.pushNamed('about'),
+                      ),
+                      _AccountMenuItem(
+                        icon: Icons.chat_bubble_outline_rounded,
+                        iconColor: const Color(0xFF128C7E),
+                        iconBackground: const Color(0xFFDCFCE7),
+                        title: 'Tanya Vika',
+                        subtitle: 'Bantuan cepat via WhatsApp',
+                        badge: 'CS Online',
+                        onTap: () => WhatsAppHelper.openGeneral(context),
+                      ),
+                      _AccountMenuItem(
+                        icon: Icons.help_outline_rounded,
+                        title: 'Pertanyaan Umum (FAQ)',
+                        onTap: () => _comingSoon(context, 'FAQ'),
+                      ),
+                      _AccountMenuItem(
+                        icon: Icons.shield_outlined,
+                        title: 'Syarat & Kebijakan Privasi',
+                        onTap: () =>
+                            _comingSoon(context, 'Syarat & Kebijakan Privasi'),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 18),
+                  Text(
+                    'Ekatunggal Mobile App',
+                    style: TextStyle(
+                      fontFamily: AppFonts.primaryFont,
+                      color: const Color(0xFF94A3B8),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
                     ),
-
-                    _buildDynamicCompanyButton(context, currentUser),
-                  ],
-                ),
+                  ),
+                ],
               ),
-
-              // Full width divider
-              Container(
-                width: double.infinity,
-                height: _getResponsiveValue(
-                  context,
-                  mobile: 4,
-                  tablet: 5,
-                  desktop: 6,
-                ),
-                color: const Color(0xFFE0E0E0),
-              ),
-
-              // Settings Section
-              _buildSettingsSection(context, currentUser),
-            ],
+            ),
           ),
         );
       },
-    );
-  }
-
-  Widget _buildProfileHeader(BuildContext context, User currentUser) {
-    final avatarSize = _getResponsiveValue(
-      context,
-      mobile: 120.0,
-      tablet: 150.0,
-      desktop: 180.0,
-    );
-
-    final cameraIconSize = _getResponsiveValue(
-      context,
-      mobile: 38.0,
-      tablet: 44.0,
-      desktop: 50.0,
-    );
-
-    final nameTextSize = _getResponsiveValue(
-      context,
-      mobile: 15.0,
-      tablet: 17.0,
-      desktop: 19.0,
-    );
-
-    final statusTextSize = _getResponsiveValue(
-      context,
-      mobile: 10.0,
-      tablet: 11.0,
-      desktop: 12.0,
-    );
-
-    return Column(
-      children: [
-        // Avatar with camera icon
-        Stack(
-          children: [
-            // Profile Picture
-            Container(
-              width: avatarSize,
-              height: avatarSize,
-              decoration: BoxDecoration(
-                color: AppColors.whiteColor,
-                shape: BoxShape.circle,
-                border: Border.all(color: Colors.grey.shade300, width: 2),
-              ),
-              child: GestureDetector(
-                onTap: () => _showProfilePictureOptions(context, currentUser),
-                child: ClipOval(child: _buildProfileImage(currentUser)),
-              ),
-            ),
-
-            // Camera Icon Button
-            Positioned(
-              bottom: 0,
-              right: 0,
-              child: GestureDetector(
-                onTap: () => _showProfilePictureOptions(context, currentUser),
-                child: Container(
-                  width: cameraIconSize,
-                  height: cameraIconSize,
-                  decoration: BoxDecoration(
-                    color: AppColors.primaryColor,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 2.5),
-                  ),
-                  child: Icon(
-                    Icons.camera_alt,
-                    color: Colors.white,
-                    size: cameraIconSize * 0.5,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-
-        const SizedBox(height: 10),
-
-        // Name
-        Text(
-          currentUser.fullName,
-          style: TextStyle(
-            fontFamily: AppFonts.primaryFont,
-            fontSize: nameTextSize,
-            fontWeight: FontWeight.w700,
-            color: AppColors.blackColor,
-          ),
-          textAlign: TextAlign.center,
-        ),
-
-        const SizedBox(height: 4),
-
-        BlocBuilder<ActiveCompanyCubit, ActiveCompanyState>(
-          builder: (context, state) {
-            final label = state is ActiveCompanyLoading
-                ? 'Memuat perusahaan...'
-                : state is ActiveCompanyReady
-                ? (state.activeCompany?.displayName ??
-                      'Belum terhubung dengan perusahaan')
-                : 'Belum terhubung dengan perusahaan';
-
-            return Container(
-              padding: EdgeInsets.symmetric(
-                horizontal: _getResponsiveValue(
-                  context,
-                  mobile: 14,
-                  tablet: 16,
-                  desktop: 18,
-                ),
-                vertical: _getResponsiveValue(
-                  context,
-                  mobile: 5,
-                  tablet: 6,
-                  desktop: 7,
-                ),
-              ),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: const Color(0x65A7A7A7), width: 1),
-                color: const Color(0x33A7A7A7),
-              ),
-              child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 180),
-                switchInCurve: Curves.easeOutCubic,
-                switchOutCurve: Curves.easeInCubic,
-                child: Text(
-                  label,
-                  key: ValueKey(label),
-                  style: TextStyle(
-                    fontFamily: AppFonts.primaryFont,
-                    fontSize: statusTextSize,
-                    color: AppColors.blackColor,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            );
-          },
-        ),
-      ],
-    );
-  }
-
-  Widget _buildEmailVerificationBanner(BuildContext context, User currentUser) {
-    final iconSize = _getResponsiveValue(
-      context,
-      mobile: 20,
-      tablet: 22,
-      desktop: 24,
-    );
-    final titleSize = _getResponsiveValue(
-      context,
-      mobile: 11,
-      tablet: 12,
-      desktop: 13,
-    );
-    final subtitleSize = _getResponsiveValue(
-      context,
-      mobile: 9.5,
-      tablet: 10.5,
-      desktop: 11.5,
-    );
-    final buttonTextSize = _getResponsiveValue(
-      context,
-      mobile: 10.5,
-      tablet: 11.5,
-      desktop: 12.5,
-    );
-
-    return Container(
-      padding: EdgeInsets.all(
-        _getResponsiveValue(context, mobile: 9, tablet: 11, desktop: 13),
-      ),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFF3CD),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFFFFE69C), width: 1),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            Icons.warning_amber_rounded,
-            color: const Color(0xFFF57C00),
-            size: iconSize,
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Email Belum Terverifikasi',
-                  style: TextStyle(
-                    fontFamily: AppFonts.primaryFont,
-                    fontSize: titleSize,
-                    fontWeight: FontWeight.w700,
-                    color: const Color(0xFF664D03),
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'Verifikasi email Anda untuk mengakses semua fitur',
-                  style: TextStyle(
-                    fontFamily: AppFonts.primaryFont,
-                    fontSize: subtitleSize,
-                    color: const Color(0xFF664D03),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 7),
-          TextButton(
-            onPressed: () {
-              context.pushNamed(
-                'verify-email-initial',
-                extra: {
-                  'userId': currentUser.phone,
-                  'email': currentUser.email,
-                },
-              );
-            },
-            style: TextButton.styleFrom(
-              backgroundColor: const Color(0xFFF57C00),
-              padding: EdgeInsets.symmetric(
-                horizontal: _getResponsiveValue(
-                  context,
-                  mobile: 9,
-                  tablet: 11,
-                  desktop: 13,
-                ),
-                vertical: _getResponsiveValue(
-                  context,
-                  mobile: 5,
-                  tablet: 6,
-                  desktop: 7,
-                ),
-              ),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(6),
-              ),
-            ),
-            child: Text(
-              'Verifikasi',
-              style: TextStyle(
-                fontFamily: AppFonts.primaryFont,
-                fontSize: buttonTextSize,
-                fontWeight: FontWeight.w600,
-                color: Colors.white,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildProfileImage(User currentUser) {
-    final String profilePic = (currentUser.profilePic.isNotEmpty)
-        ? currentUser.profilePic
-        : "";
-
-    if (profilePic.isNotEmpty) {
-      // Check if it's a local avatar (format: "local:avatarPath|bgColor")
-      if (profilePic.startsWith('local:')) {
-        final parts = profilePic.substring(6).split('|');
-        if (parts.length == 2) {
-          final avatarPath = parts[0];
-          final bgColorValue = int.tryParse(parts[1]);
-          final bgColor = bgColorValue != null
-              ? Color(bgColorValue)
-              : AppColors.primaryColor;
-
-          return Container(
-            color: bgColor,
-            child: Image.asset(
-              avatarPath,
-              fit: BoxFit.contain,
-              errorBuilder: (_, __, ___) => _buildDefaultAvatar(currentUser),
-            ),
-          );
-        }
-      } else if (profilePic.startsWith('http')) {
-        return Image.network(
-          profilePic,
-          fit: BoxFit.contain,
-          errorBuilder: (_, __, ___) => _buildDefaultAvatar(currentUser),
-        );
-      } else if (profilePic.startsWith('assets/')) {
-        return Image.asset(
-          profilePic,
-          fit: BoxFit.contain,
-          errorBuilder: (_, __, ___) => _buildDefaultAvatar(currentUser),
-        );
-      } else {
-        return Image.network(
-          "${ApiConfig.baseImageUrl}/$profilePic",
-          fit: BoxFit.contain,
-          errorBuilder: (_, __, ___) => _buildDefaultAvatar(currentUser),
-        );
-      }
-    }
-
-    return _buildDefaultAvatar(currentUser);
-  }
-
-  Widget _buildDefaultAvatar(User currentUser) {
-    final initialsSize = _getResponsiveValue(
-      context,
-      mobile: 32.0,
-      tablet: 38.0,
-      desktop: 44.0,
-    );
-
-    return Image.asset(
-      'assets/images/avatar_placeholder.png',
-      fit: BoxFit.contain,
-      errorBuilder: (_, __, ___) => Container(
-        color: AppColors.primaryColor,
-        child: Center(
-          child: Text(
-            _getInitials(currentUser.fullName),
-            style: TextStyle(
-              fontFamily: AppFonts.primaryFont,
-              fontSize: initialsSize,
-              fontWeight: FontWeight.w700,
-              color: AppColors.whiteColor,
-            ),
-          ),
-        ),
-      ),
     );
   }
 
   void _showProfilePictureOptions(BuildContext context, User currentUser) {
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (sheetContext) => ProfilePictureOptionsSheet(
         user: currentUser,
@@ -579,229 +141,202 @@ class _AccountLoggedInViewState extends State<AccountLoggedInView> {
     );
   }
 
-  Widget _buildInfoSection({
-    required String label,
-    required String value,
-    required BuildContext context,
-    required String userId,
-    required User currentUser,
-  }) {
-    final labelSize = _getResponsiveValue(
+  void _comingSoon(BuildContext context, String feature) {
+    AppSnackbar.show(
       context,
-      mobile: 10.5,
-      tablet: 11.5,
-      desktop: 12.5,
-    );
-    final valueSize = _getResponsiveValue(
-      context,
-      mobile: 12.5,
-      tablet: 13.5,
-      desktop: 14.5,
-    );
-    final actionSize = _getResponsiveValue(
-      context,
-      mobile: 10.5,
-      tablet: 11.5,
-      desktop: 12.5,
-    );
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontFamily: AppFonts.primaryFont,
-            fontSize: labelSize,
-            color: AppColors.grayColor,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Expanded(
-              child: Text(
-                value,
-                style: TextStyle(
-                  fontFamily: AppFonts.primaryFont,
-                  fontSize: valueSize,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black87,
-                ),
-              ),
-            ),
-            GestureDetector(
-              onTap: () {
-                if (label == 'Nama Lengkap') {
-                  context.pushNamed(
-                    'edit-name',
-                    extra: {'userId': userId, 'currentName': value},
-                  );
-                } else if (label == 'Nomor Handphone') {
-                  final noPassword = (currentUser.password ?? '').isEmpty;
-                  if (noPassword) {
-                    context.pushNamed(
-                      'edit-contact',
-                      extra: {
-                        'userId': userId,
-                        'currentPhone': value,
-                        'type': 'phone',
-                      },
-                    );
-                  } else {
-                    context.pushNamed(
-                      'verify-password',
-                      extra: {
-                        'userId': userId,
-                        'title': 'Ubah Nomor Handphone',
-                        'subtitle': 'Masukkan password untuk verifikasi',
-                        'nextRoute': 'edit-contact',
-                        'nextRouteExtra': {
-                          'currentPhone': value,
-                          'type': 'phone',
-                        },
-                      },
-                    );
-                  }
-                } else if (label == 'Email') {
-                  final noPassword = (currentUser.password ?? '').isEmpty;
-                  if (noPassword) {
-                    context.pushNamed(
-                      'edit-contact',
-                      extra: {
-                        'userId': userId,
-                        'currentEmail': value,
-                        'type': 'email',
-                      },
-                    );
-                  } else {
-                    context.pushNamed(
-                      'verify-password',
-                      extra: {
-                        'userId': userId,
-                        'title': 'Ubah Email',
-                        'subtitle': 'Masukkan password untuk verifikasi',
-                        'nextRoute': 'edit-contact',
-                        'nextRouteExtra': {
-                          'currentEmail': value,
-                          'type': 'email',
-                        },
-                      },
-                    );
-                  }
-                }
-              },
-              child: Text(
-                'Ubah',
-                style: TextStyle(
-                  fontFamily: AppFonts.primaryFont,
-                  fontSize: actionSize,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.primaryColor,
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 7),
-      ],
+      message: '$feature akan segera tersedia',
+      type: AppSnackbarType.info,
     );
   }
 
-  Widget _buildCompanyCard(BuildContext context) {
-    final imageSize = _getResponsiveValue(
-      context,
-      mobile: 85.0,
-      tablet: 120.0,
-      desktop: 140.0,
-    );
-
-    final textSize = _getResponsiveValue(
-      context,
-      mobile: 12.0,
-      tablet: 13.0,
-      desktop: 14.0,
-    );
-
-    final iconSize = _getResponsiveValue(
-      context,
-      mobile: 18.0,
-      tablet: 20.0,
-      desktop: 22.0,
-    );
-
-    final cardPadding = _getResponsiveValue(
-      context,
-      mobile: 11.0,
-      tablet: 15.0,
-      desktop: 18.0,
-    );
-
-    return Container(
-      padding: EdgeInsets.all(cardPadding),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            Colors.blue[50] ?? const Color(0xFFE3F2FD),
-            Colors.blue[25] ?? const Color(0xFFF5F9FD),
-          ],
+  void _showLogoutDialog(BuildContext context) {
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        title: const Text('Keluar dari akun?'),
+        content: const Text(
+          'Anda perlu masuk kembali untuk mengakses data akun.',
         ),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.blue[100] ?? const Color(0xFFBBDEFB)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Batal'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.primaryColor,
+            ),
+            onPressed: () {
+              Navigator.pop(dialogContext);
+              context.read<ActiveCompanyCubit>().reset();
+              context.read<AuthSessionCubit>().logout();
+              context.goNamed('home');
+            },
+            child: const Text('Keluar'),
+          ),
+        ],
       ),
+    );
+  }
+}
+
+class _ProfileCard extends StatelessWidget {
+  const _ProfileCard({
+    required this.user,
+    required this.onEdit,
+    required this.onPhotoTap,
+  });
+  final User user;
+  final VoidCallback onEdit;
+  final VoidCallback onPhotoTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: accountCardDecoration,
       child: Row(
         children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: Image.asset(
-              'assets/images/account/linkCompany.png',
-              width: imageSize,
-              height: imageSize * 0.85,
-              fit: BoxFit.contain,
-              errorBuilder: (_, __, ___) => Container(
-                width: imageSize,
-                height: imageSize * 0.85,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(
-                  Icons.business_rounded,
-                  size: imageSize * 0.4,
-                  color: Colors.blue[200] ?? const Color(0xFF90CAF9),
-                ),
-              ),
-            ),
+          AccountAvatar(
+            user: user,
+            size: 62,
+            onTap: onPhotoTap,
+            showCamera: true,
           ),
-          SizedBox(
-            width: _getResponsiveValue(
-              context,
-              mobile: 11,
-              tablet: 13,
-              desktop: 15,
-            ),
-          ),
+          const SizedBox(width: 13),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(
-                  Icons.info_outline,
-                  color: Colors.blue[700] ?? const Color(0xFF1976D2),
-                  size: iconSize,
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        user.fullName.isEmpty
+                            ? 'Pengguna Ekatunggal'
+                            : user.fullName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                    if (user.isEmailVerified || user.isPhoneVerified) ...[
+                      const SizedBox(width: 6),
+                      const AccountStatusBadge(label: 'Terverifikasi'),
+                    ],
+                  ],
                 ),
-                const SizedBox(height: 7),
+                const SizedBox(height: 3),
                 Text(
-                  'Akses data transaksi dan fitur menarik lainnya',
-                  style: TextStyle(
-                    fontFamily: AppFonts.primaryFont,
-                    fontSize: textSize,
-                    color: Colors.grey[800] ?? const Color(0xFF424242),
-                    height: 1.35,
-                    fontWeight: FontWeight.w500,
+                  user.email,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Color(0xFF64748B),
+                    fontSize: 10.5,
                   ),
                 ),
+                const SizedBox(height: 5),
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.phone_outlined,
+                      size: 12,
+                      color: Color(0xFF94A3B8),
+                    ),
+                    const SizedBox(width: 4),
+                    Flexible(
+                      child: Text(
+                        user.phone,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Color(0xFF475569),
+                          fontSize: 10.5,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          InkWell(
+            borderRadius: BorderRadius.circular(12),
+            onTap: onEdit,
+            child: const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.edit_outlined,
+                    color: AppColors.primaryColor,
+                    size: 19,
+                  ),
+                  SizedBox(height: 2),
+                  Text(
+                    'Ubah',
+                    style: TextStyle(
+                      color: AppColors.primaryColor,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AccountSection extends StatelessWidget {
+  const _AccountSection({required this.title, required this.children});
+  final String title;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: accountCardDecoration,
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        children: [
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(14, 13, 14, 8),
+              child: Text(
+                title.toUpperCase(),
+                style: const TextStyle(
+                  color: Color(0xFF94A3B8),
+                  fontSize: 9.5,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: .45,
+                ),
+              ),
+            ),
+          ),
+          const Divider(height: 1, color: Color(0xFFF1F5F9)),
+          ...List.generate(
+            children.length,
+            (index) => Column(
+              children: [
+                children[index],
+                if (index != children.length - 1)
+                  const Divider(
+                    height: 1,
+                    indent: 56,
+                    color: Color(0xFFF1F5F9),
+                  ),
               ],
             ),
           ),
@@ -809,394 +344,236 @@ class _AccountLoggedInViewState extends State<AccountLoggedInView> {
       ),
     );
   }
+}
 
-  Widget _buildDynamicCompanyButton(BuildContext context, User currentUser) {
-    final buttonHeight = _getResponsiveValue(
-      context,
-      mobile: 42,
-      tablet: 46,
-      desktop: 50,
-    );
-    final buttonTextSize = _getResponsiveValue(
-      context,
-      mobile: 12.5,
-      tablet: 13.5,
-      desktop: 14.5,
-    );
+class _AccountMenuItem extends StatelessWidget {
+  const _AccountMenuItem({
+    required this.icon,
+    required this.title,
+    required this.onTap,
+    this.subtitle,
+    this.badge,
+    this.iconColor = const Color(0xFF475569),
+    this.iconBackground = const Color(0xFFF1F5F9),
+    this.titleColor = const Color(0xFF1E293B),
+  });
 
-    if (_isLoadingRegistration) {
-      return SizedBox(
-        width: double.infinity,
-        height: buttonHeight,
-        child: ElevatedButton(
-          onPressed: null,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.secondaryColor,
-            elevation: 0,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
-          ),
-          child: const SizedBox(
-            height: 18,
-            width: 18,
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              valueColor: AlwaysStoppedAnimation<Color>(Colors.black87),
-            ),
-          ),
-        ),
-      );
-    }
+  final IconData icon;
+  final String title;
+  final String? subtitle;
+  final String? badge;
+  final Color iconColor;
+  final Color iconBackground;
+  final Color titleColor;
+  final VoidCallback onTap;
 
-    String buttonText;
-    VoidCallback onPressed;
-    final activeState = context.read<ActiveCompanyCubit>().state;
-    final hasActiveCompany =
-        activeState is ActiveCompanyReady &&
-        (activeState.activeCompany?.displayName.trim().isNotEmpty ?? false);
-
-    if (_hasPendingCompanyRegistration) {
-      buttonText = 'Lihat Pengajuan Perusahaan';
-      onPressed = () {
-        context.pushNamed('memberList', extra: {'initialTabIndex': 0});
-      };
-    } else if (hasActiveCompany) {
-      buttonText = 'Tambah Perusahaan / Cabang';
-      onPressed = () {
-        _handleCompanyRegistrationTap(
-          currentUser,
-          routeName: 'companySelection',
-        );
-      };
-    } else if (_latestRegistration == null) {
-      buttonText = 'Daftar Member';
-      onPressed = () {
-        _handleCompanyRegistrationTap(
-          currentUser,
-          routeName: 'memberRegistration',
-        );
-      };
-    } else {
-      if (MemberStatusHelper.isApproved(_latestRegistration!.status)) {
-        buttonText = 'Hubungkan Perusahaan';
-        onPressed = () {
-          _handleCompanyRegistrationTap(
-            currentUser,
-            routeName: 'companySelection',
-          );
-        };
-      } else {
-        buttonText = 'Lihat Pengajuan Perusahaan';
-        onPressed = () {
-          context.pushNamed('memberList', extra: {'initialTabIndex': 0});
-        };
-      }
-    }
-    return SizedBox(
-      width: double.infinity,
-      height: buttonHeight,
-      child: ElevatedButton(
-        onPressed: onPressed,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.secondaryColor,
-          elevation: 0,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        ),
-        child: Text(
-          buttonText,
-          style: TextStyle(
-            fontFamily: AppFonts.primaryFont,
-            fontSize: buttonTextSize,
-            fontWeight: FontWeight.w700,
-            color: Colors.black87,
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _handleCompanyRegistrationTap(User user, {required String routeName}) {
-    if (_hasPendingCompanyRegistration &&
-        routeName != 'memberList' &&
-        routeName != 'addBCID') {
-      AppSnackbar.show(
-        context,
-        message:
-            'Masih ada pengajuan berstatus Request/In Review. Selesaikan atau tunggu hasil review terlebih dahulu.',
-        type: AppSnackbarType.warning,
-      );
-      context.pushNamed('memberList', extra: {'initialTabIndex': 0});
-      return;
-    }
-
-    final phone = user.phone.trim();
-    final email = user.email.trim();
-    final noPassword = (user.password ?? '').isEmpty;
-
-    if (!user.isPhoneVerified || phone.isEmpty) {
-      AppSnackbar.show(
-        context,
-        message: 'Verifikasi nomor handphone dulu sebelum daftar member',
-        type: AppSnackbarType.warning,
-      );
-      context.pushNamed(
-        'edit-contact',
-        extra: {'userId': user.phone, 'currentPhone': phone, 'type': 'phone'},
-      );
-      return;
-    }
-
-    if (!user.isEmailVerified || email.isEmpty) {
-      AppSnackbar.show(
-        context,
-        message: 'Lengkapi dan verifikasi email dulu sebelum daftar perusahaan',
-        type: AppSnackbarType.warning,
-      );
-      if (email.isEmpty) {
-        context.pushNamed(
-          'edit-contact',
-          extra: {'userId': user.phone, 'currentEmail': email, 'type': 'email'},
-        );
-      } else if (noPassword) {
-        context.pushNamed(
-          'verify-email-initial',
-          extra: {'userId': user.phone, 'email': email},
-        );
-      } else {
-        context.pushNamed(
-          'verify-password',
-          extra: {
-            'userId': user.phone,
-            'title': 'Ubah Email',
-            'subtitle': 'Masukkan password untuk verifikasi',
-            'nextRoute': 'edit-contact',
-            'nextRouteExtra': {'currentEmail': email, 'type': 'email'},
-          },
-        );
-      }
-      return;
-    }
-
-    context.pushNamed(routeName);
-  }
-
-  Widget _buildSettingsSection(BuildContext context, User currentUser) {
-    final horizontalPadding = _getResponsiveValue(
-      context,
-      mobile: 16.0,
-      tablet: 24.0,
-      desktop: 32.0,
-    );
-
-    final titleSize = _getResponsiveValue(
-      context,
-      mobile: 12.5,
-      tablet: 13.5,
-      desktop: 14.5,
-    );
-    final itemTextSize = _getResponsiveValue(
-      context,
-      mobile: 11.5,
-      tablet: 12.5,
-      desktop: 13.5,
-    );
-    final iconSize = _getResponsiveValue(
-      context,
-      mobile: 20,
-      tablet: 22,
-      desktop: 24,
-    );
-
-    return Padding(
-      padding: EdgeInsets.symmetric(
-        horizontal: horizontalPadding,
-        vertical: 14,
-      ),
-      child: Column(
-        children: [
-          Align(
-            alignment: Alignment.centerLeft,
-            child: Text(
-              'Pengaturan dan Keamanan',
-              style: TextStyle(
-                fontFamily: AppFonts.primaryFont,
-                fontSize: titleSize,
-                fontWeight: FontWeight.w700,
-                color: Colors.black87,
-              ),
-            ),
-          ),
-
-          const SizedBox(height: 10),
-
-          _buildSettingItem(
-            icon: Icons.business_center_outlined,
-            iconSize: iconSize,
-            textSize: itemTextSize,
-            title: 'Lihat Perusahaan',
-            onTap: () {
-              context.pushNamed('memberList');
-            },
-          ),
-          const Divider(height: 1),
-
-          _buildSettingItem(
-            icon: Icons.alternate_email,
-            iconSize: iconSize,
-            textSize: itemTextSize,
-            title: (currentUser.username.trim().isEmpty)
-                ? 'Atur Username'
-                : 'Ganti Username',
-            onTap: () {
-              context.pushNamed(
-                'edit-username',
-                extra: {
-                  'userId': currentUser.phone,
-                  'currentUsername': currentUser.username,
-                },
-              );
-            },
-          ),
-          const Divider(height: 1),
-
-          _buildSettingItem(
-            icon: Icons.lock_outline,
-            iconSize: iconSize,
-            textSize: itemTextSize,
-            title: 'Ganti Password',
-            onTap: () {
-              if (currentUser.password != "") {
-                context.pushNamed(
-                  'verify-password',
-                  extra: {
-                    'userId': currentUser.phone,
-                    'title': 'Ganti Password',
-                    'subtitle': 'Masukkan password untuk verifikasi',
-                    'nextRoute': 'change-password',
-                  },
-                );
-              } else {
-                context.pushNamed(
-                  'change-password',
-                  extra: {'verifyOldPassword': "old"},
-                );
-              }
-            },
-          ),
-
-          const Divider(height: 1),
-
-          _buildSettingItem(
-            icon: Icons.logout,
-            iconSize: iconSize,
-            textSize: itemTextSize,
-            title: 'Log Out',
-            onTap: () => _showLogoutDialog(context),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSettingItem({
-    required IconData icon,
-    required double iconSize,
-    required double textSize,
-    required String title,
-    required VoidCallback onTap,
-  }) {
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      leading: Icon(icon, size: iconSize, color: Colors.black87),
-      title: Text(
-        title,
-        style: TextStyle(
-          fontFamily: AppFonts.primaryFont,
-          fontSize: textSize,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
       onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        child: Row(
+          children: [
+            Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                color: iconBackground,
+                borderRadius: BorderRadius.circular(9),
+              ),
+              child: Icon(icon, color: iconColor, size: 18),
+            ),
+            const SizedBox(width: 11),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          title,
+                          style: TextStyle(
+                            color: titleColor,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      if (badge != null) ...[
+                        const SizedBox(width: 7),
+                        AccountStatusBadge(label: badge!),
+                      ],
+                    ],
+                  ),
+                  if (subtitle != null) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle!,
+                      style: const TextStyle(
+                        color: Color(0xFF94A3B8),
+                        fontSize: 9.5,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const Icon(
+              Icons.chevron_right_rounded,
+              size: 18,
+              color: Color(0xFFCBD5E1),
+            ),
+          ],
+        ),
+      ),
     );
   }
+}
 
-  void _showLogoutDialog(BuildContext context) {
-    final titleSize = _getResponsiveValue(
-      context,
-      mobile: 15,
-      tablet: 16,
-      desktop: 17,
-    );
-    final contentSize = _getResponsiveValue(
-      context,
-      mobile: 12.5,
-      tablet: 13.5,
-      desktop: 14.5,
-    );
-    final buttonSize = _getResponsiveValue(
-      context,
-      mobile: 12.5,
-      tablet: 13.5,
-      desktop: 14.5,
-    );
+class AccountStatusBadge extends StatelessWidget {
+  const AccountStatusBadge({super.key, required this.label});
+  final String label;
 
-    showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(
-          'Konfirmasi Logout',
-          style: TextStyle(
-            fontFamily: AppFonts.primaryFont,
-            fontSize: titleSize,
-            fontWeight: FontWeight.w700,
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+    decoration: BoxDecoration(
+      color: const Color(0xFFECFDF5),
+      border: Border.all(color: const Color(0xFFA7F3D0)),
+      borderRadius: BorderRadius.circular(20),
+    ),
+    child: Text(
+      label,
+      style: const TextStyle(
+        color: Color(0xFF059669),
+        fontSize: 8,
+        fontWeight: FontWeight.w700,
+      ),
+    ),
+  );
+}
+
+const accountCardDecoration = BoxDecoration(
+  color: Colors.white,
+  borderRadius: BorderRadius.all(Radius.circular(16)),
+  boxShadow: [
+    BoxShadow(color: Color(0x0D0F172A), blurRadius: 10, offset: Offset(0, 2)),
+  ],
+);
+
+class AccountAvatar extends StatelessWidget {
+  const AccountAvatar({
+    super.key,
+    required this.user,
+    required this.size,
+    this.onTap,
+    this.showCamera = false,
+  });
+  final User user;
+  final double size;
+  final VoidCallback? onTap;
+  final bool showCamera;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Container(
+            width: size,
+            height: size,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: const Color(0xFFFECACA), width: 2),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: _image(),
           ),
-        ),
-        content: Text(
-          'Apakah Anda yakin ingin keluar?',
-          style: TextStyle(
-            fontFamily: AppFonts.primaryFont,
-            fontSize: contentSize,
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: Text(
-              'Batal',
-              style: TextStyle(
-                fontFamily: AppFonts.primaryFont,
-                fontSize: buttonSize,
-                color: Colors.grey[600],
+          if (showCamera)
+            Positioned(
+              right: -1,
+              bottom: -1,
+              child: Container(
+                width: size * .34,
+                height: size * .34,
+                decoration: BoxDecoration(
+                  color: AppColors.primaryColor,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 2),
+                ),
+                child: Icon(
+                  Icons.camera_alt_rounded,
+                  color: Colors.white,
+                  size: size * .17,
+                ),
               ),
             ),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(dialogContext);
-              context.read<ActiveCompanyCubit>().reset();
-              context.read<AuthSessionCubit>().logout();
-              context.goNamed('home');
-            },
-            child: Text(
-              'Logout',
-              style: TextStyle(
-                fontFamily: AppFonts.primaryFont,
-                fontSize: buttonSize,
-                color: AppColors.primaryColor,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
         ],
       ),
     );
   }
 
-  String _getInitials(String name) {
-    if (name.isEmpty) return '?';
-    final words = name.trim().split(' ');
-    if (words.length == 1) return words[0][0].toUpperCase();
-    return '${words[0][0]}${words[1][0]}'.toUpperCase();
+  Widget _image() {
+    final value = user.profilePic.trim();
+    if (value.startsWith('local:')) {
+      final parts = value.substring(6).split('|');
+      if (parts.isNotEmpty) {
+        final color = parts.length > 1 ? int.tryParse(parts[1]) : null;
+        return ColoredBox(
+          color: color == null ? AppColors.primaryColor : Color(color),
+          child: Image.asset(
+            parts.first,
+            fit: BoxFit.contain,
+            errorBuilder: (_, __, ___) => _fallback(),
+          ),
+        );
+      }
+    }
+    if (value.startsWith('assets/')) {
+      return Image.asset(
+        value,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => _fallback(),
+      );
+    }
+    if (value.isNotEmpty) {
+      final url = value.startsWith('http')
+          ? value
+          : '${ApiConfig.baseImageUrl}/$value';
+      return Image.network(
+        url,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => _fallback(),
+      );
+    }
+    return _fallback();
+  }
+
+  Widget _fallback() {
+    final parts = user.fullName
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((part) => part.isNotEmpty)
+        .toList();
+    final initials = parts.isEmpty
+        ? 'ET'
+        : parts.take(2).map((part) => part[0].toUpperCase()).join();
+    return ColoredBox(
+      color: AppColors.primaryColor,
+      child: Center(
+        child: Text(
+          initials,
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: size * .3,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+    );
   }
 }

@@ -39,7 +39,7 @@ abstract class AuthRemoteDataSource {
   Future<UserModel?> getUserByUsername(String username);
   Future<UserModel?> getUserByEmail(String email);
 
-  Future<void> updateUser(int userId, Map<String, dynamic> changes);
+  Future<User> updateUser(int userId, Map<String, dynamic> changes);
 
   // ⭐ NEW: Update profile picture
   Future<User> updateProfilePicture(String profilePicPath);
@@ -456,7 +456,7 @@ class AuthLocalDataSourceImpl implements AuthRemoteDataSource {
   }
 
   @override
-  Future<void> updateUser(int userId, Map<String, dynamic> changes) async {
+  Future<User> updateUser(int userId, Map<String, dynamic> changes) async {
     final response = await authedRequest((token) {
       return http.put(
         Uri.parse('${ApiConfig.baseUrl}/api/user/me'),
@@ -468,8 +468,16 @@ class AuthLocalDataSourceImpl implements AuthRemoteDataSource {
     final body = jsonDecode(response.body);
 
     if (response.statusCode != 200 || body['status'] != 'success') {
-      throw Exception(body['message'] ?? 'Gagal memperbarui data user');
+      throw ServerException(
+        message: body['message'] ?? 'Gagal memperbarui data user',
+        statusCode: response.statusCode,
+        body: response.body,
+      );
     }
+
+    final updatedUser = UserModel.fromApiJson(body['data']);
+    await saveLoginUser(updatedUser);
+    return updatedUser;
   }
 
   @override
@@ -545,27 +553,7 @@ class AuthLocalDataSourceImpl implements AuthRemoteDataSource {
 
   @override
   Future<User> changePassword(String oldPassword, String newPassword) async {
-    final response = await authedRequest((token) {
-      return http.put(
-        Uri.parse('${ApiConfig.baseUrl}/api/user/me/change-password'),
-        headers: {...ApiConfig.headers, 'Authorization': 'Bearer $token'},
-        body: jsonEncode({
-          'old_password': oldPassword,
-          'new_password': newPassword,
-        }),
-      );
-    });
-
-    final body = jsonDecode(response.body);
-
-    if (response.statusCode != 200 || body['status'] != 'success') {
-      throw Exception(body['message'] ?? 'Gagal memperbarui password');
-    }
-
-    final updatedUser = UserModel.fromApiJson(body['data']);
-
-    await saveLoginUser(updatedUser);
-    return updatedUser;
+    return updateUser(0, {'password': newPassword});
   }
 
   @override
