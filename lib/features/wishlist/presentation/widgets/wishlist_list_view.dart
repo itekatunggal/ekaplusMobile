@@ -63,7 +63,7 @@ class _WishlistListViewState extends State<WishlistListView>
         Expanded(
           child: ListView.separated(
             controller: _scrollController,
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            padding: const EdgeInsets.fromLTRB(0, 0, 0, 16),
             itemCount:
                 widget.wishlistItems.length + (widget.isLoadingMore ? 1 : 0),
             separatorBuilder: (_, __) => const SizedBox(height: 8),
@@ -336,7 +336,8 @@ class _WishlistListViewState extends State<WishlistListView>
                         Navigator.pop(dialogContext);
 
                         if (mounted) {
-                          AppSnackbar.showRaw(context, 
+                          AppSnackbar.showRaw(
+                            context,
                             SnackBar(
                               content: Text(
                                 '$selectedCount item dihapus dari wishlist',

@@ -146,7 +146,7 @@ class _WishlistContentState extends State<WishlistContent>
                   // ✅ Loading indicator di bawah list, hanya kalau masih ada data
                   if (_isLoadingMore && _hasMore)
                     Padding(
-                      padding: const EdgeInsets.all(12),
+                      padding: const EdgeInsets.fromLTRB(0, 16, 0, 16),
                       child: Center(
                         child: SizedBox(
                           width: 24,
@@ -184,121 +184,92 @@ class _WishlistContentState extends State<WishlistContent>
   }
 
   Widget _buildLoadingShimmer() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20, 14, 20, 10),
-          child: Shimmer.fromColors(
-            baseColor: Colors.grey[300]!,
-            highlightColor: Colors.grey[100]!,
+    return ListView.separated(
+      padding: const EdgeInsets.fromLTRB(0, 48, 0, 20),
+      itemCount: 5,
+      separatorBuilder: (_, __) => const SizedBox(height: 10),
+      itemBuilder: (context, index) {
+        return Shimmer.fromColors(
+          baseColor: Colors.grey[300]!,
+          highlightColor: Colors.grey[100]!,
+          child: Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+            ),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.end,
               children: [
                 Container(
-                  width: 42,
-                  height: 12,
+                  width: 88,
+                  height: 88,
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(4),
+                    borderRadius: BorderRadius.circular(8),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Color.fromRGBO(0, 0, 0, 0.07),
+                        blurRadius: 4,
+                        offset: Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: double.infinity,
+                        height: 11,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      ),
+                      const SizedBox(height: 5),
+                      Container(
+                        width: 120,
+                        height: 11,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      ),
+                      const SizedBox(height: 9),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Container(
+                              height: 28,
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(color: Colors.grey.shade300),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Container(
+                              height: 28,
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
           ),
-        ),
-        Expanded(
-          child: ListView.separated(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-            itemCount: 5,
-            separatorBuilder: (_, __) => const SizedBox(height: 10),
-            itemBuilder: (context, index) {
-              return Shimmer.fromColors(
-                baseColor: Colors.grey[300]!,
-                highlightColor: Colors.grey[100]!,
-                child: Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 88,
-                        height: 88,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(8),
-                          boxShadow: const [
-                            BoxShadow(
-                              color: Color.fromRGBO(0, 0, 0, 0.07),
-                              blurRadius: 4,
-                              offset: Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Container(
-                              width: double.infinity,
-                              height: 11,
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                            ),
-                            const SizedBox(height: 5),
-                            Container(
-                              width: 120,
-                              height: 11,
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                            ),
-                            const SizedBox(height: 9),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: Container(
-                                    height: 28,
-                                    decoration: BoxDecoration(
-                                      color: Colors.white,
-                                      borderRadius: BorderRadius.circular(6),
-                                      border: Border.all(
-                                        color: Colors.grey.shade300,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Container(
-                                    height: 28,
-                                    decoration: BoxDecoration(
-                                      color: Colors.white,
-                                      borderRadius: BorderRadius.circular(6),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-      ],
+        );
+      },
     );
   }
 }

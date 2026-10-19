@@ -253,11 +253,10 @@ class BottomNavBar extends StatelessWidget {
               onTap: () => context.goNamed('category'),
             ),
             _NavItem(
-              icon: Icons.apartment_rounded,
-              label: 'Customer',
+              icon: Icons.favorite_border_rounded,
+              label: 'Wishlist',
               selected: currentIndex == 2,
-              showBadge: true,
-              onTap: () => context.goNamed('customer'),
+              onTap: () => context.goNamed('wishlist'),
             ),
             // _NavItem(
             //   icon: Icons.report,
@@ -266,10 +265,11 @@ class BottomNavBar extends StatelessWidget {
             //   onTap: () => context.goNamed('report'),
             // ),
             _NavItem(
-              icon: Icons.receipt_long_outlined,
-              label: 'Transaksi',
+              icon: Icons.apartment_rounded,
+              label: 'Customer',
               selected: currentIndex == 3,
-              onTap: () => context.goNamed('transaksi'),
+              showBadge: true,
+              onTap: () => context.goNamed('customer'),
             ),
             _NavItem(
               icon: Icons.person_outline,

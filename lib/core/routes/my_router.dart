@@ -714,8 +714,8 @@ class AppShell extends StatelessWidget {
 
   int _locationToIndex(String path) {
     if (path.startsWith('/category')) return 1;
-    if (path.startsWith('/customer')) return 2;
-    if (path.startsWith('/transaksi')) return 3;
+    if (path.startsWith('/wishlist')) return 2;
+    if (path.startsWith('/customer')) return 3;
     if (path.startsWith('/account')) return 4;
     return 0;
   }
@@ -723,8 +723,8 @@ class AppShell extends StatelessWidget {
   static const List<String> _routeNames = [
     'home',
     'category',
+    'wishlist',
     'customer',
-    'transaksi',
     'account',
   ];
 
@@ -739,10 +739,10 @@ class AppShell extends StatelessWidget {
         );
         break;
 
-      case 2: // Customer
+      case 2: // Wishlist
         break;
 
-      case 3: // Transaksi
+      case 3: // Customer
         break;
     }
   }

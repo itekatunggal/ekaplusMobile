@@ -15,66 +15,81 @@ class AccountPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ExitConfirmationWrapper(
-      child: Scaffold(
-        backgroundColor: const Color(0xFFF6F7F9),
-        appBar: CustomHeaderAppBar(
-          title: 'Akun Saya',
-          showBackButton: false,
-          actions: [
-            CustomHeaderActionButton(
-              tooltip: 'Notifikasi',
-              onPressed: () => AppSnackbar.show(
-                context,
-                message: 'Notifikasi akun akan segera tersedia',
-                type: AppSnackbarType.info,
-              ),
-              icon: Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  const Icon(
-                    Icons.notifications_none_rounded,
-                    color: Colors.white,
-                    size: 21,
-                  ),
-                  Positioned(
-                    right: 0,
-                    top: 0,
-                    child: Container(
-                      width: 7,
-                      height: 7,
-                      decoration: const BoxDecoration(
-                        color: AppColors.secondaryColor,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        body: BlocBuilder<AuthSessionCubit, AuthSessionState>(
-          builder: (context, state) {
-            if (state is AuthSessionLoading) {
-              return const Center(
+      child: BlocBuilder<AuthSessionCubit, AuthSessionState>(
+        builder: (context, state) {
+          if (state is AuthSessionLoading) {
+            return const Scaffold(
+              backgroundColor: Color(0xFFF6F7F9),
+              body: Center(
                 child: CircularProgressIndicator(color: AppColors.primaryColor),
-              );
-            }
-            if (state is AuthSessionAuthenticated) {
-              return SingleChildScrollView(
-                physics: const BouncingScrollPhysics(),
-                padding: const EdgeInsets.only(top: 14),
-                child: AccountLoggedInView(user: state.user),
-              );
-            }
-            return const SingleChildScrollView(
-              physics: BouncingScrollPhysics(),
-              child: Column(
-                children: [AccountGuestView(), AccountOthersSection()],
               ),
             );
-          },
-        ),
+          }
+
+          if (state is AuthSessionAuthenticated) {
+            return CustomHeaderScaffold(
+              title: 'Akun Saya',
+              showBackButton: false,
+              actions: [
+                CustomHeaderActionButton(
+                  tooltip: 'Notifikasi',
+                  onPressed: () => AppSnackbar.show(
+                    context,
+                    message: 'Notifikasi akun akan segera tersedia',
+                    type: AppSnackbarType.info,
+                  ),
+                  icon: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      const Icon(
+                        Icons.notifications_none_rounded,
+                        color: Colors.white,
+                        size: 21,
+                      ),
+                      Positioned(
+                        right: 0,
+                        top: 0,
+                        child: Container(
+                          width: 7,
+                          height: 7,
+                          decoration: const BoxDecoration(
+                            color: AppColors.secondaryColor,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+              body: ListView(
+                padding: EdgeInsets.zero,
+                physics: const BouncingScrollPhysics(),
+                children: [
+                  AccountLoggedInView(user: state.user),
+                  const SizedBox(height: 14),
+                  const AccountOthersSection(),
+                  const SizedBox(height: 24),
+                ],
+              ),
+            );
+          }
+
+          return CustomHeaderScaffold(
+            title: 'Akun Saya',
+            showBackButton: false,
+            body: ListView(
+              padding: EdgeInsets.zero,
+              physics: const BouncingScrollPhysics(),
+              children: const [
+                AccountGuestView(),
+                SizedBox(height: 14),
+                AccountOthersSection(),
+                SizedBox(height: 24),
+              ],
+            ),
+          );
+        },
       ),
     );
   }

@@ -54,9 +54,16 @@ class _SearchPageState extends State<SearchPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return CustomHeaderScaffold(
+      title: '',
       backgroundColor: AppColors.background,
-      appBar: _buildAppBar(),
+      // contentColor: AppColors.background,
+      titleWidget: CustomHeaderSearchField(
+        controller: _searchController,
+        focusNode: _searchFocusNode,
+        onChanged: _onSearchChanged,
+        onClear: _clearSearch,
+      ),
       body: BlocBuilder<SearchBloc, SearchState>(
         builder: (context, state) {
           if (state is SearchStateLoading) {
@@ -84,20 +91,6 @@ class _SearchPageState extends State<SearchPage> {
 
           return const SizedBox.shrink();
         },
-      ),
-    );
-  }
-
-  // ================= APP BAR =================
-
-  PreferredSizeWidget _buildAppBar() {
-    return CustomHeaderAppBar(
-      height: 64,
-      titleWidget: CustomHeaderSearchField(
-        controller: _searchController,
-        focusNode: _searchFocusNode,
-        onChanged: _onSearchChanged,
-        onClear: _clearSearch,
       ),
     );
   }

@@ -26,7 +26,7 @@ class AccountLoggedInView extends StatelessWidget {
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 680),
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 28),
+              padding: const EdgeInsets.fromLTRB(0, 0, 0, 28),
               child: Column(
                 children: [
                   _ProfileCard(

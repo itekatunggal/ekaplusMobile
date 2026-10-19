@@ -58,12 +58,11 @@ class _CategoryPageState extends State<CategoryPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return CustomHeaderScaffold(
+      title: 'Kategori',
       backgroundColor: const Color(0xFFF6F7F9),
-      appBar: const CustomHeaderAppBar(
-        title: 'Kategori',
-        showBackButton: false,
-      ),
+      // contentColor: const Color(0xFFF6F7F9),
+      showBackButton: false,
       body: BlocBuilder<CategoryBloc, CategoryState>(
         builder: (context, state) {
           if (state is CategoryStateLoading) {

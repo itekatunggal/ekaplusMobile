@@ -1,4 +1,5 @@
 import 'dart:io' as io;
+
 import 'package:ekaplus_ekatunggal/constant.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
@@ -18,6 +19,8 @@ class CustomHeaderAppBar extends StatelessWidget
   final bool centerTitle;
   final double bottomRadius;
   final double? height;
+  final bool brandStyle;
+  final String brandLabel;
 
   const CustomHeaderAppBar({
     super.key,
@@ -33,12 +36,18 @@ class CustomHeaderAppBar extends StatelessWidget
     this.centerTitle = true,
     this.bottomRadius = 20,
     this.height,
+    this.brandStyle = false,
+    this.brandLabel = 'EKAPLUS',
   }) : assert(titleWidget != null || title != '');
 
   @override
   Widget build(BuildContext context) {
     final bool isIOS = io.Platform.isIOS;
     final hasSubtitle = subtitle != null && subtitle!.isNotEmpty;
+
+    if (brandStyle) {
+      return _buildBrandHeader(context, isIOS: isIOS);
+    }
 
     return Container(
       decoration: BoxDecoration(
@@ -144,10 +153,207 @@ class CustomHeaderAppBar extends StatelessWidget
     );
   }
 
+  Widget _buildBrandHeader(BuildContext context, {required bool isIOS}) {
+    return Container(
+      height: height,
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0xFFD52A2F), AppColors.primaryColor],
+        ),
+        borderRadius: BorderRadius.vertical(
+          bottom: Radius.circular(bottomRadius == 20 ? 28 : bottomRadius),
+        ),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x1F0F172A),
+            blurRadius: 12,
+            offset: Offset(0, 4),
+          ),
+        ],
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(
+            showBackButton ? 12 : 16,
+            8,
+            12,
+            height != null && height! >= 120 ? 44 : 14,
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              if (showBackButton) ...[
+                _HeaderIconButton(
+                  tooltip: 'Kembali',
+                  onPressed:
+                      onLeadingPressed ?? onBackPressed ?? () => context.pop(),
+                  icon: FaIcon(
+                    leadingIcon ?? FontAwesomeIcons.arrowLeft,
+                    color: AppColors.whiteColor,
+                    size: 17,
+                  ),
+                ),
+                const SizedBox(width: 10),
+              ],
+              Expanded(
+                child:
+                    titleWidget ??
+                    Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          brandLabel,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontFamily: AppFonts.primaryFont,
+                            color: Color(0xFFFECACA),
+                            fontSize: 9,
+                            fontWeight: FontWeight.w500,
+                            letterSpacing: .35,
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontFamily: AppFonts.primaryFont,
+                            color: AppColors.whiteColor,
+                            fontSize: isIOS ? 19 : 18,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: -.3,
+                          ),
+                        ),
+                        if (subtitle != null && subtitle!.isNotEmpty) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            subtitle!,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontFamily: AppFonts.primaryFont,
+                              color: AppColors.whiteColor.withOpacity(.72),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w400,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+              ),
+              if (actions.isNotEmpty) ...[
+                const SizedBox(width: 8),
+                Row(mainAxisSize: MainAxisSize.min, children: actions),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Size get preferredSize {
+    if (brandStyle) {
+      return Size.fromHeight(height ?? 82);
+    }
+
     final hasSubtitle = subtitle != null && subtitle!.isNotEmpty;
     return Size.fromHeight(height ?? (hasSubtitle ? 76 : 60));
+  }
+}
+
+/// Reusable layout untuk halaman utama seperti Customer dan Account.
+///
+/// Polanya:
+/// - header merah/gradient di bagian atas
+/// - background halaman abu-abu langsung setelah header
+/// - body overlap ke area header
+/// - TIDAK membungkus seluruh body dengan card putih
+///
+/// Jika ingin section putih, buat Container/Card putih di dalam [body].
+class CustomHeaderScaffold extends StatelessWidget {
+  const CustomHeaderScaffold({
+    super.key,
+    required this.title,
+    required this.body,
+    this.titleWidget,
+    this.subtitle,
+    this.actions = const [],
+    this.showBackButton = false,
+    this.onBackPressed,
+    this.onLeadingPressed,
+    this.leadingIcon,
+    this.backgroundColor = AppColors.background,
+    this.headerHeight = 154,
+    this.contentTop = 116,
+    this.bodyPadding = const EdgeInsets.symmetric(horizontal: 12),
+    this.resizeToAvoidBottomInset,
+  }) : assert(titleWidget != null || title != '');
+
+  final String title;
+  final Widget body;
+  final Widget? titleWidget;
+  final String? subtitle;
+  final List<Widget> actions;
+  final bool showBackButton;
+  final VoidCallback? onBackPressed;
+  final VoidCallback? onLeadingPressed;
+  final FaIconData? leadingIcon;
+  final Color backgroundColor;
+  final double headerHeight;
+  final double contentTop;
+  final EdgeInsetsGeometry bodyPadding;
+  final bool? resizeToAvoidBottomInset;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: backgroundColor,
+      resizeToAvoidBottomInset: resizeToAvoidBottomInset,
+      body: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            height: headerHeight,
+            child: CustomHeaderAppBar(
+              title: title,
+              titleWidget: titleWidget,
+              subtitle: subtitle,
+              actions: actions,
+              showBackButton: showBackButton,
+              onBackPressed: onBackPressed,
+              onLeadingPressed: onLeadingPressed,
+              leadingIcon: leadingIcon,
+              brandStyle: true,
+              height: headerHeight,
+              bottomRadius: 28,
+            ),
+          ),
+
+          // Body dibuat transparan terhadap Scaffold.
+          // Jadi area halaman akan langsung memakai AppColors.background
+          // seperti halaman Customer, bukan satu card putih besar.
+          Positioned.fill(
+            top: contentTop,
+            child: SafeArea(
+              top: false,
+              child: Padding(padding: bodyPadding, child: body),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -158,7 +364,7 @@ class CustomHeaderSearchField extends StatelessWidget {
     required this.onChanged,
     required this.onClear,
     this.focusNode,
-    this.hintText = 'Cari produk...',
+    this.hintText = 'Cari...',
   });
 
   final TextEditingController controller;

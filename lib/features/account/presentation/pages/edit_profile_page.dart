@@ -15,27 +15,26 @@ class EditProfilePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return CustomHeaderScaffold(
+      title: 'Ubah Profil',
       backgroundColor: const Color(0xFFF6F7F9),
-      appBar: CustomHeaderAppBar(
-        title: 'Ubah Profil',
-        onLeadingPressed: () => context.pop(),
-        actions: [
-          CustomHeaderActionButton(
-            tooltip: 'Bantuan',
-            onPressed: () => AppSnackbar.show(
-              context,
-              message: 'Pilih data yang ingin diubah',
-              type: AppSnackbarType.info,
-            ),
-            icon: const Icon(
-              Icons.help_outline_rounded,
-              color: Colors.white,
-              size: 20,
-            ),
+      // contentColor: const Color(0xFFF6F7F9),
+      onLeadingPressed: () => context.pop(),
+      actions: [
+        CustomHeaderActionButton(
+          tooltip: 'Bantuan',
+          onPressed: () => AppSnackbar.show(
+            context,
+            message: 'Pilih data yang ingin diubah',
+            type: AppSnackbarType.info,
           ),
-        ],
-      ),
+          icon: const Icon(
+            Icons.help_outline_rounded,
+            color: Colors.white,
+            size: 20,
+          ),
+        ),
+      ],
       body: BlocBuilder<AuthSessionCubit, AuthSessionState>(
         builder: (context, state) {
           if (state is AuthSessionLoading) {
