@@ -29,6 +29,8 @@ class ProductRemoteDatasourceImplementation extends ProductRemoteDatasource {
   List<dynamic> _filterVisibleVariants(List<dynamic> variants) {
     return variants.where((variant) {
       if (variant is! Map<String, dynamic>) return false;
+      if (!ResourceVisibility.isVisibleRecord(variant)) return false;
+
       final item = variant['item'];
       if (item is! Map<String, dynamic>) return false;
       return ResourceVisibility.isVisibleRecord(item);
@@ -67,7 +69,9 @@ class ProductRemoteDatasourceImplementation extends ProductRemoteDatasource {
           "alias": "variants",
           "table": "ekatalog_variant",
           "fields": ["item.id", "item.image", "item.disabled", "item.status"],
-          "limit": 1,
+          // Do not limit before client-side visibility filtering. The newest
+          // variant can be disabled while an older, visible variant still
+          // provides the product card image.
           "order_by": [
             ["item.updated_at", "desc"],
           ],
