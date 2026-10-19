@@ -1,5 +1,6 @@
 // lib/features/search/presentation/pages/search_page.dart
 import 'package:ekaplus_ekatunggal/core/config/api_config.dart';
+import 'package:ekaplus_ekatunggal/core/shared_widgets/custom_header.dart';
 import 'package:ekaplus_ekatunggal/features/product/presentation/pages/product_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -90,55 +91,13 @@ class _SearchPageState extends State<SearchPage> {
   // ================= APP BAR =================
 
   PreferredSizeWidget _buildAppBar() {
-    return AppBar(
-      backgroundColor: AppColors.primaryColor,
-      elevation: 0,
-      toolbarHeight: 80,
-      leading: IconButton(
-        icon: const Icon(Icons.arrow_back, color: Colors.white),
-        onPressed: () => context.pop(),
-      ),
-      title: Container(
-        height: 42,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(30),
-        ),
-        child: TextField(
-          controller: _searchController,
-          focusNode: _searchFocusNode,
-          onChanged: _onSearchChanged,
-          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-          decoration: InputDecoration(
-            hintText: 'Cari produk...',
-            hintStyle: TextStyle(
-              color: Colors.grey.shade500,
-              fontSize: 14,
-              fontWeight: FontWeight.w400,
-            ),
-            prefixIcon: FaIcon(
-              FontAwesomeIcons.magnifyingGlass,
-              color: Colors.grey.shade600,
-              size: 16,
-            ),
-            suffixIcon: _searchController.text.isNotEmpty
-                ? IconButton(
-                    icon: Icon(
-                      Icons.clear,
-                      color: Colors.grey.shade600,
-                      size: 20,
-                    ),
-                    onPressed: _clearSearch,
-                  )
-                : null,
-            border: InputBorder.none,
-            isDense: true,
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: 10,
-            ),
-          ),
-        ),
+    return CustomHeaderAppBar(
+      height: 64,
+      titleWidget: CustomHeaderSearchField(
+        controller: _searchController,
+        focusNode: _searchFocusNode,
+        onChanged: _onSearchChanged,
+        onClear: _clearSearch,
       ),
     );
   }

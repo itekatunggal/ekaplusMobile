@@ -1,1144 +1,114 @@
-# PRD — Implementasi Keamanan Biometrik Ekaplus Flutter
+# PRD Final — Login Biometrik Ekaplus Flutter
 
 ## 1. Latar Belakang
 
-Aplikasi Ekaplus saat ini menggunakan autentikasi utama melalui login aplikasi/backend.
+Aplikasi Ekaplus saat ini menggunakan login username/password ke backend.
 
-Tambahkan lapisan keamanan lokal menggunakan biometrik perangkat sehingga user dapat mengunci dan membuka kembali aplikasi menggunakan mekanisme biometrik yang tersedia pada perangkat.
+Tujuan fitur baru adalah mempermudah proses login dengan memanfaatkan kemampuan password manager dan biometric authentication dari perangkat.
 
-Biometrik yang digunakan mengikuti kemampuan sistem operasi, misalnya:
+Contoh pengalaman yang diinginkan:
 
-- Fingerprint
-- Face ID
-- Face Recognition
-- Biometrik lain yang didukung Android/iOS
+- Samsung Pass
+- Google Password Manager
+- iCloud Passwords
+- iOS Password AutoFill
+- Password manager lain yang terdaftar sebagai Autofill Service
 
-Aplikasi tidak boleh membuat implementasi fingerprint dan face recognition secara terpisah.
+User tidak perlu mengetik username dan password secara manual setiap kali login.
 
-Gunakan API biometrik native melalui Flutter package `local_auth`.
+Sebagai gantinya:
 
-Untuk penyimpanan session/token sensitif, gunakan secure storage berbasis:
+```text
+User membuka Login Screen
+        ↓
+Memilih credential tersimpan
+        ↓
+Fingerprint / Face ID / biometrik perangkat
+        ↓
+Username + password tersedia
+        ↓
+Form login terisi
+        ↓
+Login dikirim ke backend Ekaplus
+        ↓
+Backend melakukan login username/password seperti existing
+```
 
-- Android Keystore
-- iOS Keychain
+Fitur ini bukan biometric authentication terhadap backend.
 
-Implementasi tahap pertama hanya berada di aplikasi Flutter.
-
-**Tidak ada perubahan backend/API Ekaplus pada scope ini.**
+Backend tetap menggunakan mekanisme username/password existing.
 
 ---
 
 # 2. Tujuan
 
-Implementasi harus menghasilkan mekanisme keamanan berikut:
+Implementasi harus:
 
-1. User tetap login pertama kali menggunakan username/password seperti sekarang.
-2. Setelah login, user dapat mengaktifkan keamanan biometrik.
-3. Jika biometrik aktif, aplikasi akan terkunci ketika dibuka kembali sesuai aturan App Lock.
-4. User membuka aplikasi menggunakan fingerprint/Face ID/biometrik perangkat.
-5. Jika biometrik tidak dapat digunakan, user harus tetap bisa kembali ke mekanisme login normal.
-6. Token/session tidak boleh disimpan secara insecure.
-7. Biometric data tidak pernah disimpan atau dikirim ke server Ekaplus.
-
----
-
-# 3. Non-Goal
-
-Pada tahap ini JANGAN:
-
-- mengubah backend
-- membuat endpoint biometric login
-- mengirim informasi fingerprint/Face ID ke server
-- mengirim `biometric_verified=true` ke backend
-- membuat biometric sebagai identitas user di server
-- menggantikan login username/password sepenuhnya
-- membuat custom face recognition
-- menyimpan fingerprint
-- menyimpan face template
-- menyimpan PIN perangkat
-- membuat approval biometrik untuk transaksi bisnis
-
-Biometrik pada tahap ini hanya digunakan sebagai:
-
-> Local App Lock / Local Session Unlock
+1. mendukung autofill username/password pada Login Screen;
+2. kompatibel dengan password manager perangkat;
+3. memungkinkan user memakai fingerprint/Face ID apabila password manager perangkat meminta biometric verification;
+4. tetap menggunakan API login Ekaplus yang sekarang;
+5. tidak mengubah backend;
+6. tidak membuat endpoint biometric login;
+7. tidak menyimpan password user sendiri menggunakan Flutter;
+8. tidak membaca atau menyimpan data fingerprint/Face ID;
+9. tetap mendukung login manual username/password.
 
 ---
 
-# 4. Library
+# 3. Konsep Utama
 
-Gunakan:
+Biometrik bukan pengganti username/password pada backend.
 
-```yaml
-local_auth:
-flutter_secure_storage:
-```
+Biometrik digunakan oleh sistem operasi/password manager untuk memberikan akses terhadap credential yang telah tersimpan.
 
-Gunakan versi terbaru yang kompatibel dengan Flutter/project saat implementasi.
-
-Jangan melakukan downgrade dependency lain tanpa alasan yang diperlukan.
-
----
-
-# 5. Konsep Arsitektur
-
-Flow utama:
+Flow:
 
 ```text
-User Login
-    ↓
+Biometric
+   ↓
+Password Manager
+   ↓
 Username + Password
-    ↓
-Backend Ekaplus
-    ↓
-Login berhasil
-    ↓
-Access Token / Session
-    ↓
-Flutter Secure Storage
-    ↓
-User menggunakan aplikasi
+   ↓
+Ekaplus Login Form
+   ↓
+Existing Login API
+   ↓
+Backend
 ```
 
-Jika biometric lock aktif:
+Backend Ekaplus tetap menerima:
 
-```text
-App Dibuka
-    ↓
-Cek session tersedia
-    ↓
-Cek biometric_enabled
-    ↓
-YES
-    ↓
-Tampilkan App Lock
-    ↓
-local_auth
-    ↓
-Fingerprint / Face ID / Biometric OS
-    ↓
-Berhasil
-    ↓
-Unlock aplikasi
-```
-
-Biometrik bukan pengganti backend authentication.
-
-Biometrik hanya memberikan izin lokal kepada aplikasi untuk menggunakan session yang sebelumnya sudah diperoleh secara sah.
-
----
-
-# 6. Secure Storage
-
-Data sensitif tidak boleh disimpan di SharedPreferences.
-
-Token/session authentication harus menggunakan:
-
-```text
-flutter_secure_storage
-```
-
-Contoh data:
-
-```text
-access_token
-refresh_token
-session_token
-```
-
-Jika aplikasi saat ini menyimpan token menggunakan SharedPreferences, lakukan migrasi token authentication ke secure storage.
-
-Preference non-sensitif masih boleh menggunakan SharedPreferences, misalnya:
-
-```text
-biometric_enabled
-language
-theme
-first_launch
-```
-
-Namun untuk konsistensi, `biometric_enabled` juga boleh dimasukkan ke secure storage.
-
----
-
-# 7. Biometric Service
-
-Buat service terpisah.
-
-Contoh struktur:
-
-```text
-lib/
-  core/
-    security/
-      biometric_service.dart
-      secure_storage_service.dart
-      app_lock_service.dart
-```
-
-Nama folder boleh mengikuti arsitektur existing project.
-
-Jangan memaksakan struktur baru jika project sudah mempunyai pattern service/repository sendiri.
-
----
-
-# 8. BiometricService
-
-Service minimal menyediakan:
-
-```dart
-Future<bool> isDeviceSupported();
-
-Future<bool> canCheckBiometrics();
-
-Future<List<BiometricType>> getAvailableBiometrics();
-
-Future<bool> authenticate();
-```
-
-Authentication menggunakan:
-
-```dart
-LocalAuthentication.authenticate()
-```
-
-Reason:
-
-```text
-Verifikasi identitas untuk membuka Ekaplus
-```
-
-Gunakan biometric authentication native dari OS.
-
-Jangan membuat UI fingerprint/face custom yang meniru biometric prompt.
-
----
-
-# 9. Jangan Bedakan Fingerprint dan Face ID Dalam Logic Login
-
-Hindari implementasi seperti:
-
-```dart
-if (fingerprintAvailable) {
-   fingerprintLogin();
-} else if (faceAvailable) {
-   faceLogin();
+```json
+{
+  "username": "...",
+  "password": "..."
 }
 ```
 
-Gunakan satu mekanisme:
-
-```dart
-authenticate()
-```
-
-OS menentukan biometrik yang tersedia.
-
-`getAvailableBiometrics()` hanya boleh digunakan jika dibutuhkan untuk UI/informasi.
-
-Contoh:
-
-```text
-Biometrik tersedia
-Face ID tersedia
-Fingerprint tersedia
-```
-
-Bukan untuk menentukan flow authentication utama.
+sesuai mekanisme existing.
 
 ---
 
-# 10. Setting Security
+# 4. Hal yang Tidak Boleh Dilakukan
 
-Tambahkan menu:
-
-```text
-Settings
-  → Security
-```
-
-atau mengikuti lokasi menu pengaturan yang sudah ada.
-
-UI:
+JANGAN membuat flow:
 
 ```text
-Keamanan
-
-Login Biometrik
-
-[ Toggle ON/OFF ]
-
-Gunakan fingerprint, Face ID, atau biometrik
-perangkat untuk membuka aplikasi Ekaplus.
+Fingerprint
+→ backend biometric login
 ```
 
-Gunakan i18n jika project sudah menggunakan localization.
-
-Bahasa Indonesia:
-
-```text
-Keamanan
-Login Biometrik
-Gunakan biometrik perangkat untuk membuka Ekaplus.
-```
-
-Bahasa Inggris:
-
-```text
-Security
-Biometric Login
-Use device biometrics to unlock Ekaplus.
-```
-
----
-
-# 11. Mengaktifkan Biometrik
-
-Ketika user mengubah:
-
-```text
-Biometric OFF → ON
-```
-
-Jangan langsung menyimpan:
-
-```text
-biometric_enabled = true
-```
-
-Flow wajib:
-
-```text
-Toggle ON
-   ↓
-Check device support
-   ↓
-Check biometric enrollment
-   ↓
-Authenticate biometric
-   ↓
-Success
-   ↓
-Save biometric_enabled=true
-```
-
-Jika authenticate gagal:
-
-```text
-biometric_enabled tetap false
-```
-
----
-
-# 12. Dialog Aktivasi
-
-Saat user mengaktifkan:
-
-```text
-Aktifkan Login Biometrik?
-
-Setelah diaktifkan, Anda dapat membuka Ekaplus
-menggunakan biometrik perangkat ini.
-
-[Batal] [Aktifkan]
-```
-
-Setelah menekan Aktifkan:
-
-```text
-OS biometric prompt
-```
-
-Jika berhasil:
-
-```text
-Login biometrik berhasil diaktifkan.
-```
-
----
-
-# 13. Device Tidak Mendukung Biometrik
-
-Jika device tidak memiliki biometric hardware:
-
-Toggle sebaiknya disabled.
-
-Tampilkan:
-
-```text
-Biometrik tidak didukung pada perangkat ini.
-```
-
-Jangan menghasilkan exception/crash.
-
----
-
-# 14. Device Mendukung Tetapi Belum Enroll
-
-Contoh:
-
-- fingerprint belum didaftarkan
-- Face ID belum dikonfigurasi
-
-Tampilkan informasi:
-
-```text
-Biometrik belum diatur pada perangkat.
-
-Silakan aktifkan fingerprint, Face ID, atau biometrik
-lainnya melalui pengaturan perangkat.
-```
-
-Jangan mengaktifkan biometric setting.
-
----
-
-# 15. Menonaktifkan Biometrik
-
-Ketika:
-
-```text
-ON → OFF
-```
-
-Untuk keamanan, minta autentikasi biometric terlebih dahulu jika biometric masih tersedia.
-
-Flow:
-
-```text
-Toggle OFF
-   ↓
-Authenticate
-   ↓
-Success
-   ↓
-biometric_enabled=false
-```
-
-Jika biometric sudah tidak tersedia karena user menghapus biometric dari device, aplikasi boleh meminta user login ulang menggunakan password.
-
-Setelah login sukses:
-
-```text
-biometric_enabled=false
-```
-
----
-
-# 16. App Lock Screen
-
-Ketika biometric aktif dan aplikasi membutuhkan unlock, tampilkan screen khusus.
-
-Contoh:
-
-```text
---------------------------------
-
-             EKAPLUS
-
-        Aplikasi Terkunci
-
-Gunakan biometrik untuk membuka Ekaplus.
-
-       [ Buka dengan Biometrik ]
-
-          Login Ulang
-
---------------------------------
-```
-
-Jangan menampilkan data aplikasi sensitif di belakang App Lock.
-
----
-
-# 17. App Startup Flow
-
-Pada cold start:
-
-```text
-App Start
-   ↓
-Initialize
-   ↓
-Check session/token
-   ↓
-Token tidak ada
-   → Login Screen
-
-Token ada
-   ↓
-Check biometric_enabled
-   ↓
-false
-   → masuk aplikasi seperti sekarang
-
-true
-   ↓
-App Lock
-   ↓
-Authenticate
-   ↓
-Success
-   → Home
-
-Failure
-   → tetap App Lock
-```
-
----
-
-# 18. Jangan Auto Logout Saat Biometrik Gagal
-
-Jika biometric authentication gagal:
-
-JANGAN:
-
-```text
-hapus token
-logout backend
-hapus session
-```
-
-Biometric failure berbeda dengan invalid authentication session.
-
-Biometric failure hanya berarti aplikasi belum boleh dibuka.
-
----
-
-# 19. Login Ulang Sebagai Fallback
-
-Pada App Lock screen sediakan:
-
-```text
-Login Ulang
-```
-
-Jika ditekan:
-
-1. hapus token/session lokal
-2. reset biometric unlock state
-3. arahkan ke login screen
-4. user login username/password
-
-Jangan menonaktifkan preference biometric secara otomatis kecuali memang diperlukan.
-
-Setelah user login kembali, biometric tetap boleh aktif jika perangkat masih mendukung.
-
----
-
-# 20. Background / Foreground Security
-
-Tambahkan lifecycle handling.
-
-Monitor:
-
-```dart
-AppLifecycleState
-```
-
-Khusus:
-
-```text
-inactive
-paused
-resumed
-detached
-hidden
-```
-
-Jangan langsung lock setiap aplikasi kehilangan focus beberapa milidetik karena OS biometric prompt sendiri dapat mengubah lifecycle state.
-
-Harus mencegah infinite loop seperti:
-
-```text
-authenticate
-↓
-OS prompt muncul
-↓
-app paused
-↓
-lock lagi
-↓
-authenticate lagi
-```
-
-Gunakan state seperti:
-
-```dart
-bool _isAuthenticating = false;
-bool _isUnlocked = false;
-DateTime? _backgroundAt;
-```
-
----
-
-# 21. Background Lock Timeout
-
-Gunakan aturan:
-
-```text
-Cold Start
-→ selalu biometric lock jika biometric_enabled=true
-```
-
-Untuk background → foreground:
-
-Gunakan default timeout:
-
-```text
-1 menit
-```
-
-Contoh:
-
-```text
-User pindah aplikasi 10 detik
-→ tidak perlu biometric lagi
-
-User pindah aplikasi >1 menit
-→ biometric lock
-```
-
-Buat konstanta:
-
-```dart
-const biometricLockTimeout = Duration(minutes: 1);
-```
-
-Jangan hardcode angka di banyak file.
-
-Ke depan timeout dapat dibuat configurable.
-
----
-
-# 22. Kondisi Logout
-
-Saat user menekan Logout:
-
-Wajib:
-
-```text
-delete access token
-delete refresh token
-delete session
-reset unlocked state
-```
-
-Biometric preference boleh tetap tersimpan.
-
-Artinya:
-
-```text
-biometric_enabled=true
-```
-
-tetapi biometric tidak boleh dapat login tanpa session.
-
-User tetap harus melakukan username/password login terlebih dahulu.
-
----
-
-# 23. Kondisi Token Expired
-
-Flow:
-
-```text
-Biometric success
-   ↓
-App unlocked
-   ↓
-API dipanggil
-   ↓
-Backend mengatakan token expired
-   ↓
-refresh token
-```
-
-Jika refresh gagal:
-
-```text
-clear authentication token
-→ Login Screen
-```
-
-Jangan berasumsi biometric success berarti session backend valid.
-
----
-
-# 24. Security Rule
-
-Biometric success tidak boleh membuat token baru.
-
-Dilarang:
-
-```dart
-if (biometricSuccess) {
-   token = "something";
-}
-```
-
-Token hanya boleh berasal dari backend authentication.
-
----
-
-# 25. Data Biometrik
-
-Aplikasi tidak boleh:
-
-- membaca fingerprint image
-- membaca face image
-- menyimpan biometric template
-- mengirim biometric template
-- mengirim fingerprint data
-- mengirim Face ID data
-
-Yang diterima aplikasi hanya:
-
-```text
-authentication success / failure
-```
-
-Native OS menangani semua biometric verification.
-
----
-
-# 26. Android Configuration
-
-Tambahkan permission:
-
-```xml
-<uses-permission android:name="android.permission.USE_BIOMETRIC" />
-```
-
-Pastikan activity compatible dengan kebutuhan `local_auth`.
-
-Jika package membutuhkan:
-
-```kotlin
-FlutterFragmentActivity
-```
-
-ubah MainActivity sesuai kebutuhan plugin.
-
-Pastikan tidak merusak plugin Flutter existing.
-
----
-
-# 27. iOS Configuration
-
-Tambahkan:
-
-```xml
-<key>NSFaceIDUsageDescription</key>
-<string>Face ID digunakan untuk mengamankan akses ke aplikasi Ekaplus.</string>
-```
-
-Gunakan localization bila Info.plist localization sudah digunakan project.
-
----
-
-# 28. Error Handling
-
-Semua biometric exception harus ditangani.
-
-Contoh kondisi:
-
-```text
-NotAvailable
-NotEnrolled
-LockedOut
-PermanentlyLockedOut
-UserCanceled
-SystemCanceled
-PasscodeNotSet
-```
-
-Jangan tampilkan raw exception ke user.
-
-Contoh buruk:
-
-```text
-PlatformException(NotAvailable, ...)
-```
-
-Tampilkan pesan manusiawi.
-
----
-
-# 29. Failed Authentication
-
-Jika user gagal fingerprint/Face ID:
-
-Tetap tampilkan App Lock.
-
-Contoh:
-
-```text
-Biometrik tidak berhasil diverifikasi.
-Silakan coba kembali.
-```
-
-Jangan logout.
-
----
-
-# 30. User Cancel
-
-Jika user menutup biometric prompt:
-
-Tetap di App Lock.
-
-Tidak perlu dianggap error fatal.
-
-User bisa tekan:
-
-```text
-Buka dengan Biometrik
-```
-
-lagi.
-
----
-
-# 31. Biometric Locked Out
-
-Jika terlalu banyak percobaan gagal:
-
-Tampilkan:
-
-```text
-Biometrik sementara terkunci.
-
-Silakan coba kembali nanti atau gunakan Login Ulang.
-```
-
-Jika permanently locked:
-
-```text
-Biometrik tidak dapat digunakan.
-
-Silakan login ulang atau periksa pengaturan keamanan perangkat.
-```
-
----
-
-# 32. Perubahan Biometric Device
-
-Perhatikan kondisi user:
-
-1. mengaktifkan biometrik di Ekaplus
-2. kemudian menambahkan/menghapus fingerprint di Settings HP
-
-Jika biometric tidak lagi dapat dipakai:
-
-```text
-App Lock
-→ biometric unavailable
-→ tampilkan Login Ulang
-```
-
-Jangan menyebabkan user permanently terkunci dari aplikasi.
-
----
-
-# 33. Reinstall Application
-
-Setelah uninstall/reinstall:
-
-Jangan mengandalkan biometric preference lama.
-
-Secure storage/keychain behavior dapat berbeda antar platform.
-
-Aplikasi harus tetap mampu menentukan:
-
-```text
-session tersedia?
-biometric setting valid?
-```
-
-Jika state tidak konsisten:
-
-```text
-clear authentication state
-→ login normal
-```
-
-Fail securely.
-
----
-
-# 34. Root/Jailbreak
-
-Root/jailbreak detection bukan bagian scope PRD ini.
-
-Jangan menambahkan library root detection tanpa requirement terpisah.
-
----
-
-# 35. Sensitive Screenshot
-
-Saat App Lock aktif, jangan membiarkan isi aplikasi terlihat jelas melalui App Switcher jika project sudah memiliki mekanisme privacy screen.
-
-Jika belum ada, buat implementasi dengan risiko rendah jika memungkinkan tanpa merusak UX.
-
-Prioritas:
-
-```text
-App Lock muncul secepat mungkin ketika resume.
-```
-
-Privacy screen penuh dapat dibuat PRD terpisah jika kompleks.
-
----
-
-# 36. State Management
-
-Ikuti state management project existing.
-
-Jika project menggunakan Bloc/Cubit:
-
-Buat misalnya:
-
-```text
-SecurityCubit
-AppLockCubit
-```
-
-State contoh:
-
-```text
-SecurityInitial
-SecurityChecking
-SecurityAvailable
-SecurityUnavailable
-SecurityAuthenticating
-SecurityEnabled
-SecurityDisabled
-SecurityError
-```
-
-Jangan memperkenalkan Provider/Riverpod baru jika project sudah menggunakan Bloc.
-
----
-
-# 37. Suggested Domain Model
-
-Contoh:
-
-```dart
-enum AppLockStatus {
-  disabled,
-  locked,
-  authenticating,
-  unlocked,
-}
-```
-
-AppLock controller/service bertanggung jawab menentukan:
-
-```text
-needLock
-isUnlocked
-shouldLockOnResume
-```
-
----
-
-# 38. Single Authentication Request
-
-Jangan jalankan beberapa biometric prompt bersamaan.
-
-Gunakan guard:
-
-```dart
-if (_isAuthenticating) return;
-```
-
-Contoh bug yang harus dicegah:
-
-```text
-build()
-→ authenticate()
-
-rebuild()
-→ authenticate()
-
-resume()
-→ authenticate()
-```
-
-Biometric call jangan diletakkan langsung di `build()`.
-
-Gunakan lifecycle/event/controller yang jelas.
-
----
-
-# 39. Navigasi
-
-User tidak boleh bisa bypass App Lock menggunakan:
-
-- Android back button
-- deep link
-- notification navigation
-- route restoration
-- tab navigation
-
-Jika app dalam kondisi:
-
-```text
-locked
-```
-
-seluruh protected route harus tetap berada di belakang App Lock.
-
----
-
-# 40. Deep Link / Notification
-
-Jika notification membuka route:
-
-```text
-/customer/123
-```
-
-dan aplikasi locked:
-
-```text
-notification tap
-↓
-App Lock
-↓
-Biometric success
-↓
-baru buka /customer/123
-```
-
-Jangan langsung membuka screen tujuan sebelum unlock.
-
-Jika project belum memiliki deep link/notification routing, jangan membangun fitur baru hanya untuk PRD ini.
-
-Tetapi arsitektur lock tidak boleh menghalangi implementasi tersebut di kemudian hari.
-
----
-
-# 41. Multi Account
-
-Jika Ekaplus mendukung logout → login akun berbeda:
-
-Biometric unlock hanya membuka session akun yang sedang tersimpan.
-
-Jangan menyimpan mapping:
-
-```text
-fingerprint → user A
-face ID → user B
-```
-
-OS biometric tidak memberikan identitas biometric tersebut.
-
----
-
-# 42. UI Behaviour
-
-Saat authentication sedang berjalan:
-
-Disable button:
-
-```text
-Buka dengan Biometrik
-```
-
-untuk mencegah double tap.
-
-Boleh tampilkan:
-
-```text
-Memverifikasi...
-```
-
-Setelah selesai:
-
-```text
-button aktif kembali
-```
-
-jika authentication gagal/cancel.
-
----
-
-# 43. Localization
-
-Semua string baru masukkan ke localization existing.
-
-Minimal:
-
-```text
-security
-biometricLogin
-biometricDescription
-enableBiometric
-disableBiometric
-unlockApp
-appLocked
-authenticateToContinue
-biometricNotAvailable
-biometricNotEnrolled
-biometricFailed
-biometricLocked
-loginAgain
-cancel
-enable
-```
-
-Bahasa minimal:
-
-```text
-id
-en
-```
-
-jika project Ekaplus memang sudah mempunyai kedua bahasa tersebut.
-
----
-
-# 44. Logging
-
-Jangan log:
-
-```text
-access token
-refresh token
-password
-secure storage content
-```
-
-Boleh log secara development:
-
-```text
-biometric auth requested
-biometric auth success
-biometric auth cancelled
-biometric unavailable
-```
-
-Tetapi hindari log sensitif.
-
----
-
-# 45. Backend
-
-Tidak ada perubahan backend.
-
-Tidak perlu membuat:
+JANGAN membuat endpoint seperti:
 
 ```text
 POST /biometric/login
-POST /biometric/verify
 POST /biometric/register
+POST /biometric/verify
 ```
 
-Tidak perlu mengubah schema user.
-
-Tidak perlu membuat field:
+JANGAN membuat field backend seperti:
 
 ```text
 fingerprint_id
@@ -1146,29 +116,7 @@ face_id
 biometric_token
 ```
 
-Biometric authentication adalah local device security.
-
----
-
-# 46. Future Scope
-
-Desain jangan menghalangi implementasi tahap berikutnya:
-
-## Phase 2 — Biometric Re-Authentication
-
-Digunakan sebelum action sensitif seperti:
-
-```text
-Approve Credit Limit
-Approve Overdue
-Perubahan Credit Policy
-Perubahan Rekening
-Approval penting
-```
-
-Tetapi JANGAN implementasikan Phase 2 sekarang.
-
-Phase 2 perlu security design sendiri karena action sensitif tidak boleh hanya bergantung pada:
+JANGAN mengirim:
 
 ```json
 {
@@ -1176,325 +124,1368 @@ Phase 2 perlu security design sendiri karena action sensitif tidak boleh hanya b
 }
 ```
 
-yang bisa dimanipulasi oleh client.
+sebagai dasar login.
+
+JANGAN menyimpan:
+
+- password plaintext;
+- password terenkripsi buatan sendiri;
+- fingerprint data;
+- Face ID data;
+- biometric template;
+- biometric image.
 
 ---
 
-# 47. Acceptance Criteria
+# 5. Backend
 
-## AC-01
+Tidak ada perubahan backend dalam task ini.
 
-Device mempunyai fingerprint/Face ID.
+Existing login endpoint tetap digunakan.
 
-User dapat mengaktifkan:
+Contoh flow:
 
 ```text
+Flutter
+   ↓
+username/password
+   ↓
+Existing Ekaplus Login API
+   ↓
+Access Token / Refresh Token
+```
+
+Semua validation dan authentication backend tetap existing.
+
+---
+
+# 6. Existing Session Storage
+
+Project sudah menggunakan:
+
+```text
+flutter_secure_storage ^10.0.0
+```
+
+melalui existing SessionManager untuk:
+
+- access token;
+- refresh token.
+
+Pertahankan mekanisme ini.
+
+Tidak perlu menambahkan secure storage baru.
+
+Tidak perlu memindahkan token dari SharedPreferences.
+
+JANGAN menyimpan password user di `flutter_secure_storage` untuk fitur ini.
+
+Password harus dikelola oleh password manager sistem.
+
+---
+
+# 7. Dependency
+
+Tidak wajib menggunakan:
+
+```text
+local_auth
+```
+
+untuk Login Autofill.
+
+Alasannya:
+
+biometric verification dilakukan oleh password manager atau OS ketika user memilih credential tersimpan.
+
+Untuk fitur ini fokus pada:
+
+```text
+Flutter Autofill API
+```
+
+Gunakan widget dan hint native Flutter.
+
+Contoh:
+
+```dart
+AutofillGroup(
+  child: Column(
+    children: [
+      TextFormField(
+        autofillHints: const [
+          AutofillHints.username,
+        ],
+      ),
+      TextFormField(
+        obscureText: true,
+        autofillHints: const [
+          AutofillHints.password,
+        ],
+      ),
+    ],
+  ),
+)
+```
+
+Jika project menggunakan custom input widget, tambahkan dukungan `autofillHints` pada widget tersebut.
+
+---
+
+# 8. Login Screen
+
+Login Screen tetap mempunyai:
+
+```text
+Username
+Password
+
+[ Login ]
+```
+
+Tidak perlu menambahkan tombol custom:
+
+```text
+Login dengan Fingerprint
+Login dengan Face ID
 Login Biometrik
 ```
 
-dan harus melakukan biometric verification sebelum setting tersimpan.
+Password manager native akan muncul melalui mekanisme Autofill.
+
+Contoh UX:
+
+```text
+Username
+[ __________________ ]
+
+Password
+[ __________________ ]
+
+Samsung Pass / Passwords suggestion
+```
+
+Ketika user memilih credential:
+
+```text
+Fingerprint / Face ID
+        ↓
+credential terbuka
+        ↓
+field terisi
+```
+
+---
+
+# 9. Autofill Username
+
+Field username harus menggunakan:
+
+```dart
+autofillHints: const [
+  AutofillHints.username,
+]
+```
+
+Jika backend Ekaplus sebenarnya menggunakan email sebagai login, boleh gunakan:
+
+```dart
+AutofillHints.username
+```
+
+dan bila sesuai struktur project bisa juga mempertimbangkan:
+
+```dart
+AutofillHints.email
+```
+
+Tetapi jangan membuat hint yang bertentangan dengan tipe credential existing.
+
+---
+
+# 10. Autofill Password
+
+Field password harus menggunakan:
+
+```dart
+autofillHints: const [
+  AutofillHints.password,
+]
+```
+
+Password field tetap:
+
+```dart
+obscureText: true
+```
+
+Existing show/hide password tetap dipertahankan.
+
+---
+
+# 11. AutofillGroup
+
+Username dan password harus berada dalam satu:
+
+```dart
+AutofillGroup
+```
+
+agar OS memahami bahwa kedua field merupakan satu credential set.
+
+Contoh:
+
+```dart
+AutofillGroup(
+  child: Column(
+    children: [
+      usernameField,
+      passwordField,
+    ],
+  ),
+)
+```
+
+Jangan memisahkan field login ke AutofillGroup yang berbeda.
+
+---
+
+# 12. Login Submit
+
+Setelah credential terisi melalui Autofill:
+
+existing login flow tetap digunakan.
+
+Contoh:
+
+```text
+Autofill
+   ↓
+usernameController.text
+passwordController.text
+   ↓
+existing LoginCubit
+   ↓
+existing login repository
+   ↓
+existing API
+```
+
+Jangan membuat login path khusus biometric.
+
+---
+
+# 13. Autofill Tidak Boleh Bypass Validation
+
+Jika Login Screen memiliki validation:
+
+```text
+username required
+password required
+```
+
+tetap gunakan validation existing.
+
+Credential yang berasal dari password manager diperlakukan sama seperti input manual.
+
+---
+
+# 14. Login Manual Tetap Wajib Berfungsi
+
+Jika user:
+
+- tidak punya password manager;
+- tidak menyimpan credential;
+- tidak mengaktifkan biometric;
+- tidak ingin menggunakan autofill;
+
+maka user tetap dapat mengetik:
+
+```text
+username
+password
+```
+
+secara manual.
+
+Autofill adalah convenience feature, bukan requirement login.
+
+---
+
+# 15. Password Manager Android
+
+Android dapat menggunakan password manager/autofill service seperti:
+
+- Google Password Manager
+- Samsung Pass
+- password manager lain yang user pilih
+
+Aplikasi tidak boleh melakukan hardcode untuk:
+
+```text
+Samsung Pass
+```
+
+karena tidak semua Android memakai Samsung.
+
+Gunakan Android Autofill framework melalui Flutter.
+
+---
+
+# 16. Password Manager iOS
+
+iOS dapat menggunakan:
+
+- iCloud Passwords
+- Password AutoFill
+- password manager lain yang terintegrasi dengan iOS
+
+Aplikasi tidak perlu membuat Face ID implementation sendiri.
+
+Ketika password manager membutuhkan autentikasi:
+
+```text
+Face ID
+Touch ID
+device authentication
+```
+
+dikelola oleh iOS.
+
+---
+
+# 17. Biometric Responsibility
+
+Biometric authentication dalam flow ini merupakan tanggung jawab:
+
+```text
+Operating System / Password Manager
+```
+
+bukan aplikasi Ekaplus.
+
+Ekaplus hanya menerima hasil autofill berupa:
+
+```text
+username
+password
+```
+
+di field login.
+
+Aplikasi tidak mengetahui:
+
+```text
+fingerprint mana
+face mana
+biometric type mana
+```
+
+yang digunakan user.
+
+---
+
+# 18. Credential Saving
+
+Setelah login berhasil, OS/password manager boleh menawarkan:
+
+```text
+Save Password?
+```
+
+atau:
+
+```text
+Update Password?
+```
+
+jika memang didukung oleh platform/password manager.
+
+Ekaplus tidak perlu membuat dialog sendiri:
+
+```text
+Simpan password di Ekaplus?
+```
+
+Jangan menyimpan password di storage aplikasi.
+
+---
+
+# 19. Autofill Finish
+
+Setelah login berhasil, gunakan:
+
+```dart
+TextInput.finishAutofillContext();
+```
+
+jika sesuai dengan lifecycle form dan implementasi Flutter version project.
+
+Tujuannya memberi sinyal bahwa proses login/autofill telah selesai sehingga OS dapat menangani save/update credential.
+
+Codex harus memeriksa implementasi Flutter yang kompatibel dengan project sebelum memanggil API ini.
+
+---
+
+# 20. Autofill Cancel / Failure
+
+Jika Autofill tidak muncul atau user cancel:
+
+tidak ada error.
+
+User tetap bisa login manual.
+
+Tidak perlu menampilkan:
+
+```text
+Biometric gagal
+```
+
+karena Ekaplus tidak mengontrol proses biometric password manager.
+
+---
+
+# 21. Jangan Memanggil local_auth
+
+Untuk flow Login Autofill ini:
+
+JANGAN memanggil:
+
+```dart
+LocalAuthentication.authenticate()
+```
+
+sebelum Autofill.
+
+Contoh yang salah:
+
+```text
+User klik login
+→ Ekaplus minta fingerprint
+→ setelah sukses isi username/password sendiri
+```
+
+Itu berarti aplikasi harus menyimpan credential sendiri, dan bukan flow yang diinginkan.
+
+Biometric challenge harus berasal dari password manager/OS.
+
+---
+
+# 22. Tidak Menyimpan Credential Sendiri
+
+Jangan membuat:
+
+```dart
+secureStorage.write(
+  key: 'saved_username',
+  value: username,
+);
+
+secureStorage.write(
+  key: 'saved_password',
+  value: password,
+);
+```
+
+terutama untuk password.
+
+Jika username existing memang sudah disimpan untuk UX seperti remember username, boleh dipertahankan sesuai existing behavior.
+
+Tetapi password login tidak boleh disimpan oleh aplikasi untuk kemudian dipakai ulang.
+
+---
+
+# 23. Existing Session
+
+Setelah login berhasil:
+
+```text
+username/password
+   ↓
+backend login
+   ↓
+access token
+refresh token
+```
+
+Existing SessionManager tetap menangani token.
+
+Jika session masih valid, existing aplikasi boleh tetap masuk sesuai current behavior.
+
+Fitur ini tidak mengubah session lifetime.
+
+---
+
+# 24. App Lock Bukan Bagian Task Ini
+
+PRD sebelumnya membahas:
+
+```text
+Face ID / fingerprint
+→ membuka existing session
+→ App Lock
+```
+
+Konsep tersebut adalah fitur berbeda.
+
+Untuk PRD ini:
+
+```text
+App Lock tidak termasuk scope.
+```
+
+Jangan implementasikan:
+
+- global biometric gate;
+- biometric lock setelah background;
+- biometric timeout;
+- AppLockCubit;
+- lock overlay;
+- biometric unlock token.
+
+Jika suatu saat dibutuhkan, buat PRD terpisah.
+
+---
+
+# 25. UX Final
+
+Login Screen:
+
+```text
+┌───────────────────────────────┐
+│            EKAPLUS            │
+│                               │
+│ Username                      │
+│ [_________________________]   │
+│                               │
+│ Password                      │
+│ [_________________________] 👁 │
+│                               │
+│          [ LOGIN ]            │
+│                               │
+└───────────────────────────────┘
+```
+
+Jika password manager mendeteksi form:
+
+```text
+┌───────────────────────────────┐
+│ yuda@example.com              │
+│ Google Password Manager       │
+└───────────────────────────────┘
+```
+
+atau:
+
+```text
+Samsung Pass
+```
+
+atau:
+
+```text
+Passwords
+```
+
+User memilih credential.
+
+Kemudian OS/password manager dapat meminta:
+
+```text
+Fingerprint
+Face ID
+Touch ID
+```
+
+Setelah sukses:
+
+```text
+Username terisi
+Password terisi
+```
+
+Kemudian login menggunakan existing API.
+
+---
+
+# 26. Flow Lengkap
+
+## Scenario A — Login Manual
+
+```text
+Login Screen
+    ↓
+User ketik username/password
+    ↓
+Login
+    ↓
+Existing API
+    ↓
+Success
+    ↓
+Home
+```
+
+---
+
+## Scenario B — Google Password Manager
+
+```text
+Login Screen
+    ↓
+User memilih credential
+    ↓
+Google Password Manager
+    ↓
+Fingerprint / biometric jika diminta
+    ↓
+Username/password autofill
+    ↓
+Login
+    ↓
+Existing API
+    ↓
+Success
+```
+
+---
+
+## Scenario C — Samsung Pass
+
+```text
+Login Screen
+    ↓
+Samsung Pass suggestion
+    ↓
+User pilih credential
+    ↓
+Fingerprint / biometric
+    ↓
+Username/password autofill
+    ↓
+Existing Login
+```
+
+---
+
+## Scenario D — iPhone
+
+```text
+Login Screen
+    ↓
+Passwords / Password AutoFill
+    ↓
+Face ID / Touch ID jika diminta
+    ↓
+Username/password autofill
+    ↓
+Existing Login
+```
+
+---
+
+# 27. Tidak Ada Perbedaan Backend
+
+Semua scenario akhirnya menjadi:
+
+```text
+POST existing login endpoint
+
+username = ...
+password = ...
+```
+
+Backend tidak perlu tahu apakah credential berasal dari:
+
+```text
+manual typing
+Samsung Pass
+Google Password Manager
+iCloud Passwords
+```
+
+Semua dianggap sama.
+
+---
+
+# 28. Custom Login Widget
+
+Project Ekaplus mungkin menggunakan custom widget untuk TextField.
+
+Codex harus memeriksa apakah custom widget menerima:
+
+```dart
+autofillHints
+textInputAction
+keyboardType
+obscureText
+controller
+```
+
+Jika belum, extend widget existing.
+
+Jangan mengganti semua input widget project hanya untuk fitur ini.
+
+---
+
+# 29. Keyboard Configuration
+
+Username field sebaiknya:
+
+```dart
+textInputAction: TextInputAction.next
+```
+
+Password:
+
+```dart
+textInputAction: TextInputAction.done
+```
+
+Jika user menekan Done pada password:
+
+jalankan existing submit/login jika validation valid.
+
+---
+
+# 30. Credential Association
+
+Agar password manager mengenali aplikasi/site dengan baik, Codex harus memeriksa apakah project memerlukan konfigurasi tambahan untuk credential association.
+
+Android dapat memerlukan konfigurasi terkait domain/app association tergantung password manager dan target implementation.
+
+iOS dapat memerlukan Associated Domains jika ingin association yang lebih kuat antara aplikasi dan credential website.
+
+Namun:
+
+jangan menambahkan konfigurasi tersebut secara sembarangan.
+
+Pertama analisis:
+
+- existing package/application ID;
+- domain login Ekaplus;
+- apakah credential website juga digunakan;
+- apakah association diperlukan oleh target behavior.
+
+Jika autofill native sudah bekerja tanpa association tambahan, jangan menambah complexity.
+
+Jika association diperlukan, laporkan terlebih dahulu konfigurasi yang ditambahkan.
+
+---
+
+# 31. Android Configuration
+
+Periksa:
+
+```text
+AndroidManifest.xml
+MainActivity
+minSdk
+targetSdk
+Flutter version
+```
+
+Untuk Autofill standard Flutter biasanya tidak perlu permission biometric.
+
+JANGAN menambahkan:
+
+```xml
+<uses-permission android:name="android.permission.USE_BIOMETRIC" />
+```
+
+hanya untuk fitur Password Autofill jika aplikasi sendiri tidak memanggil biometric API.
+
+Biometric prompt milik password manager tidak membutuhkan permission biometric aplikasi Ekaplus.
+
+---
+
+# 32. iOS Configuration
+
+Untuk Password AutoFill standard:
+
+jangan menambahkan:
+
+```text
+NSFaceIDUsageDescription
+```
+
+hanya karena password manager dapat memakai Face ID.
+
+Ekaplus tidak memanggil Face ID secara langsung.
+
+`NSFaceIDUsageDescription` hanya diperlukan jika aplikasi sendiri menggunakan Face ID/local authentication.
+
+Jika tidak menggunakan `local_auth`, jangan menambahkan konfigurasi Face ID yang tidak diperlukan.
+
+---
+
+# 33. Dependency local_auth
+
+Keputusan final untuk task ini:
+
+```text
+local_auth tidak perlu ditambahkan
+```
+
+kecuali setelah analisis Codex ternyata ada requirement lain yang benar-benar membutuhkan biometric authentication langsung dari Ekaplus.
+
+Jangan menambahkan dependency yang tidak digunakan.
+
+---
+
+# 34. Security
+
+Credential handling harus mengikuti:
+
+```text
+password manager → TextField → existing login request
+```
+
+Jangan log isi password.
+
+Jangan log:
+
+```text
+username/password payload lengkap
+```
+
+jika existing project saat ini melakukannya, minimal pastikan password di-redact.
+
+Contoh aman:
+
+```text
+login request for user: yuda
+```
+
+bukan:
+
+```text
+username=yuda
+password=123456
+```
+
+---
+
+# 35. Error Login
+
+Jika Autofill berhasil tetapi password sudah tidak valid:
+
+backend dapat mengembalikan login error seperti biasa.
+
+Contoh:
+
+```text
+Username atau password salah.
+```
+
+Jangan menyimpulkan:
+
+```text
+Biometric gagal.
+```
+
+Biometric sudah berhasil membuka credential; masalahnya adalah credential password sudah invalid.
+
+User dapat memperbarui password di password manager setelah login dengan credential baru.
+
+---
+
+# 36. Password Berubah
+
+Scenario:
+
+```text
+Password Ekaplus berubah
+        ↓
+Password manager masih menyimpan password lama
+        ↓
+Autofill
+        ↓
+Login gagal
+```
+
+Expected:
+
+existing login error.
+
+User:
+
+```text
+ketik password baru
+→ login
+```
+
+OS/password manager kemudian dapat menawarkan update password.
+
+Ekaplus tidak perlu membuat sinkronisasi password manager sendiri.
+
+---
+
+# 37. Multiple Accounts
+
+Jika satu device memiliki beberapa akun Ekaplus tersimpan:
+
+password manager dapat menawarkan beberapa credential.
+
+Contoh:
+
+```text
+user.a@company.com
+user.b@company.com
+```
+
+User memilih salah satu.
+
+Ekaplus tidak perlu membuat account picker sendiri untuk credential password manager.
+
+---
+
+# 38. User Tidak Mengaktifkan Biometric
+
+Jika password manager tidak menggunakan biometric:
+
+credential tetap dapat digunakan sesuai policy perangkat/password manager.
+
+Ekaplus tidak boleh memaksa:
+
+```text
+harus fingerprint
+```
+
+karena authentication method credential storage merupakan tanggung jawab OS/password manager.
+
+Jika organisasi nantinya membutuhkan biometric mandatory, itu merupakan requirement keamanan berbeda dan perlu desain tersendiri.
+
+---
+
+# 39. Acceptance Criteria
+
+## AC-01
+
+Login Screen tetap memiliki username/password existing.
 
 ---
 
 ## AC-02
 
-Setelah biometric aktif, cold start aplikasi menampilkan App Lock sebelum user melihat konten utama.
+Username field memiliki autofill hint yang sesuai.
 
 ---
 
 ## AC-03
 
-Fingerprint berhasil:
+Password field memiliki:
 
 ```text
-App Lock → Home
+AutofillHints.password
 ```
 
 ---
 
 ## AC-04
 
-Face ID berhasil:
-
-```text
-App Lock → Home
-```
-
-tanpa logic khusus Face ID di aplikasi.
+Username dan password berada dalam satu AutofillGroup.
 
 ---
 
 ## AC-05
 
-User cancel biometric prompt.
-
-Expected:
-
-```text
-tetap di App Lock
-```
-
-Tidak logout.
+Android password manager dapat mendeteksi form login.
 
 ---
 
 ## AC-06
 
-Fingerprint salah.
-
-Expected:
-
-```text
-tetap locked
-```
-
-Tidak menghapus session.
+iOS Password AutoFill dapat mendeteksi form login.
 
 ---
 
 ## AC-07
 
-Device tidak mendukung biometric.
-
-Expected:
-
-```text
-setting biometric unavailable/disabled
-```
-
-Aplikasi tidak crash.
+Credential hasil Autofill masuk ke controller existing.
 
 ---
 
 ## AC-08
 
-Device mendukung biometric tetapi user belum enroll.
-
-Expected:
-
-```text
-biometric tidak dapat diaktifkan
-```
-
-Tampilkan instruksi untuk mengatur biometric pada device.
+Login menggunakan credential Autofill tetap memanggil existing login API.
 
 ---
 
 ## AC-09
 
-App masuk background kurang dari 1 menit.
+Backend tetap menerima username/password.
 
-Expected:
-
-```text
-resume tanpa biometric prompt
-```
+Tidak ada perubahan request contract login.
 
 ---
 
 ## AC-10
 
-App masuk background lebih dari 1 menit.
-
-Expected:
-
-```text
-App Lock
-→ biometric authentication
-```
+Login manual tetap berfungsi.
 
 ---
 
 ## AC-11
 
-User logout.
-
-Expected:
-
-```text
-token/session dihapus
-```
-
-Biometric tidak boleh membuka aplikasi tanpa login backend.
+Jika password manager tidak tersedia, Login Screen tetap normal.
 
 ---
 
 ## AC-12
 
-Token expired.
-
-Biometric berhasil tetapi refresh token gagal.
-
-Expected:
-
-```text
-Login Screen
-```
+Jika user cancel Password Autofill, Login Screen tetap dapat digunakan.
 
 ---
 
 ## AC-13
 
-Biometric permanently unavailable.
-
-Expected:
-
-```text
-user tetap memiliki opsi Login Ulang
-```
-
-Tidak boleh terjadi permanent lock-out.
+Jika password Autofill salah/expired, backend error login tampil seperti existing.
 
 ---
 
 ## AC-14
 
-User menekan tombol biometric berkali-kali.
-
-Expected:
-
-```text
-hanya satu biometric prompt aktif
-```
+Tidak ada password yang disimpan sendiri oleh aplikasi Ekaplus untuk fitur ini.
 
 ---
 
 ## AC-15
 
-Biometric prompt menyebabkan lifecycle paused/resumed.
+Tidak ada `local_auth` call untuk login.
+
+---
+
+## AC-16
+
+Tidak ada biometric data yang dikirim ke backend.
+
+---
+
+## AC-17
+
+Tidak ada perubahan backend.
+
+---
+
+## AC-18
+
+Existing access token/refresh token flow tetap berfungsi.
+
+---
+
+## AC-19
+
+Existing logout tetap berfungsi.
+
+---
+
+## AC-20
+
+Password tidak muncul di application log.
+
+---
+
+# 40. Manual Test Matrix
+
+## Android Samsung
+
+Test:
+
+```text
+Samsung Pass enabled
+credential tersedia
+```
+
+Expected:
+
+- Login Screen dikenali;
+- Samsung Pass/autofill suggestion muncul sesuai konfigurasi device;
+- credential dapat dipilih;
+- biometric verification berjalan dari Samsung Pass;
+- username/password terisi;
+- login berhasil.
+
+---
+
+## Android Google Password Manager
+
+Expected:
+
+- suggestion credential muncul;
+- biometric/device verification mengikuti Google Password Manager;
+- Autofill berhasil;
+- login backend berhasil.
+
+---
+
+## iPhone Face ID
+
+Expected:
+
+- Password AutoFill tersedia;
+- user memilih credential;
+- Face ID muncul jika diminta iOS;
+- username/password terisi;
+- login berhasil.
+
+---
+
+## iPhone Touch ID
+
+Expected:
+
+- Password AutoFill;
+- Touch ID jika diminta OS;
+- login berhasil.
+
+---
+
+## Device Tanpa Password Tersimpan
 
 Expected:
 
 ```text
-tidak terjadi authentication loop
+Login Screen normal
 ```
+
+User login manual.
 
 ---
 
-# 48. Testing
+# 41. Existing Project Analysis
 
-Tambahkan unit test sebanyak memungkinkan untuk:
+Sebelum coding, Codex wajib memeriksa:
 
 ```text
-AppLockService
-Security state
-timeout calculation
-needLock()
-logout state
+Login Page
+Login Form
+custom TextField
+LoginCubit
+LoginRepository
+SessionManager
+GoRouter flow setelah login
+flutter_secure_storage
+Android package ID
+iOS bundle ID
+domain/backend login
 ```
 
-Logic native biometric dapat dimock.
+Perhatikan khusus custom TextField.
 
-Test minimal:
+Jika existing reusable field belum mendukung:
+
+```dart
+autofillHints
+```
+
+tambahkan parameter optional tanpa merusak pemakaian lain.
+
+---
+
+# 42. Implementation Approach
+
+Prioritaskan perubahan minimal.
+
+Kemungkinan perubahan utama:
 
 ```text
-biometric disabled → no lock
-
-biometric enabled + cold start → locked
-
-biometric enabled + auth success → unlocked
-
-biometric enabled + auth fail → locked
-
-background 30 sec → unlocked
-
-background 61 sec → locked
-
-logout → session unavailable
-
-no biometric → setting cannot be enabled
+login_page.dart
+custom_text_field.dart
 ```
 
----
+atau file ekuivalen.
 
-# 49. Manual Testing Matrix
+Contoh target:
 
-Minimal test:
+```dart
+AutofillGroup(
+  child: Form(
+    child: Column(
+      children: [
+        AppTextField(
+          controller: usernameController,
+          autofillHints: const [
+            AutofillHints.username,
+          ],
+          textInputAction: TextInputAction.next,
+        ),
 
-| Device                               | Biometric     | Result |
-| ------------------------------------ | ------------- | ------ |
-| Android fingerprint                  | fingerprint   | PASS   |
-| Android face biometric jika tersedia | face          | PASS   |
-| Android tanpa biometric              | none          | PASS   |
-| iPhone Touch ID jika tersedia        | fingerprint   | PASS   |
-| iPhone Face ID                       | face          | PASS   |
-| biometric belum enroll               | none enrolled | PASS   |
-| biometric lockout                    | locked        | PASS   |
+        AppTextField(
+          controller: passwordController,
+          autofillHints: const [
+            AutofillHints.password,
+          ],
+          obscureText: true,
+          textInputAction: TextInputAction.done,
+        ),
+      ],
+    ),
+  ),
+)
+```
 
-Tidak wajib memiliki semua device fisik.
-
-Gunakan emulator/simulator untuk scenario yang bisa diemulasikan.
-
-Tetapi minimal lakukan test pada satu Android device fisik sebelum release production.
-
----
-
-# 50. Definition of Done
-
-Task dianggap selesai jika:
-
-- `local_auth` terintegrasi
-- secure storage digunakan untuk authentication token
-- biometric setting tersedia
-- biometric activation diverifikasi
-- App Lock tersedia
-- cold start locking berjalan
-- background timeout locking berjalan
-- fallback login tersedia
-- lifecycle tidak menyebabkan loop
-- Android configuration selesai
-- iOS configuration selesai
-- localization tersedia
-- error handling tersedia
-- tidak ada perubahan backend
-- existing login tetap berfungsi
-- existing logout tetap berfungsi
-- build Android berhasil
-- build iOS tidak rusak
-- lint/analyzer tidak menghasilkan error baru
-- tidak ada token/password yang dicetak ke log
+Jangan copy-paste widget baru jika existing component dapat diperluas.
 
 ---
 
-# 51. Instruksi Implementasi untuk Codex
+# 43. Finish Autofill Context
 
-Sebelum coding:
+Setelah login success:
 
-1. Analisis struktur project Flutter Ekaplus.
-2. Temukan mekanisme login saat ini.
-3. Temukan lokasi penyimpanan token/session.
-4. Temukan state management yang digunakan.
-5. Temukan lifecycle handling existing.
-6. Temukan routing/navigation existing.
-7. Temukan localization existing.
-8. Temukan Settings/Profile screen existing.
+pertimbangkan:
 
-Jangan mengubah arsitektur project secara besar-besaran.
+```dart
+TextInput.finishAutofillContext(
+  shouldSave: true,
+);
+```
 
-Integrasikan fitur mengikuti pattern existing.
+jika sesuai Flutter version dan behavior project.
 
-Jika token masih disimpan menggunakan SharedPreferences:
+Tujuannya agar OS/password manager dapat menawarkan save/update credential.
+
+Jangan panggil sebelum login benar-benar berhasil.
+
+Jika login gagal:
+
+jangan menandai Autofill context sebagai successful credential save.
+
+---
+
+# 44. Login Error
+
+Existing API error handling harus dipertahankan.
+
+Contoh:
 
 ```text
-migrasikan hanya authentication secret ke flutter_secure_storage
+Invalid username or password
+Network error
+Server error
 ```
 
-Jangan memindahkan seluruh preference aplikasi tanpa alasan.
+Jangan mengganti error menjadi biometric-specific.
 
-Sebelum melakukan perubahan besar, identifikasi seluruh call-site yang membaca token supaya tidak menyebabkan regression.
+---
 
-Implementasi harus production-oriented, bukan hanya proof of concept.
+# 45. Scope Out
 
-Setelah implementasi:
+Tidak termasuk task ini:
 
-1. jalankan `flutter analyze`
-2. jalankan test existing
-3. tambahkan test feature baru
-4. verifikasi Android build
-5. laporkan file yang diubah
-6. laporkan perubahan dependency
-7. laporkan perubahan Android/iOS configuration
-8. jelaskan flow final App Lock
-9. laporkan potential issue yang masih tersisa
+- App Lock;
+- biometric lock setelah background;
+- biometric approval transaksi;
+- fingerprint storage;
+- face recognition custom;
+- biometric login backend;
+- PIN login;
+- Passkey;
+- WebAuthn;
+- FIDO2;
+- MFA biometric;
+- root/jailbreak detection.
 
-Jangan mengubah backend Ekaplus dalam task ini.
+---
+
+# 46. Future Enhancement — Passkey
+
+Jika di masa depan Ekaplus ingin benar-benar mempunyai login passwordless:
+
+```text
+Face ID / Fingerprint
+→ cryptographic credential
+→ backend verifies public-key credential
+```
+
+maka gunakan konsep:
+
+```text
+Passkey / WebAuthn / FIDO2
+```
+
+Itu berbeda dari PRD ini dan membutuhkan perubahan backend.
+
+Jangan implementasikan sekarang.
+
+---
+
+# 47. Definition of Done
+
+Task selesai jika:
+
+- Login Screen mendukung Autofill;
+- username memiliki AutofillHint;
+- password memiliki AutofillHint;
+- login fields berada dalam satu AutofillGroup;
+- custom input existing tetap reusable;
+- login manual tetap berfungsi;
+- Password Autofill Android dapat digunakan;
+- Password AutoFill iOS dapat digunakan;
+- existing login API tidak berubah;
+- backend tidak berubah;
+- aplikasi tidak menyimpan password sendiri;
+- `local_auth` tidak ditambahkan tanpa kebutuhan;
+- tidak ada biometric permission yang tidak diperlukan;
+- existing SessionManager tetap digunakan;
+- existing access/refresh token tidak rusak;
+- existing logout tidak rusak;
+- password tidak dicetak ke log;
+- `flutter analyze` tidak menghasilkan error baru;
+- existing tests tetap lulus;
+- Android build berhasil;
+- iOS configuration tidak rusak.
+
+---
+
+# 48. Instruksi Final Untuk Codex
+
+PRD sebelumnya mengenai:
+
+```text
+biometric sebagai local App Lock
+```
+
+tidak berlaku untuk task ini.
+
+Gunakan PRD ini sebagai source of truth.
+
+Tujuan implementasi adalah:
+
+```text
+Password Manager / Autofill
+        ↓
+Biometric verification oleh OS jika diperlukan
+        ↓
+Username + Password
+        ↓
+Existing Login Ekaplus
+```
+
+Bukan:
+
+```text
+Biometric
+→ unlock token/session
+```
+
+dan bukan:
+
+```text
+Biometric
+→ login backend secara langsung
+```
+
+Setelah implementasi selesai, laporkan:
+
+1. file yang diubah;
+2. widget login yang diperbarui;
+3. AutofillHint yang digunakan;
+4. apakah custom input widget perlu diubah;
+5. apakah ada Android config tambahan;
+6. apakah ada iOS config tambahan;
+7. apakah `TextInput.finishAutofillContext()` digunakan;
+8. hasil `flutter analyze`;
+9. hasil test;
+10. hasil build;
+11. kemungkinan keterbatasan Samsung Pass/Google Password Manager/iOS Password AutoFill yang ditemukan.

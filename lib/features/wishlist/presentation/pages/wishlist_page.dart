@@ -1,4 +1,5 @@
 import 'package:ekaplus_ekatunggal/constant.dart';
+import 'package:ekaplus_ekatunggal/core/shared_widgets/custom_header.dart';
 import 'package:ekaplus_ekatunggal/features/auth/presentation/cubit/auth_session_cubit.dart';
 import 'package:ekaplus_ekatunggal/features/auth/presentation/cubit/auth_session_state.dart';
 import 'package:ekaplus_ekatunggal/features/wishlist/presentation/widgets/wishlist_locked_state.dart';
@@ -32,24 +33,9 @@ class _WishlistPageState extends State<WishlistPage>
       data: media.copyWith(textScaler: scaler),
       child: Scaffold(
         backgroundColor: AppColors.whiteColor,
-        appBar: AppBar(
-          backgroundColor: AppColors.primaryColor,
-          centerTitle: true,
-          automaticallyImplyLeading: false,
-          toolbarHeight: media.size.height < 700 ? 64 : 72,
-          elevation: 0,
-          title: const Text(
-            'Wishlist',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontFamily: AppFonts.primaryFont,
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: AppColors.whiteColor,
-              height: 1.1,
-            ),
-          ),
+        appBar: const CustomHeaderAppBar(
+          title: 'Wishlist',
+          showBackButton: false,
         ),
         body: BlocBuilder<AuthSessionCubit, AuthSessionState>(
           builder: (context, authState) {

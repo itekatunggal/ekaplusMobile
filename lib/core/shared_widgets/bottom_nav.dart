@@ -124,7 +124,7 @@
 //             // ),
 //             _NavItem(
 //               icon: Icons.receipt_long_outlined,
-//               label: 'Transaksi', 
+//               label: 'Transaksi',
 //               selected: currentIndex == 4,
 //               onTap: () {
 //                 context.goNamed('transaksi');
@@ -205,11 +205,8 @@
 //   }
 // }
 
-
 import 'package:ekaplus_ekatunggal/constant.dart';
-import 'package:ekaplus_ekatunggal/features/member/presentation/cubit/active_company_cubit.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 class BottomNavBar extends StatelessWidget {
@@ -226,76 +223,63 @@ class BottomNavBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final scale = MediaQuery.of(context).textScaleFactor.clamp(0.9, 1.0);
 
-    return BlocBuilder<ActiveCompanyCubit, ActiveCompanyState>(
-      builder: (context, activeState) {
-        final hasActiveCompany = activeState is ActiveCompanyReady &&
-            activeState.companies.isNotEmpty &&
-            activeState.activeCompany != null;
-
-        // Index dinamis:
-        // hasActiveCompany  → 0:Beranda, 1:Kategori, 2:Wishlist, 3:Report, 4:Transaksi, 5:Akun
-        // !hasActiveCompany → 0:Beranda, 1:Kategori, 2:Wishlist, 3:Report, 4:Akun
-        final akunIndex = hasActiveCompany ? 5 : 4;
-
-        return MediaQuery(
-          data: MediaQuery.of(context).copyWith(textScaleFactor: scale),
-          child: Container(
-            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-            decoration: BoxDecoration(
-              color: AppColors.whiteColor,
-              boxShadow: [
-                BoxShadow(color: Colors.black.withOpacity(.06), blurRadius: 8),
-              ],
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(16),
-                topRight: Radius.circular(16),
-              ),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _NavItem(
-                  icon: Icons.home,
-                  label: 'Beranda',
-                  selected: currentIndex == 0,
-                  onTap: () => context.goNamed('home'),
-                ),
-                _NavItem(
-                  icon: Icons.grid_view,
-                  label: 'Kategori',
-                  selected: currentIndex == 1,
-                  onTap: () => context.goNamed('category'),
-                ),
-                _NavItem(
-                  icon: Icons.favorite_border,
-                  label: 'Wishlist',
-                  selected: currentIndex == 2,
-                  onTap: () => context.goNamed('wishlist'),
-                ),
-                // _NavItem(
-                //   icon: Icons.report,
-                //   label: 'Report',
-                //   selected: currentIndex == 3,
-                //   onTap: () => context.goNamed('report'),
-                // ),
-                if (hasActiveCompany)
-                  _NavItem(
-                    icon: Icons.receipt_long_outlined,
-                    label: 'Transaksi',
-                    selected: currentIndex == 3,
-                    onTap: () => context.goNamed('transaksi'),
-                  ),
-                _NavItem(
-                  icon: Icons.person_outline,
-                  label: 'Akun',
-                  selected: currentIndex == akunIndex,
-                  onTap: () => context.goNamed('account'),
-                ),
-              ],
-            ),
+    return MediaQuery(
+      data: MediaQuery.of(context).copyWith(textScaleFactor: scale),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+        decoration: BoxDecoration(
+          color: AppColors.whiteColor,
+          boxShadow: [
+            BoxShadow(color: Colors.black.withOpacity(.06), blurRadius: 8),
+          ],
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(16),
+            topRight: Radius.circular(16),
           ),
-        );
-      },
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: [
+            _NavItem(
+              icon: Icons.home,
+              label: 'Beranda',
+              selected: currentIndex == 0,
+              onTap: () => context.goNamed('home'),
+            ),
+            _NavItem(
+              icon: Icons.grid_view,
+              label: 'Kategori',
+              selected: currentIndex == 1,
+              onTap: () => context.goNamed('category'),
+            ),
+            _NavItem(
+              icon: Icons.apartment_rounded,
+              label: 'Customer',
+              selected: currentIndex == 2,
+              showBadge: true,
+              onTap: () => context.goNamed('customer'),
+            ),
+            // _NavItem(
+            //   icon: Icons.report,
+            //   label: 'Report',
+            //   selected: currentIndex == 3,
+            //   onTap: () => context.goNamed('report'),
+            // ),
+            _NavItem(
+              icon: Icons.receipt_long_outlined,
+              label: 'Transaksi',
+              selected: currentIndex == 3,
+              onTap: () => context.goNamed('transaksi'),
+            ),
+            _NavItem(
+              icon: Icons.person_outline,
+              label: 'Akun',
+              selected: currentIndex == 4,
+              onTap: () => context.goNamed('account'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -305,12 +289,14 @@ class _NavItem extends StatelessWidget {
   final String label;
   final bool selected;
   final VoidCallback onTap;
+  final bool showBadge;
 
   const _NavItem({
     required this.icon,
     required this.label,
     required this.selected,
     required this.onTap,
+    this.showBadge = false,
   });
 
   @override
@@ -327,13 +313,35 @@ class _NavItem extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, color: color, size: 22),
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Icon(icon, color: color, size: 22),
+                if (showBadge && selected)
+                  const Positioned(
+                    right: -3,
+                    top: -3,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: AppColors.secondaryColor,
+                        shape: BoxShape.circle,
+                      ),
+                      child: SizedBox(width: 7, height: 7),
+                    ),
+                  ),
+              ],
+            ),
             const SizedBox(height: 4),
             Text(
               label,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(color: color, fontSize: 11, height: 1.1),
+              style: TextStyle(
+                color: color,
+                fontSize: 10,
+                height: 1.1,
+                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+              ),
             ),
           ],
         ),

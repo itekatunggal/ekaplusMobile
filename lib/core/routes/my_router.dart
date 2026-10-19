@@ -44,6 +44,7 @@ import 'package:ekaplus_ekatunggal/features/search/presentation/pages/search_pag
 import 'package:ekaplus_ekatunggal/features/wishlist/presentation/pages/wishlist_page.dart';
 import 'package:ekaplus_ekatunggal/features/report/presentation/pages/penjualan_page.dart';
 import 'package:ekaplus_ekatunggal/features/transaksi/transaksi.dart';
+import 'package:ekaplus_ekatunggal/features/customer/presentation/pages/customer_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
@@ -126,6 +127,11 @@ class MyRouter {
             name: 'category',
             path: '/category',
             builder: (context, state) => const CategoryPage(),
+          ),
+          GoRoute(
+            name: 'customer',
+            path: '/customer',
+            builder: (context, state) => const CustomerPage(),
           ),
           GoRoute(
             name: 'wishlist',
@@ -708,20 +714,16 @@ class AppShell extends StatelessWidget {
 
   int _locationToIndex(String path) {
     if (path.startsWith('/category')) return 1;
-    if (path.startsWith('/wishlist')) return 2;
-    if (path.startsWith('/report')) return 3;
-    // if (path.startsWith('/invoice')) return 4;
-    if (path.startsWith('/transaksi')) return 4;
-    if (path.startsWith('/account')) return 5;
+    if (path.startsWith('/customer')) return 2;
+    if (path.startsWith('/transaksi')) return 3;
+    if (path.startsWith('/account')) return 4;
     return 0;
   }
 
   static const List<String> _routeNames = [
     'home',
     'category',
-    'wishlist',
-    'report',
-    // 'invoice',
+    'customer',
     'transaksi',
     'account',
   ];
@@ -737,10 +739,10 @@ class AppShell extends StatelessWidget {
         );
         break;
 
-      case 2: // Wishlist
+      case 2: // Customer
         break;
 
-      case 3: // account
+      case 3: // Transaksi
         break;
     }
   }

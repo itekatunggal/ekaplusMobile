@@ -1,4 +1,5 @@
 import 'package:ekaplus_ekatunggal/constant.dart';
+import 'package:ekaplus_ekatunggal/core/shared_widgets/custom_header.dart';
 import 'package:ekaplus_ekatunggal/core/shared_widgets/exit_confirmation_wrapper.dart';
 import 'package:ekaplus_ekatunggal/features/account/presentation/widgets/account_guest_view.dart';
 import 'package:ekaplus_ekatunggal/features/account/presentation/widgets/account_logged_in_view.dart';
@@ -7,7 +8,6 @@ import 'package:ekaplus_ekatunggal/features/auth/presentation/cubit/auth_session
 import 'package:ekaplus_ekatunggal/features/auth/presentation/cubit/auth_session_state.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:go_router/go_router.dart';
 
 class AccountPage extends StatelessWidget {
   const AccountPage({super.key});
@@ -17,26 +17,11 @@ class AccountPage extends StatelessWidget {
     return ExitConfirmationWrapper(
       child: Scaffold(
         backgroundColor: const Color(0xFFF6F7F9),
-        appBar: AppBar(
-          elevation: 0,
-          toolbarHeight: 68,
-          backgroundColor: AppColors.primaryColor,
-          foregroundColor: Colors.white,
-          centerTitle: true,
-          leading: IconButton(
-            onPressed: () => context.goNamed('home'),
-            icon: const Icon(Icons.arrow_back_rounded),
-          ),
-          title: Text(
-            'Akun Saya',
-            style: TextStyle(
-              fontFamily: AppFonts.primaryFont,
-              fontSize: 15,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
+        appBar: CustomHeaderAppBar(
+          title: 'Akun Saya',
+          showBackButton: false,
           actions: [
-            IconButton(
+            CustomHeaderActionButton(
               tooltip: 'Notifikasi',
               onPressed: () => AppSnackbar.show(
                 context,
@@ -46,7 +31,11 @@ class AccountPage extends StatelessWidget {
               icon: Stack(
                 clipBehavior: Clip.none,
                 children: [
-                  const Icon(Icons.notifications_none_rounded),
+                  const Icon(
+                    Icons.notifications_none_rounded,
+                    color: Colors.white,
+                    size: 21,
+                  ),
                   Positioned(
                     right: 0,
                     top: 0,
@@ -62,7 +51,6 @@ class AccountPage extends StatelessWidget {
                 ],
               ),
             ),
-            const SizedBox(width: 6),
           ],
         ),
         body: BlocBuilder<AuthSessionCubit, AuthSessionState>(

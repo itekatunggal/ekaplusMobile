@@ -1,4 +1,5 @@
 import 'package:ekaplus_ekatunggal/constant.dart';
+import 'package:ekaplus_ekatunggal/core/shared_widgets/custom_header.dart';
 import 'package:ekaplus_ekatunggal/features/account/presentation/cubit/profile_update_cubit.dart';
 import 'package:ekaplus_ekatunggal/features/account/presentation/widgets/account_logged_in_view.dart';
 import 'package:ekaplus_ekatunggal/features/account/presentation/widgets/profile_picture_options.dart';
@@ -16,35 +17,23 @@ class EditProfilePage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF6F7F9),
-      appBar: AppBar(
-        elevation: 0,
-        toolbarHeight: 68,
-        backgroundColor: AppColors.primaryColor,
-        foregroundColor: Colors.white,
-        centerTitle: true,
-        leading: IconButton(
-          onPressed: () => context.pop(),
-          icon: const Icon(Icons.arrow_back_rounded),
-        ),
-        title: Text(
-          'Ubah Profil',
-          style: TextStyle(
-            fontFamily: AppFonts.primaryFont,
-            fontSize: 15,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
+      appBar: CustomHeaderAppBar(
+        title: 'Ubah Profil',
+        onLeadingPressed: () => context.pop(),
         actions: [
-          IconButton(
+          CustomHeaderActionButton(
             tooltip: 'Bantuan',
             onPressed: () => AppSnackbar.show(
               context,
               message: 'Pilih data yang ingin diubah',
               type: AppSnackbarType.info,
             ),
-            icon: const Icon(Icons.help_outline_rounded),
+            icon: const Icon(
+              Icons.help_outline_rounded,
+              color: Colors.white,
+              size: 20,
+            ),
           ),
-          const SizedBox(width: 6),
         ],
       ),
       body: BlocBuilder<AuthSessionCubit, AuthSessionState>(

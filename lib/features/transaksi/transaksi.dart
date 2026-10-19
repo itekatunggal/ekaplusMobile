@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ekaplus_ekatunggal/core/shared_widgets/custom_header.dart';
 import 'package:ekaplus_ekatunggal/features/invoice/presentation/pages/invoice_page.dart';
 import 'package:ekaplus_ekatunggal/features/salesOrder/presentation/pages/sales_order_page.dart';
 import 'package:ekaplus_ekatunggal/features/invoice/presentation/cubit/invoice_cubit.dart';
@@ -16,20 +17,20 @@ class TransaksiPage extends StatefulWidget {
 }
 
 class _TransaksiPageState extends State<TransaksiPage> {
-  static const Color kRed   = Color(0xFFC0392B);
+  static const Color kRed = Color(0xFFC0392B);
   static const Color kGreen = Color(0xFF27AE60);
-  static const Color kBg    = Color(0xFFF2F2F7);
+  static const Color kBg = Color(0xFFF2F2F7);
 
   final _service = TransaksiSummaryService();
 
   bool _isLoading = true;
 
-  int _paid    = 0;
-  int _unpaid  = 0;
+  int _paid = 0;
+  int _unpaid = 0;
   int _overdue = 0;
 
-  int _soPaid    = 0;
-  int _soUnpaid  = 0;
+  int _soPaid = 0;
+  int _soUnpaid = 0;
   int _soOverdue = 0;
 
   @override
@@ -39,13 +40,23 @@ class _TransaksiPageState extends State<TransaksiPage> {
   }
 
   Future<void> _fetchSummary() async {
-    setState(() => _isLoading = true);
-    try {
-      final activeState = context.read<ActiveCompanyCubit>().state as ActiveCompanyReady?;
-      final branchName  = activeState?.activeCompany?.branchName ?? '';
-      final bcid        = activeState?.activeCompany?.branchCustomerCode ?? '';
+    final companyState = context.read<ActiveCompanyCubit>().state;
+    if (companyState is! ActiveCompanyReady) return;
 
-      final credential = await BranchCredentialService().fetchCredential(branchName);
+    final activeCompany = companyState.activeCompany;
+    if (activeCompany == null) {
+      if (mounted) setState(() => _isLoading = false);
+      return;
+    }
+
+    if (mounted) setState(() => _isLoading = true);
+    try {
+      final branchName = activeCompany.branchName ?? '';
+      final bcid = activeCompany.branchCustomerCode ?? '';
+
+      final credential = await BranchCredentialService().fetchCredential(
+        branchName,
+      );
       if (credential == null || !mounted) {
         setState(() => _isLoading = false);
         return;
@@ -53,23 +64,23 @@ class _TransaksiPageState extends State<TransaksiPage> {
 
       final invoiceResult = await _service.fetchInvoiceSummary(
         baseUrl: credential.url,
-        token:   credential.token,
-        bcid:    bcid,
+        token: credential.token,
+        bcid: bcid,
       );
       final soResult = await _service.fetchSalesOrderSummary(
         baseUrl: credential.url,
-        token:   credential.token,
-        bcid:    bcid,
+        token: credential.token,
+        bcid: bcid,
       );
 
       if (!mounted) return;
       setState(() {
-        _paid      = invoiceResult['paid']    ?? 0;
-        _unpaid    = invoiceResult['unpaid']  ?? 0;
-        _overdue   = invoiceResult['overdue'] ?? 0;
-        _soPaid    = soResult['paid']         ?? 0;
-        _soUnpaid  = soResult['unpaid']       ?? 0;
-        _soOverdue = soResult['overdue']      ?? 0;
+        _paid = invoiceResult['paid'] ?? 0;
+        _unpaid = invoiceResult['unpaid'] ?? 0;
+        _overdue = invoiceResult['overdue'] ?? 0;
+        _soPaid = soResult['paid'] ?? 0;
+        _soUnpaid = soResult['unpaid'] ?? 0;
+        _soOverdue = soResult['overdue'] ?? 0;
       });
     } catch (e) {
       debugPrint('Error fetchSummary: $e');
@@ -80,69 +91,79 @@ class _TransaksiPageState extends State<TransaksiPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: kBg,
-      body: Column(
-        children: [
-          _buildHeader(),
-          Expanded(
-            child: RefreshIndicator(
-              onRefresh: _fetchSummary,
-              color: kRed,
-              child: SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _sectionLabel('MENU TRANSAKSI'),
-                    const SizedBox(height: 10),
-                    _ringkasanInvoiceCard(
-                      icon: Icons.receipt_long_outlined,
-                      iconBg: const Color(0xFFFDEDED),
-                      iconColor: kRed,
-                      borderColor: kRed,
-                      title: 'Sales Invoice',
-                      paid: _paid,
-                      unpaid: _unpaid,
-                      overdue: _overdue,
-                      onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => BlocProvider(
-                            create: (_) => InvoiceCubit(),
-                            child: InvoicePage(),
+    return BlocListener<ActiveCompanyCubit, ActiveCompanyState>(
+      listenWhen: (previous, current) =>
+          current is ActiveCompanyReady &&
+          (previous is! ActiveCompanyReady ||
+              previous.activeBcid != current.activeBcid),
+      listener: (_, _) => _fetchSummary(),
+      child: Scaffold(
+        backgroundColor: kBg,
+        appBar: const CustomHeaderAppBar(
+          title: 'Transaksi',
+          showBackButton: false,
+        ),
+        body: Column(
+          children: [
+            Expanded(
+              child: RefreshIndicator(
+                onRefresh: _fetchSummary,
+                color: kRed,
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _sectionLabel('MENU TRANSAKSI'),
+                      const SizedBox(height: 10),
+                      _ringkasanInvoiceCard(
+                        icon: Icons.receipt_long_outlined,
+                        iconBg: const Color(0xFFFDEDED),
+                        iconColor: kRed,
+                        borderColor: kRed,
+                        title: 'Sales Invoice',
+                        paid: _paid,
+                        unpaid: _unpaid,
+                        overdue: _overdue,
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => BlocProvider(
+                              create: (_) => InvoiceCubit(),
+                              child: InvoicePage(),
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                    _ringkasanInvoiceCard(
-                      icon: Icons.monitor_outlined,
-                      iconBg: const Color(0xFFE8F5E9),
-                      iconColor: kGreen,
-                      borderColor: kGreen,
-                      title: 'Sales Order',
-                      paid: _soPaid,
-                      unpaid: _soUnpaid,
-                      overdue: _soOverdue,
-                      onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => BlocProvider(
-                            create: (_) => SalesOrderCubit(),
-                            child: SalesOrderPage(),
+                      const SizedBox(height: 12),
+                      _ringkasanInvoiceCard(
+                        icon: Icons.monitor_outlined,
+                        iconBg: const Color(0xFFE8F5E9),
+                        iconColor: kGreen,
+                        borderColor: kGreen,
+                        title: 'Sales Order',
+                        paid: _soPaid,
+                        unpaid: _soUnpaid,
+                        overdue: _soOverdue,
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => BlocProvider(
+                              create: (_) => SalesOrderCubit(),
+                              child: SalesOrderPage(),
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 24),
-                  ],
+                      const SizedBox(height: 24),
+                    ],
+                  ),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -187,7 +208,9 @@ class _TransaksiPageState extends State<TransaksiPage> {
                   child: Text(
                     title,
                     style: const TextStyle(
-                        fontSize: 13, fontWeight: FontWeight.w600),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
                 Icon(Icons.chevron_right, color: iconColor),
@@ -253,54 +276,30 @@ class _TransaksiPageState extends State<TransaksiPage> {
         Text(
           value.toString(),
           style: TextStyle(
-              fontSize: 12, fontWeight: FontWeight.w600, color: valueColor),
-        ),
-        const SizedBox(height: 4),
-        Text(label,
-            style: const TextStyle(fontSize: 12, color: Color(0xFF9E9E9E))),
-      ],
-    );
-  }
-
-  // ── Header ────────────────────────────────────────────────────────────────
-  Widget _buildHeader() {
-    return Container(
-      color: kRed,
-      child: SafeArea(
-        bottom: false,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: const [
-                  Text('Transaksi',
-                      style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600)),
-                  // Icon(Icons.search, color: Colors.white, size: 22),
-                ],
-              ),
-              const SizedBox(height: 4),
-              const Text('Kelola semua transaksi penjualan kamu' ,
-                  style: TextStyle(color: Colors.white60, fontSize: 12)),
-            ],
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: valueColor,
           ),
         ),
-      ),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: const TextStyle(fontSize: 12, color: Color(0xFF9E9E9E)),
+        ),
+      ],
     );
   }
 
   // ── Section Label ─────────────────────────────────────────────────────────
   Widget _sectionLabel(String text) {
-    return Text(text,
-        style: const TextStyle(
-            color: Color(0xFF9E9E9E),
-            fontSize: 11,
-            fontWeight: FontWeight.w600,
-            letterSpacing: 0.8));
+    return Text(
+      text,
+      style: const TextStyle(
+        color: Color(0xFF9E9E9E),
+        fontSize: 11,
+        fontWeight: FontWeight.w600,
+        letterSpacing: 0.8,
+      ),
+    );
   }
 }

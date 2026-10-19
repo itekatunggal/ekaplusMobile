@@ -1,14 +1,12 @@
-// lib/features/category/presentation/pages/category_page.dart
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:ekaplus_ekatunggal/constant.dart';
 import 'package:ekaplus_ekatunggal/core/config/api_config.dart';
 import 'package:ekaplus_ekatunggal/core/shared_widgets/custom_header.dart';
-
 import 'package:ekaplus_ekatunggal/features/category/domain/entities/category_group.dart';
+import 'package:ekaplus_ekatunggal/features/category/presentation/bloc/category_bloc.dart';
 import 'package:ekaplus_ekatunggal/features/product/presentation/pages/product_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:ekaplus_ekatunggal/constant.dart';
-import 'package:ekaplus_ekatunggal/features/category/presentation/bloc/category_bloc.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:shimmer/shimmer.dart';
 
 class CategoryPage extends StatefulWidget {
@@ -18,14 +16,14 @@ class CategoryPage extends StatefulWidget {
   State<CategoryPage> createState() => _CategoryPageState();
 }
 
-class _CategoryPageState extends State<CategoryPage>
-    with TickerProviderStateMixin {
+class _CategoryPageState extends State<CategoryPage> {
+  static const double _tileAspectRatio = .78;
   String? _expandedType;
 
   @override
   void initState() {
     super.initState();
-    context.read<CategoryBloc>().add(CategoryEventGetByType());
+    context.read<CategoryBloc>().add(const CategoryEventGetByType());
   }
 
   void _toggleExpand(String typeName) {
@@ -34,50 +32,34 @@ class _CategoryPageState extends State<CategoryPage>
     });
   }
 
-  void _openProductPage(category) {
+  void _openProductPage(CategorySimpleEntity category) {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => ProductPage(),
+        builder: (_) => ProductPage(),
         settings: RouteSettings(arguments: category),
       ),
     );
   }
 
-  // Fungsi untuk mendapatkan jumlah kolom berdasarkan lebar layar
   int _getCrossAxisCount(double width) {
-    if (width >= 1200) return 6;
     if (width >= 900) return 5;
     if (width >= 600) return 4;
     return 3;
   }
 
-  // Fungsi untuk mendapatkan lebar tile berdasarkan lebar layar
   double _getTileWidth(double width) {
-    if (width >= 900) return 130;
-    if (width >= 600) return 120;
-    return 105; // Lebih kecil untuk mobile
+    if (width >= 900) return 124;
+    if (width >= 600) return 116;
+    return 104;
   }
 
-  // Fungsi untuk mendapatkan padding berdasarkan lebar layar
-  double _getHorizontalPadding(double width) {
-    if (width >= 1200) return 40;
-    if (width >= 900) return 24;
-    if (width >= 600) return 16;
-    return 12;
-  }
-
-  // Fungsi untuk mendapatkan spacing berdasarkan lebar layar
-  double _getSpacing(double width) {
-    if (width >= 900) return 14;
-    if (width >= 600) return 12;
-    return 10;
-  }
+  double _getSpacing(double width) => width >= 600 ? 12 : 10;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: const Color(0xFFF6F7F9),
       appBar: const CustomHeaderAppBar(
         title: 'Kategori',
         showBackButton: false,
@@ -89,173 +71,120 @@ class _CategoryPageState extends State<CategoryPage>
           }
 
           if (state is CategoryStateError) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.error_outline,
-                      size: 48,
-                      color: Colors.red.shade400,
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      state.message,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontFamily: AppFonts.primaryFont,
-                        color: Colors.red.shade700,
-                        fontSize: 13,
-                      ),
-                    ),
-                  ],
-                ),
+            return _CategoryMessageCard(
+              icon: Icons.cloud_off_outlined,
+              title: 'Kategori gagal dimuat',
+              message: state.message,
+              actionLabel: 'Coba Lagi',
+              onAction: () => context.read<CategoryBloc>().add(
+                const CategoryEventGetByType(),
               ),
             );
           }
 
           if (state is CategoryStateLoadedCategoryByType) {
-            final allCategories = state.allCategory;
-
-            if (allCategories.isEmpty) {
-              return Center(
-                child: Text(
-                  'Belum ada kategori',
-                  style: TextStyle(
-                    fontFamily: AppFonts.primaryFont,
-                    fontSize: 13,
-                    color: Colors.grey[600],
-                  ),
-                ),
+            if (state.allCategory.isEmpty) {
+              return const _CategoryMessageCard(
+                icon: Icons.category_outlined,
+                title: 'Belum ada kategori',
+                message: 'Kategori produk akan tampil di halaman ini.',
               );
             }
 
             return LayoutBuilder(
               builder: (context, constraints) {
-                final screenWidth = constraints.maxWidth;
-                final horizontalPadding = _getHorizontalPadding(screenWidth);
-                final spacing = _getSpacing(screenWidth);
-                final crossAxisCount = _getCrossAxisCount(screenWidth);
-                final tileWidth = _getTileWidth(screenWidth);
+                final contentWidth = constraints.maxWidth > 680
+                    ? 680.0
+                    : constraints.maxWidth;
+                final spacing = _getSpacing(contentWidth);
+                final crossAxisCount = _getCrossAxisCount(contentWidth);
+                final tileWidth = _getTileWidth(contentWidth);
 
                 return SingleChildScrollView(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: horizontalPadding,
-                    vertical: 12,
-                  ),
-                  child: Column(
-                    children: allCategories.map((typeGroup) {
-                      final categories = typeGroup.categories;
-                      final typeName = typeGroup.typeName;
-                      final isExpanded = _expandedType == typeName;
+                  physics: const BouncingScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 680),
+                      child: Column(
+                        children: state.allCategory.map((typeGroup) {
+                          final categories = typeGroup.categories;
+                          final typeName = typeGroup.typeName;
+                          final isExpanded = _expandedType == typeName;
 
-                      final content = isExpanded
-                          ? GridView.builder(
-                              key: ValueKey('expanded-$typeName'),
-                              shrinkWrap: true,
-                              physics: const NeverScrollableScrollPhysics(),
-                              padding: EdgeInsets.zero,
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 14),
+                            child: _CategorySection(
+                              title: typeName,
                               itemCount: categories.length,
-                              gridDelegate:
-                                  SliverGridDelegateWithFixedCrossAxisCount(
-                                    crossAxisCount: crossAxisCount,
-                                    mainAxisSpacing: spacing,
-                                    crossAxisSpacing: spacing,
-                                    childAspectRatio: 0.68,
-                                  ),
-                              itemBuilder: (context, index) {
-                                final cat = categories[index];
-                                return _CategoryTile(
-                                  category: cat,
-                                  onTap: () => _openProductPage(cat),
-                                );
-                              },
-                            )
-                          : SizedBox(
-                              key: ValueKey('collapsed-$typeName'),
-                              height: tileWidth / 0.68,
-                              child: ListView.separated(
-                                scrollDirection: Axis.horizontal,
-                                physics: const BouncingScrollPhysics(),
-                                itemCount: categories.length,
-                                separatorBuilder: (_, __) =>
-                                    SizedBox(width: spacing),
-                                itemBuilder: (context, index) {
-                                  final cat = categories[index];
-                                  return _CategoryTile(
-                                    category: cat,
-                                    width: tileWidth,
-                                    onTap: () => _openProductPage(cat),
-                                  );
-                                },
-                              ),
-                            );
-
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 6),
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    typeName,
-                                    style: TextStyle(
-                                      fontFamily: AppFonts.primaryFont,
-                                      fontSize: screenWidth >= 600 ? 14 : 13,
-                                      fontWeight: FontWeight.w700,
-                                      color: AppColors.blackColor,
-                                    ),
-                                  ),
+                              isExpanded: isExpanded,
+                              onToggle: () => _toggleExpand(typeName),
+                              child: AnimatedSize(
+                                duration: const Duration(milliseconds: 280),
+                                curve: Curves.easeInOut,
+                                child: AnimatedSwitcher(
+                                  duration: const Duration(milliseconds: 200),
+                                  child: isExpanded
+                                      ? GridView.builder(
+                                          key: ValueKey('expanded-$typeName'),
+                                          shrinkWrap: true,
+                                          physics:
+                                              const NeverScrollableScrollPhysics(),
+                                          padding: EdgeInsets.zero,
+                                          itemCount: categories.length,
+                                          gridDelegate:
+                                              SliverGridDelegateWithFixedCrossAxisCount(
+                                                crossAxisCount: crossAxisCount,
+                                                mainAxisSpacing: spacing,
+                                                crossAxisSpacing: spacing,
+                                                childAspectRatio:
+                                                    _tileAspectRatio,
+                                              ),
+                                          itemBuilder: (_, index) {
+                                            final category = categories[index];
+                                            return _CategoryTile(
+                                              category: category,
+                                              onTap: () =>
+                                                  _openProductPage(category),
+                                            );
+                                          },
+                                        )
+                                      : SizedBox(
+                                          key: ValueKey('collapsed-$typeName'),
+                                          height: tileWidth / _tileAspectRatio,
+                                          child: ListView.separated(
+                                            scrollDirection: Axis.horizontal,
+                                            physics:
+                                                const BouncingScrollPhysics(),
+                                            itemCount: categories.length,
+                                            separatorBuilder: (_, __) =>
+                                                SizedBox(width: spacing),
+                                            itemBuilder: (_, index) {
+                                              final category =
+                                                  categories[index];
+                                              return _CategoryTile(
+                                                category: category,
+                                                width: tileWidth,
+                                                onTap: () =>
+                                                    _openProductPage(category),
+                                              );
+                                            },
+                                          ),
+                                        ),
                                 ),
-                                TextButton(
-                                  onPressed: () => _toggleExpand(typeName),
-                                  style: TextButton.styleFrom(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 12,
-                                      vertical: 6,
-                                    ),
-                                    minimumSize: Size.zero,
-                                    tapTargetSize:
-                                        MaterialTapTargetSize.shrinkWrap,
-                                  ),
-                                  child: Text(
-                                    isExpanded ? 'Sembunyikan' : 'Lihat Semua',
-                                    style: TextStyle(
-                                      fontFamily: AppFonts.primaryFont,
-                                      color: AppColors.primaryColor,
-                                      fontSize: screenWidth >= 600 ? 12 : 11,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          ClipRect(
-                            child: AnimatedSize(
-                              duration: const Duration(milliseconds: 350),
-                              curve: Curves.easeInOut,
-                              child: AnimatedSwitcher(
-                                duration: const Duration(milliseconds: 250),
-                                child: content,
                               ),
                             ),
-                          ),
-                          const SizedBox(height: 14),
-                        ],
-                      );
-                    }).toList(),
+                          );
+                        }).toList(),
+                      ),
+                    ),
                   ),
                 );
               },
             );
           }
 
-          return const SizedBox();
+          return const SizedBox.shrink();
         },
       ),
     );
@@ -264,204 +193,345 @@ class _CategoryPageState extends State<CategoryPage>
   Widget _buildShimmerLoading() {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final screenWidth = constraints.maxWidth;
-        final horizontalPadding = _getHorizontalPadding(screenWidth);
-        final spacing = _getSpacing(screenWidth);
-        final tileWidth = _getTileWidth(screenWidth);
-        final tileHeight = tileWidth / 0.68;
+        final contentWidth = constraints.maxWidth > 680
+            ? 680.0
+            : constraints.maxWidth;
+        final spacing = _getSpacing(contentWidth);
+        final tileWidth = _getTileWidth(contentWidth);
+        final tileHeight = tileWidth / _tileAspectRatio;
 
         return SingleChildScrollView(
-          padding: EdgeInsets.symmetric(
-            horizontal: horizontalPadding,
-            vertical: 12,
-          ),
-          child: Column(
-            children: List.generate(3, (sectionIndex) {
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Shimmer untuk header section
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 6),
-                    child: Row(
-                      children: [
-                        Shimmer.fromColors(
-                          baseColor: Colors.grey[300]!,
-                          highlightColor: Colors.grey[100]!,
-                          child: Container(
-                            width: 120,
-                            height: 16,
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                          ),
-                        ),
-                        const Spacer(),
-                        Shimmer.fromColors(
-                          baseColor: Colors.grey[300]!,
-                          highlightColor: Colors.grey[100]!,
-                          child: Container(
-                            width: 70,
-                            height: 14,
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  // Shimmer untuk list horizontal
-                  SizedBox(
-                    height: tileHeight,
-                    child: ListView.separated(
-                      scrollDirection: Axis.horizontal,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: 4,
-                      separatorBuilder: (_, __) => SizedBox(width: spacing),
-                      itemBuilder: (context, index) {
-                        return Shimmer.fromColors(
-                          baseColor: Colors.grey[300]!,
-                          highlightColor: Colors.grey[100]!,
-                          child: Container(
-                            width: tileWidth,
-                            height: tileHeight,
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Column(
+          physics: const NeverScrollableScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 680),
+              child: Column(
+                children: List.generate(
+                  3,
+                  (_) => Padding(
+                    padding: const EdgeInsets.only(bottom: 14),
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.fromLTRB(12, 13, 12, 12),
+                      decoration: _categorySectionDecoration,
+                      child: Shimmer.fromColors(
+                        baseColor: const Color(0xFFE2E8F0),
+                        highlightColor: const Color(0xFFF8FAFC),
+                        child: Column(
+                          children: [
+                            Row(
                               children: [
-                                Expanded(
-                                  child: Container(
-                                    margin: const EdgeInsets.all(8),
-                                    decoration: BoxDecoration(
-                                      color: Colors.grey[200],
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                  ),
-                                ),
-                                Container(
-                                  height: 42,
-                                  decoration: BoxDecoration(
-                                    color: Colors.grey[400],
-                                    borderRadius: const BorderRadius.only(
-                                      bottomLeft: Radius.circular(12),
-                                      bottomRight: Radius.circular(12),
-                                    ),
-                                  ),
-                                ),
+                                _shimmerBlock(width: 120, height: 10),
+                                const Spacer(),
+                                _shimmerBlock(width: 68, height: 22),
                               ],
                             ),
-                          ),
-                        );
-                      },
+                            const SizedBox(height: 14),
+                            SizedBox(
+                              height: tileHeight,
+                              child: ListView.separated(
+                                scrollDirection: Axis.horizontal,
+                                physics: const NeverScrollableScrollPhysics(),
+                                itemCount: 4,
+                                separatorBuilder: (_, __) =>
+                                    SizedBox(width: spacing),
+                                itemBuilder: (_, __) => _shimmerBlock(
+                                  width: tileWidth,
+                                  height: tileHeight,
+                                  radius: 12,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 14),
-                ],
-              );
-            }),
+                ),
+              ),
+            ),
           ),
         );
       },
+    );
+  }
+
+  Widget _shimmerBlock({
+    required double width,
+    required double height,
+    double radius = 6,
+  }) {
+    return Container(
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(radius),
+      ),
+    );
+  }
+}
+
+class _CategorySection extends StatelessWidget {
+  const _CategorySection({
+    required this.title,
+    required this.itemCount,
+    required this.isExpanded,
+    required this.onToggle,
+    required this.child,
+  });
+
+  final String title;
+  final int itemCount;
+  final bool isExpanded;
+  final VoidCallback onToggle;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      decoration: _categorySectionDecoration,
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 12, 10, 9),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title.toUpperCase(),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Color(0xFF64748B),
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: .45,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        '$itemCount kategori produk',
+                        style: const TextStyle(
+                          color: Color(0xFF94A3B8),
+                          fontSize: 9.5,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                TextButton.icon(
+                  onPressed: onToggle,
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.primaryColor,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 5,
+                    ),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  iconAlignment: IconAlignment.end,
+                  icon: Icon(
+                    isExpanded
+                        ? Icons.keyboard_arrow_up_rounded
+                        : Icons.keyboard_arrow_down_rounded,
+                    size: 17,
+                  ),
+                  label: Text(
+                    isExpanded ? 'Ringkas' : 'Lihat Semua',
+                    style: const TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1, color: Color(0xFFF1F5F9)),
+          Padding(padding: const EdgeInsets.all(12), child: child),
+        ],
+      ),
     );
   }
 }
 
 class _CategoryTile extends StatelessWidget {
+  const _CategoryTile({required this.category, this.width, this.onTap});
+
   final CategorySimpleEntity category;
   final double? width;
   final VoidCallback? onTap;
 
-  const _CategoryTile({required this.category, this.width, this.onTap});
-
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final tileWidth = width ?? constraints.maxWidth;
-        final tileHeight = width != null ? (width! / 0.68) : 160.0;
-
-        // Responsive font size
-        final screenWidth = MediaQuery.of(context).size.width;
-        final fontSize = screenWidth >= 600 ? 12.0 : 11.0;
-
-        final card = ClipRRect(
-          borderRadius: BorderRadius.circular(12),
-          child: Container(
-            width: tileWidth,
-            height: tileHeight,
+    return SizedBox(
+      width: width,
+      child: Material(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: Ink(
             decoration: BoxDecoration(
-              color: Colors.grey[200],
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.06),
-                  blurRadius: 6,
-                  offset: const Offset(0, 2),
-                ),
-              ],
+              border: Border.all(color: const Color(0xFFEFF2F6)),
+              borderRadius: BorderRadius.circular(12),
             ),
-            child: Stack(
+            child: Column(
               children: [
-                Positioned.fill(
-                  bottom: 42,
+                Expanded(
                   child: Container(
-                    color: Colors.white,
-                    padding: const EdgeInsets.all(8),
+                    width: double.infinity,
+                    color: const Color(0xFFF8FAFC),
+                    padding: const EdgeInsets.all(10),
                     child: CachedNetworkImage(
                       imageUrl:
-                          "${ApiConfig.baseImageUrl}/${category.icon}?format=rs:fill:250:250/q:80/ext:webp",
+                          '${ApiConfig.baseImageUrl}/${category.icon}?format=rs:fill:250:250/q:80/ext:webp',
                       fit: BoxFit.contain,
-                      placeholder: (context, url) => Shimmer.fromColors(
-                        baseColor: Colors.grey[300]!,
-                        highlightColor: Colors.grey[100]!,
-                        child: Container(color: Colors.white),
+                      placeholder: (_, __) => Shimmer.fromColors(
+                        baseColor: const Color(0xFFE2E8F0),
+                        highlightColor: const Color(0xFFF8FAFC),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(9),
+                          ),
+                        ),
                       ),
-                      errorWidget: (_, __, ___) => Center(
+                      errorWidget: (_, __, ___) => const Center(
                         child: Icon(
-                          Icons.broken_image_rounded,
-                          size: 32,
-                          color: Colors.grey[400],
+                          Icons.inventory_2_outlined,
+                          size: 30,
+                          color: Color(0xFFCBD5E1),
                         ),
                       ),
                     ),
                   ),
                 ),
-                Align(
-                  alignment: Alignment.bottomCenter,
-                  child: Container(
-                    height: 42,
-                    color: AppColors.primaryColor,
-                    alignment: Alignment.center,
-                    padding: const EdgeInsets.symmetric(horizontal: 6),
-                    child: Text(
-                      category.name,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontFamily: AppFonts.primaryFont,
-                        color: AppColors.whiteColor,
-                        fontWeight: FontWeight.w700,
-                        fontSize: fontSize,
-                        height: 1.1,
-                      ),
+                Container(
+                  height: 44,
+                  alignment: Alignment.center,
+                  padding: const EdgeInsets.symmetric(horizontal: 7),
+                  decoration: const BoxDecoration(
+                    border: Border(top: BorderSide(color: Color(0xFFF1F5F9))),
+                  ),
+                  child: Text(
+                    category.name,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontFamily: AppFonts.primaryFont,
+                      color: const Color(0xFF1E293B),
+                      fontWeight: FontWeight.w600,
+                      fontSize: 10.5,
+                      height: 1.2,
                     ),
                   ),
                 ),
               ],
             ),
           ),
-        );
-
-        return SizedBox(
-          width: width,
-          child: GestureDetector(onTap: onTap, child: card),
-        );
-      },
+        ),
+      ),
     );
   }
 }
+
+class _CategoryMessageCard extends StatelessWidget {
+  const _CategoryMessageCard({
+    required this.icon,
+    required this.title,
+    required this.message,
+    this.actionLabel,
+    this.onAction,
+  });
+
+  final IconData icon;
+  final String title;
+  final String message;
+  final String? actionLabel;
+  final VoidCallback? onAction;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 420),
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(24),
+            decoration: _categorySectionDecoration,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 52,
+                  height: 52,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFFFF1F2),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(icon, color: AppColors.primaryColor, size: 26),
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  title,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: Color(0xFF1E293B),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  message,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: Color(0xFF64748B),
+                    fontSize: 11,
+                    height: 1.45,
+                  ),
+                ),
+                if (actionLabel != null && onAction != null) ...[
+                  const SizedBox(height: 18),
+                  FilledButton.icon(
+                    onPressed: onAction,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppColors.primaryColor,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 18,
+                        vertical: 11,
+                      ),
+                    ),
+                    icon: const Icon(Icons.refresh_rounded, size: 17),
+                    label: Text(actionLabel!),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+const _categorySectionDecoration = BoxDecoration(
+  color: Colors.white,
+  borderRadius: BorderRadius.all(Radius.circular(16)),
+  boxShadow: [
+    BoxShadow(color: Color(0x0D0F172A), blurRadius: 10, offset: Offset(0, 2)),
+  ],
+);

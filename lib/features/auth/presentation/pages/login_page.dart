@@ -10,6 +10,7 @@ import 'package:ekaplus_ekatunggal/features/auth/presentation/bloc/auth_state.da
 import 'package:ekaplus_ekatunggal/features/auth/presentation/cubit/auth_session_cubit.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
 class LoginPage extends StatefulWidget {
@@ -63,7 +64,11 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   void _onLoginPressed() {
-    if (!mounted) return;
+    if (!mounted ||
+        _isNavigating ||
+        context.read<AuthBloc>().state is AuthLoading) {
+      return;
+    }
 
     setState(() {
       _identifierError = null;
@@ -87,7 +92,8 @@ class _LoginPageState extends State<LoginPage> {
 
     final bool isIOS = io.Platform.isIOS;
 
-    AppSnackbar.showRaw(context, 
+    AppSnackbar.showRaw(
+      context,
       SnackBar(
         content: Row(
           children: [
@@ -122,7 +128,8 @@ class _LoginPageState extends State<LoginPage> {
 
     final bool isIOS = io.Platform.isIOS;
 
-    AppSnackbar.showRaw(context, 
+    AppSnackbar.showRaw(
+      context,
       SnackBar(
         content: Row(
           children: [
@@ -186,6 +193,7 @@ class _LoginPageState extends State<LoginPage> {
             if (_isNavigating) return;
             _isNavigating = true;
 
+            TextInput.finishAutofillContext(shouldSave: true);
             context.read<AuthSessionCubit>().login(state.user);
             _showSuccessSnackbar(state.user.fullName);
 
@@ -218,141 +226,145 @@ class _LoginPageState extends State<LoginPage> {
                     horizontal: 20,
                     vertical: isSmallScreen ? 20 : 24,
                   ),
-                  child: Form(
-                    key: _formKey,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Welcome Text
-                        Text(
-                          'Selamat datang kembali',
-                          style: TextStyle(
-                            fontFamily: AppFonts.primaryFont,
-                            fontSize: isSmallScreen
-                                ? (isIOS ? 20 : 18)
-                                : (isIOS ? 24 : 22),
-                            fontWeight: FontWeight.w700,
-                            color: const Color(0xFF1A1A1A),
-                            letterSpacing: -0.5,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Masuk untuk melanjutkan belanja Anda',
-                          style: TextStyle(
-                            fontFamily: AppFonts.primaryFont,
-                            fontSize: isIOS ? 14 : 12,
-                            color: const Color(0xFF6B6B6B),
-                            height: 1.4,
-                          ),
-                        ),
-
-                        SizedBox(height: isSmallScreen ? 28 : 32),
-
-                        // Identifier Input
-                        _buildInputField(
-                          controller: _identifierController,
-                          label: 'Nomor HP / Email / Username',
-                          hint: 'Masukkan nomor HP, email, atau username',
-                          icon: Icons.person_outline_rounded,
-                          error: _identifierError,
-                          validator: _validateIdentifier,
-                          keyboardType: TextInputType.text,
-                          onChanged: (_) => _clearError('identifier'),
-                          isIOS: isIOS,
-                        ),
-
-                        const SizedBox(height: 20),
-
-                        // Password Input
-                        _buildPasswordField(
-                          controller: _passwordController,
-                          label: 'Password',
-                          hint: 'Masukkan password',
-                          error: _passwordError,
-                          validator: _validatePassword,
-                          isPasswordVisible: _isPasswordVisible,
-                          onToggleVisibility: () {
-                            if (mounted) {
-                              setState(
-                                () => _isPasswordVisible = !_isPasswordVisible,
-                              );
-                            }
-                          },
-                          onChanged: (_) => _clearError('password'),
-                          isIOS: isIOS,
-                        ),
-
-                        const SizedBox(height: 12),
-
-                        // // Forgot Password
-                        // Align(
-                        //   alignment: Alignment.centerRight,
-                        //   child: TextButton(
-                        //     onPressed: () =>
-                        //         context.pushNamed('forgot-password-phone'),
-                        //     style: TextButton.styleFrom(
-                        //       padding: const EdgeInsets.symmetric(
-                        //         horizontal: 8,
-                        //         vertical: 4,
-                        //       ),
-                        //       minimumSize: Size.zero,
-                        //       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        //     ),
-                        //     child: Text(
-                        //       'Lupa Password?',
-                        //       style: TextStyle(
-                        //         fontFamily: AppFonts.primaryFont,
-                        //         fontSize: isIOS ? 14 : 12,
-                        //         fontWeight: FontWeight.w600,
-                        //         color: AppColors.primaryColor,
-                        //       ),
-                        //     ),
-                        //   ),
-                        // ),
-                        SizedBox(height: isSmallScreen ? 20 : 24),
-
-                        // Login Button
-                        _buildLoginButton(isSmallScreen, isIOS),
-
-                        SizedBox(height: isSmallScreen ? 20 : 24),
-
-                        // Divider
-                        Row(
-                          children: [
-                            const Expanded(
-                              child: Divider(color: Color(0xFFE5E7EB)),
+                  child: AutofillGroup(
+                    onDisposeAction: AutofillContextAction.cancel,
+                    child: Form(
+                      key: _formKey,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Welcome Text
+                          Text(
+                            'Selamat datang kembali',
+                            style: TextStyle(
+                              fontFamily: AppFonts.primaryFont,
+                              fontSize: isSmallScreen
+                                  ? (isIOS ? 20 : 18)
+                                  : (isIOS ? 24 : 22),
+                              fontWeight: FontWeight.w700,
+                              color: const Color(0xFF1A1A1A),
+                              letterSpacing: -0.5,
                             ),
-                            Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Masuk untuk melanjutkan belanja Anda',
+                            style: TextStyle(
+                              fontFamily: AppFonts.primaryFont,
+                              fontSize: isIOS ? 14 : 12,
+                              color: const Color(0xFF6B6B6B),
+                              height: 1.4,
+                            ),
+                          ),
+
+                          SizedBox(height: isSmallScreen ? 28 : 32),
+
+                          // Identifier Input
+                          _buildInputField(
+                            controller: _identifierController,
+                            label: 'Nomor HP / Email / Username',
+                            hint: 'Masukkan nomor HP, email, atau username',
+                            icon: Icons.person_outline_rounded,
+                            error: _identifierError,
+                            validator: _validateIdentifier,
+                            keyboardType: TextInputType.text,
+                            onChanged: (_) => _clearError('identifier'),
+                            isIOS: isIOS,
+                          ),
+
+                          const SizedBox(height: 20),
+
+                          // Password Input
+                          _buildPasswordField(
+                            controller: _passwordController,
+                            label: 'Password',
+                            hint: 'Masukkan password',
+                            error: _passwordError,
+                            validator: _validatePassword,
+                            isPasswordVisible: _isPasswordVisible,
+                            onToggleVisibility: () {
+                              if (mounted) {
+                                setState(
+                                  () =>
+                                      _isPasswordVisible = !_isPasswordVisible,
+                                );
+                              }
+                            },
+                            onChanged: (_) => _clearError('password'),
+                            isIOS: isIOS,
+                          ),
+
+                          const SizedBox(height: 12),
+
+                          // // Forgot Password
+                          // Align(
+                          //   alignment: Alignment.centerRight,
+                          //   child: TextButton(
+                          //     onPressed: () =>
+                          //         context.pushNamed('forgot-password-phone'),
+                          //     style: TextButton.styleFrom(
+                          //       padding: const EdgeInsets.symmetric(
+                          //         horizontal: 8,
+                          //         vertical: 4,
+                          //       ),
+                          //       minimumSize: Size.zero,
+                          //       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          //     ),
+                          //     child: Text(
+                          //       'Lupa Password?',
+                          //       style: TextStyle(
+                          //         fontFamily: AppFonts.primaryFont,
+                          //         fontSize: isIOS ? 14 : 12,
+                          //         fontWeight: FontWeight.w600,
+                          //         color: AppColors.primaryColor,
+                          //       ),
+                          //     ),
+                          //   ),
+                          // ),
+                          SizedBox(height: isSmallScreen ? 20 : 24),
+
+                          // Login Button
+                          _buildLoginButton(isSmallScreen, isIOS),
+
+                          SizedBox(height: isSmallScreen ? 20 : 24),
+
+                          // Divider
+                          Row(
+                            children: [
+                              const Expanded(
+                                child: Divider(color: Color(0xFFE5E7EB)),
                               ),
-                              child: Text(
-                                'atau masuk dengan',
-                                style: TextStyle(
-                                  fontFamily: AppFonts.primaryFont,
-                                  fontSize: isIOS ? 13 : 12,
-                                  color: const Color(0xFF9CA3AF),
-                                  fontWeight: FontWeight.w500,
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                ),
+                                child: Text(
+                                  'atau masuk dengan',
+                                  style: TextStyle(
+                                    fontFamily: AppFonts.primaryFont,
+                                    fontSize: isIOS ? 13 : 12,
+                                    color: const Color(0xFF9CA3AF),
+                                    fontWeight: FontWeight.w500,
+                                  ),
                                 ),
                               ),
-                            ),
-                            const Expanded(
-                              child: Divider(color: Color(0xFFE5E7EB)),
-                            ),
-                          ],
-                        ),
+                              const Expanded(
+                                child: Divider(color: Color(0xFFE5E7EB)),
+                              ),
+                            ],
+                          ),
 
-                        SizedBox(height: isSmallScreen ? 20 : 24),
+                          SizedBox(height: isSmallScreen ? 20 : 24),
 
-                        // Google Sign In Button
-                        _buildGoogleButton(isIOS),
+                          // Google Sign In Button
+                          _buildGoogleButton(isIOS),
 
-                        SizedBox(height: isSmallScreen ? 24 : 32),
+                          SizedBox(height: isSmallScreen ? 24 : 32),
 
-                        // Register Link
-                        _buildRegisterLink(isIOS),
-                      ],
+                          // Register Link
+                          _buildRegisterLink(isIOS),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -393,6 +405,8 @@ class _LoginPageState extends State<LoginPage> {
         TextFormField(
           controller: controller,
           keyboardType: keyboardType,
+          autofillHints: const [AutofillHints.username],
+          textInputAction: TextInputAction.next,
           style: TextStyle(
             fontSize: isIOS ? 15 : 13,
             fontWeight: FontWeight.w500,
@@ -493,6 +507,9 @@ class _LoginPageState extends State<LoginPage> {
         TextFormField(
           controller: controller,
           obscureText: !isPasswordVisible,
+          autofillHints: const [AutofillHints.password],
+          textInputAction: TextInputAction.done,
+          onFieldSubmitted: (_) => _onLoginPressed(),
           style: TextStyle(
             fontSize: isIOS ? 15 : 13,
             fontWeight: FontWeight.w500,

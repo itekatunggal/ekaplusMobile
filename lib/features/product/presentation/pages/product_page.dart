@@ -2,6 +2,7 @@
 
 import 'dart:async';
 import 'package:ekaplus_ekatunggal/constant.dart';
+import 'package:ekaplus_ekatunggal/core/shared_widgets/custom_header.dart';
 import 'package:ekaplus_ekatunggal/features/category/data/models/category_group_model.dart';
 import 'package:ekaplus_ekatunggal/features/category/domain/entities/category.dart';
 import 'package:ekaplus_ekatunggal/features/category/domain/entities/category_group.dart';
@@ -351,97 +352,53 @@ class _ProductPageState extends State<ProductPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.whiteColor,
-      appBar: AppBar(
-        backgroundColor: AppColors.primaryColor,
-        elevation: 0,
-        toolbarHeight: 80,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => context.pop(),
-        ),
-        title: Container(
-          height: 42,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(30),
-          ),
-          child: TextField(
-            controller: _searchController,
-            onChanged: (value) {
-              _onSearchChanged(value);
-              setState(() {}); // Refresh untuk show/hide clear button
-            },
-            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-            decoration: InputDecoration(
-              hintText: 'Cari produk...',
-              hintStyle: TextStyle(
-                color: Colors.grey.shade500,
-                fontSize: 14,
-                fontWeight: FontWeight.w400,
-              ),
-              prefixIcon: FaIcon(
-                FontAwesomeIcons.magnifyingGlass,
-                color: Colors.grey.shade600,
-                size: 16,
-              ),
-              suffixIcon: _searchController.text.isNotEmpty
-                  ? IconButton(
-                      icon: Icon(
-                        Icons.clear,
-                        color: Colors.grey.shade600,
-                        size: 20,
-                      ),
-                      onPressed: () {
-                        _searchController.clear();
-                        _onSearchChanged('');
-                        setState(() {});
-                      },
-                    )
-                  : null,
-              border: InputBorder.none,
-              isDense: true,
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 12,
-                vertical: 10,
-              ),
-            ),
-          ),
+      appBar: CustomHeaderAppBar(
+        height: 64,
+        titleWidget: CustomHeaderSearchField(
+          controller: _searchController,
+          onChanged: (value) {
+            _onSearchChanged(value);
+            setState(() {});
+          },
+          onClear: () {
+            _searchController.clear();
+            _onSearchChanged('');
+            setState(() {});
+          },
         ),
         actions: [
-          Container(
-            margin: const EdgeInsets.only(right: 12),
-            child: Stack(
-              alignment: Alignment.center,
+          CustomHeaderActionButton(
+            tooltip: 'Filter produk',
+            onPressed: () => _showFilterBottomSheet(context),
+            icon: Stack(
+              clipBehavior: Clip.none,
               children: [
-                IconButton(
-                  onPressed: () => _showFilterBottomSheet(context),
-                  icon: const FaIcon(
-                    FontAwesomeIcons.sliders,
-                    color: Colors.white,
-                    size: 20,
-                  ),
+                const FaIcon(
+                  FontAwesomeIcons.sliders,
+                  color: Colors.white,
+                  size: 18,
                 ),
                 if (_selectedTypeIds.isNotEmpty ||
                     _selectedCategoryIds.isNotEmpty)
                   Positioned(
-                    right: 8,
-                    top: 8,
+                    right: -8,
+                    top: -8,
                     child: Container(
-                      padding: const EdgeInsets.all(4),
+                      padding: const EdgeInsets.all(3),
                       decoration: BoxDecoration(
                         color: AppColors.secondaryColor,
                         shape: BoxShape.circle,
                       ),
                       constraints: const BoxConstraints(
-                        minWidth: 16,
-                        minHeight: 16,
+                        minWidth: 15,
+                        minHeight: 15,
                       ),
                       child: Center(
                         child: Text(
                           '${_selectedTypeIds.length + _selectedCategoryIds.length}',
                           style: const TextStyle(
                             color: Colors.black,
-                            fontSize: 9,
+                            fontSize: 8,
                             fontWeight: FontWeight.w700,
                           ),
                         ),
