@@ -348,381 +348,588 @@ class _ProductPageState extends State<ProductPage> {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.whiteColor,
-      appBar: CustomHeaderAppBar(
-        height: 64,
-        titleWidget: CustomHeaderSearchField(
-          controller: _searchController,
-          onChanged: (value) {
-            _onSearchChanged(value);
-            setState(() {});
-          },
-          onClear: () {
-            _searchController.clear();
-            _onSearchChanged('');
-            setState(() {});
-          },
-        ),
-        actions: [
-          CustomHeaderActionButton(
-            tooltip: 'Filter produk',
-            onPressed: () => _showFilterBottomSheet(context),
-            icon: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                const FaIcon(
-                  FontAwesomeIcons.sliders,
-                  color: Colors.white,
-                  size: 18,
+  void _showComingSoon(String feature) {
+    AppSnackbar.show(
+      context,
+      message: '$feature akan segera tersedia',
+      type: AppSnackbarType.info,
+    );
+  }
+
+  String get _headerTitle {
+    if (widget.categoryName != null && widget.categoryName!.isNotEmpty) {
+      return widget.categoryName!;
+    }
+    if (_selectedCategoryIds.length == 1 &&
+        _categoryNames[_selectedCategoryIds.first] != null) {
+      return _categoryNames[_selectedCategoryIds.first]!;
+    }
+    return 'Produk';
+  }
+
+  // ================= HEADER =================
+
+  Widget _buildHeader(BuildContext context) {
+    return SizedBox(
+      height: 178,
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: CustomHeaderAppBar(
+              title: _headerTitle,
+              brandStyle: true,
+              brandLabel: 'EKAPLUS',
+              showBackButton: true,
+              height: 178,
+              actions: [
+                CustomHeaderActionButton(
+                  tooltip: 'Bantuan',
+                  onPressed: () => _showComingSoon('Panduan produk'),
+                  icon: const Icon(
+                    Icons.help_outline_rounded,
+                    color: Colors.white,
+                    size: 19,
+                  ),
                 ),
-                if (_selectedTypeIds.isNotEmpty ||
-                    _selectedCategoryIds.isNotEmpty)
-                  Positioned(
-                    right: -8,
-                    top: -8,
-                    child: Container(
-                      padding: const EdgeInsets.all(3),
-                      decoration: BoxDecoration(
-                        color: AppColors.secondaryColor,
-                        shape: BoxShape.circle,
+                CustomHeaderActionButton(
+                  tooltip: 'Notifikasi',
+                  onPressed: () => _showComingSoon('Notifikasi'),
+                  icon: const Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      Icon(
+                        Icons.notifications_none_rounded,
+                        color: Colors.white,
+                        size: 19,
                       ),
-                      constraints: const BoxConstraints(
-                        minWidth: 15,
-                        minHeight: 15,
-                      ),
-                      child: Center(
-                        child: Text(
-                          '${_selectedTypeIds.length + _selectedCategoryIds.length}',
-                          style: const TextStyle(
-                            color: Colors.black,
-                            fontSize: 8,
-                            fontWeight: FontWeight.w700,
+                      Positioned(
+                        right: -1,
+                        top: -1,
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: AppColors.secondaryColor,
+                            shape: BoxShape.circle,
                           ),
+                          child: SizedBox(width: 7, height: 7),
                         ),
                       ),
-                    ),
+                    ],
                   ),
+                ),
+              ],
+            ),
+          ),
+
+          // Search bar + tombol filter
+          Positioned(
+            left: 16,
+            right: 16,
+            bottom: 18,
+            child: Row(
+              children: [
+                Expanded(child: _buildSearchField()),
+                const SizedBox(width: 10),
+                _buildFilterButton(),
               ],
             ),
           ),
         ],
       ),
-      body: MultiBlocListener(
-        listeners: [
-          BlocListener<TypeBloc, TypeState>(
-            listener: (context, state) {
-              if (state is TypeStateLoadedAllType) {
-                setState(() {
-                  _updateTypeNames(state.allType);
-                });
-              }
-            },
-          ),
-          BlocListener<CategoryBloc, CategoryState>(
-            listener: (context, state) {
-              if (state is CategoryStateLoadedCategoryByType) {
-                setState(() {
-                  _updateCategoryNames(state.allCategory);
-                });
-              }
-            },
+    );
+  }
+
+  Widget _buildSearchField() {
+    return Container(
+      height: 42,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(11),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x100F172A),
+            blurRadius: 8,
+            offset: Offset(0, 2),
           ),
         ],
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final screenWidth = constraints.maxWidth;
-            final crossAxisCount = _getCrossAxisCount(screenWidth);
-            final aspectRatio = _getChildAspectRatio(screenWidth);
-            final spacing = _getSpacing(screenWidth);
-
-            return Column(
-              children: [
-                // Filter Chips - Horizontal Scroll
-                if (_selectedTypeIds.isNotEmpty ||
-                    _selectedCategoryIds.isNotEmpty)
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    decoration: BoxDecoration(
-                      color: AppColors.whiteColor,
-                      border: Border(
-                        bottom: BorderSide(
-                          color: Colors.grey.shade200,
-                          width: 1,
-                        ),
-                      ),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              const Text(
-                                'Filter Aktif',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  color: Colors.black87,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              TextButton.icon(
-                                onPressed: _clearAllFilters,
-                                icon: const Icon(
-                                  Icons.close,
-                                  size: 16,
-                                  color: AppColors.primaryColor,
-                                ),
-                                label: const Text(
-                                  'Hapus Semua',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: AppColors.primaryColor,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                style: TextButton.styleFrom(
-                                  padding: EdgeInsets.zero,
-                                  minimumSize: const Size(0, 0),
-                                  tapTargetSize:
-                                      MaterialTapTargetSize.shrinkWrap,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-
-                        // Type Chips - Horizontal
-                        if (_selectedTypeIds.isNotEmpty) ...[
-                          Padding(
-                            padding: const EdgeInsets.only(left: 16, bottom: 8),
-                            child: Text(
-                              'Type',
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: Colors.grey.shade600,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ),
-                          SizedBox(
-                            height: 36,
-                            child: ListView.separated(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                              ),
-                              scrollDirection: Axis.horizontal,
-                              itemCount: _selectedTypeIds.length,
-                              separatorBuilder: (context, index) =>
-                                  const SizedBox(width: 8),
-                              itemBuilder: (context, index) {
-                                final typeId = _selectedTypeIds[index];
-                                final isLocked =
-                                    _lockedTypeId != null &&
-                                    typeId == _lockedTypeId;
-                                return _buildFilterChip(
-                                  label: _typeNames[typeId] ?? 'Loading...',
-                                  onRemove: isLocked
-                                      ? null
-                                      : () => _removeTypeFilter(typeId),
-                                  isLocked: isLocked,
-                                );
-                              },
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                        ],
-
-                        // Category Chips - Horizontal
-                        if (_selectedCategoryIds.isNotEmpty) ...[
-                          Padding(
-                            padding: const EdgeInsets.only(left: 16, bottom: 8),
-                            child: Text(
-                              'Kategori',
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: Colors.grey.shade600,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ),
-                          SizedBox(
-                            height: 36,
-                            child: ListView.separated(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                              ),
-                              scrollDirection: Axis.horizontal,
-                              itemCount: _selectedCategoryIds.length,
-                              separatorBuilder: (context, index) =>
-                                  const SizedBox(width: 8),
-                              itemBuilder: (context, index) {
-                                final categoryId = _selectedCategoryIds[index];
-                                return _buildFilterChip(
-                                  label:
-                                      _categoryNames[categoryId] ??
-                                      'Loading...',
-                                  onRemove: () =>
-                                      _removeCategoryFilter(categoryId),
-                                );
-                              },
-                            ),
-                          ),
-                        ],
-                        const SizedBox(height: 4),
-                      ],
-                    ),
+      ),
+      child: TextField(
+        controller: _searchController,
+        textInputAction: TextInputAction.search,
+        textAlignVertical: TextAlignVertical.center,
+        onChanged: (value) {
+          _onSearchChanged(value);
+          setState(() {});
+        },
+        style: const TextStyle(
+          color: Color(0xFF1E293B),
+          fontSize: 11.5,
+          fontWeight: FontWeight.w500,
+          fontFamily: AppFonts.primaryFont,
+        ),
+        decoration: InputDecoration(
+          isDense: true,
+          hintText: 'Cari kain, busa, springbed, kode...',
+          hintStyle: const TextStyle(
+            color: Color(0xFF94A3B8),
+            fontSize: 11,
+            fontWeight: FontWeight.w400,
+            fontFamily: AppFonts.primaryFont,
+          ),
+          prefixIcon: const Icon(
+            Icons.search_rounded,
+            color: Color(0xFF94A3B8),
+            size: 18,
+          ),
+          prefixIconConstraints: const BoxConstraints(
+            minWidth: 42,
+            minHeight: 42,
+          ),
+          suffixIcon: _searchController.text.isNotEmpty
+              ? IconButton(
+                  tooltip: 'Hapus pencarian',
+                  onPressed: () {
+                    _searchController.clear();
+                    _onSearchChanged('');
+                    setState(() {});
+                  },
+                  splashRadius: 18,
+                  icon: const Icon(
+                    Icons.close_rounded,
+                    color: Color(0xFF94A3B8),
+                    size: 17,
                   ),
+                )
+              : null,
+          suffixIconConstraints: const BoxConstraints(
+            minWidth: 42,
+            minHeight: 42,
+          ),
+          border: InputBorder.none,
+          enabledBorder: InputBorder.none,
+          focusedBorder: InputBorder.none,
+          contentPadding: EdgeInsets.zero,
+        ),
+      ),
+    );
+  }
 
-                // Product Grid
-                Expanded(
-                  child: BlocBuilder<ProductBloc, ProductState>(
-                    bloc: pBloc,
-                    builder: (context, state) {
-                      // Initialize products only once
-                      if (!_isInitialized &&
-                          state is! ProductListLoaded &&
-                          state is! ProductListLoading) {
-                        WidgetsBinding.instance.addPostFrameCallback((_) {
-                          if (!_isInitialized) {
-                            _loadProducts();
-                            _isInitialized = true;
-                          }
+  Widget _buildFilterButton() {
+    final activeCount = _selectedTypeIds.length + _selectedCategoryIds.length;
+
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Material(
+          color: Colors.white.withOpacity(0.18),
+          borderRadius: BorderRadius.circular(11),
+          child: InkWell(
+            onTap: () => _showFilterBottomSheet(context),
+            borderRadius: BorderRadius.circular(11),
+            child: Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(11),
+                border: Border.all(color: Colors.white.withOpacity(0.25)),
+              ),
+              child: const Center(
+                child: FaIcon(
+                  FontAwesomeIcons.sliders,
+                  color: Colors.white,
+                  size: 16,
+                ),
+              ),
+            ),
+          ),
+        ),
+        if (activeCount > 0)
+          Positioned(
+            right: -5,
+            top: -5,
+            child: Container(
+              padding: const EdgeInsets.all(3),
+              decoration: const BoxDecoration(
+                color: AppColors.secondaryColor,
+                shape: BoxShape.circle,
+              ),
+              constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+              child: Center(
+                child: Text(
+                  '$activeCount',
+                  style: const TextStyle(
+                    color: Colors.black,
+                    fontSize: 8,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final media = MediaQuery.of(context);
+    final scaler = media.textScaler.clamp(
+      minScaleFactor: 0.90,
+      maxScaleFactor: 1.0,
+    );
+
+    return MediaQuery(
+      data: media.copyWith(textScaler: scaler),
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF8FAFC),
+        body: Column(
+          children: [
+            _buildHeader(context),
+            Expanded(
+              child: MultiBlocListener(
+                listeners: [
+                  BlocListener<TypeBloc, TypeState>(
+                    listener: (context, state) {
+                      if (state is TypeStateLoadedAllType) {
+                        setState(() {
+                          _updateTypeNames(state.allType);
                         });
                       }
-
-                      if (state is ProductListLoading) {
-                        return _buildLoadingShimmer(screenWidth);
+                    },
+                  ),
+                  BlocListener<CategoryBloc, CategoryState>(
+                    listener: (context, state) {
+                      if (state is CategoryStateLoadedCategoryByType) {
+                        setState(() {
+                          _updateCategoryNames(state.allCategory);
+                        });
                       }
+                    },
+                  ),
+                ],
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final screenWidth = constraints.maxWidth;
+                    final crossAxisCount = _getCrossAxisCount(screenWidth);
+                    final aspectRatio = _getChildAspectRatio(screenWidth);
+                    final spacing = _getSpacing(screenWidth);
 
-                      if (state is ProductError) {
-                        return Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.error_outline,
-                                size: 64,
-                                color: Colors.grey.shade400,
-                              ),
-                              const SizedBox(height: 16),
-                              Text(
-                                state.message,
-                                style: TextStyle(color: Colors.grey.shade600),
-                              ),
-                              const SizedBox(height: 16),
-                              ElevatedButton(
-                                onPressed: _loadProducts,
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppColors.primaryColor,
+                    return Column(
+                      children: [
+                        // Filter Chips - Horizontal Scroll
+                        if (_selectedTypeIds.isNotEmpty ||
+                            _selectedCategoryIds.isNotEmpty)
+                          Container(
+                            width: double.infinity,
+                            margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(18),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.04),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 2),
                                 ),
-                                child: const Text('Coba Lagi'),
-                              ),
-                            ],
-                          ),
-                        );
-                      }
-
-                      if (state is ProductListLoaded) {
-                        _restoreScrollPosition();
-
-                        if (state.products.isEmpty) {
-                          return Center(
+                              ],
+                            ),
                             child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Icon(
-                                  Icons.inventory_2_outlined,
-                                  size: 64,
-                                  color: Colors.grey.shade400,
-                                ),
-                                const SizedBox(height: 16),
-                                Text(
-                                  'Tidak ada produk ditemukan',
-                                  style: TextStyle(
-                                    color: Colors.grey.shade600,
-                                    fontSize: 16,
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
                                   ),
-                                ),
-                                if (_selectedTypeIds.isNotEmpty ||
-                                    _selectedCategoryIds.isNotEmpty)
-                                  Padding(
-                                    padding: const EdgeInsets.only(top: 12),
-                                    child: TextButton(
-                                      onPressed: _clearAllFilters,
-                                      child: const Text(
-                                        'Hapus Filter',
+                                  child: Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      const Text(
+                                        'Filter Aktif',
                                         style: TextStyle(
+                                          fontFamily: AppFonts.primaryFont,
+                                          fontSize: 13,
+                                          color: Color(0xFF1E293B),
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                      TextButton.icon(
+                                        onPressed: _clearAllFilters,
+                                        icon: const Icon(
+                                          Icons.close,
+                                          size: 16,
                                           color: AppColors.primaryColor,
                                         ),
+                                        label: const Text(
+                                          'Hapus Semua',
+                                          style: TextStyle(
+                                            fontFamily: AppFonts.primaryFont,
+                                            fontSize: 12,
+                                            color: AppColors.primaryColor,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                        style: TextButton.styleFrom(
+                                          padding: EdgeInsets.zero,
+                                          minimumSize: const Size(0, 0),
+                                          tapTargetSize:
+                                              MaterialTapTargetSize.shrinkWrap,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+
+                                // Type Chips - Horizontal
+                                if (_selectedTypeIds.isNotEmpty) ...[
+                                  Padding(
+                                    padding: const EdgeInsets.only(
+                                      left: 16,
+                                      bottom: 8,
+                                    ),
+                                    child: Text(
+                                      'Type',
+                                      style: TextStyle(
+                                        fontFamily: AppFonts.primaryFont,
+                                        fontSize: 11,
+                                        color: Colors.grey.shade600,
+                                        fontWeight: FontWeight.w500,
                                       ),
                                     ),
                                   ),
+                                  SizedBox(
+                                    height: 36,
+                                    child: ListView.separated(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 16,
+                                      ),
+                                      scrollDirection: Axis.horizontal,
+                                      itemCount: _selectedTypeIds.length,
+                                      separatorBuilder: (context, index) =>
+                                          const SizedBox(width: 8),
+                                      itemBuilder: (context, index) {
+                                        final typeId = _selectedTypeIds[index];
+                                        final isLocked =
+                                            _lockedTypeId != null &&
+                                            typeId == _lockedTypeId;
+                                        return _buildFilterChip(
+                                          label:
+                                              _typeNames[typeId] ??
+                                              'Loading...',
+                                          onRemove: isLocked
+                                              ? null
+                                              : () => _removeTypeFilter(typeId),
+                                          isLocked: isLocked,
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                  const SizedBox(height: 12),
+                                ],
+
+                                // Category Chips - Horizontal
+                                if (_selectedCategoryIds.isNotEmpty) ...[
+                                  Padding(
+                                    padding: const EdgeInsets.only(
+                                      left: 16,
+                                      bottom: 8,
+                                    ),
+                                    child: Text(
+                                      'Kategori',
+                                      style: TextStyle(
+                                        fontFamily: AppFonts.primaryFont,
+                                        fontSize: 11,
+                                        color: Colors.grey.shade600,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ),
+                                  SizedBox(
+                                    height: 36,
+                                    child: ListView.separated(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 16,
+                                      ),
+                                      scrollDirection: Axis.horizontal,
+                                      itemCount: _selectedCategoryIds.length,
+                                      separatorBuilder: (context, index) =>
+                                          const SizedBox(width: 8),
+                                      itemBuilder: (context, index) {
+                                        final categoryId =
+                                            _selectedCategoryIds[index];
+                                        return _buildFilterChip(
+                                          label:
+                                              _categoryNames[categoryId] ??
+                                              'Loading...',
+                                          onRemove: () =>
+                                              _removeCategoryFilter(categoryId),
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                ],
+                                const SizedBox(height: 4),
                               ],
                             ),
-                          );
-                        }
+                          ),
 
-                        return Column(
-                          children: [
-                            Expanded(
-                              child: GridView.builder(
-                                controller: _scrollController,
-                                padding: const EdgeInsets.all(16),
-                                gridDelegate:
-                                    SliverGridDelegateWithFixedCrossAxisCount(
-                                      crossAxisCount: crossAxisCount,
-                                      childAspectRatio: aspectRatio,
-                                      crossAxisSpacing: spacing,
-                                      mainAxisSpacing: spacing,
+                        // Product Grid
+                        Expanded(
+                          child: BlocBuilder<ProductBloc, ProductState>(
+                            bloc: pBloc,
+                            builder: (context, state) {
+                              // Initialize products only once
+                              if (!_isInitialized &&
+                                  state is! ProductListLoaded &&
+                                  state is! ProductListLoading) {
+                                WidgetsBinding.instance.addPostFrameCallback((
+                                  _,
+                                ) {
+                                  if (!_isInitialized) {
+                                    _loadProducts();
+                                    _isInitialized = true;
+                                  }
+                                });
+                              }
+
+                              if (state is ProductListLoading) {
+                                return _buildLoadingShimmer(screenWidth);
+                              }
+
+                              if (state is ProductError) {
+                                return Center(
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        Icons.error_outline,
+                                        size: 64,
+                                        color: Colors.grey.shade400,
+                                      ),
+                                      const SizedBox(height: 16),
+                                      Text(
+                                        state.message,
+                                        style: TextStyle(
+                                          color: Colors.grey.shade600,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 16),
+                                      ElevatedButton(
+                                        onPressed: _loadProducts,
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor:
+                                              AppColors.primaryColor,
+                                        ),
+                                        child: const Text('Coba Lagi'),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              }
+
+                              if (state is ProductListLoaded) {
+                                _restoreScrollPosition();
+
+                                if (state.products.isEmpty) {
+                                  return Center(
+                                    child: Column(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Icon(
+                                          Icons.inventory_2_outlined,
+                                          size: 64,
+                                          color: Colors.grey.shade400,
+                                        ),
+                                        const SizedBox(height: 16),
+                                        Text(
+                                          'Tidak ada produk ditemukan',
+                                          style: TextStyle(
+                                            color: Colors.grey.shade600,
+                                            fontSize: 16,
+                                          ),
+                                        ),
+                                        if (_selectedTypeIds.isNotEmpty ||
+                                            _selectedCategoryIds.isNotEmpty)
+                                          Padding(
+                                            padding: const EdgeInsets.only(
+                                              top: 12,
+                                            ),
+                                            child: TextButton(
+                                              onPressed: _clearAllFilters,
+                                              child: const Text(
+                                                'Hapus Filter',
+                                                style: TextStyle(
+                                                  color: AppColors.primaryColor,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                      ],
                                     ),
-                                itemCount: state.products.length,
-                                itemBuilder: (context, index) {
-                                  final product = state.products[index];
-                                  return ProductCard(
-                                    product: product,
-                                    onTap: () {
-                                      if (_scrollController.hasClients) {
-                                        _savedScrollPosition =
-                                            _scrollController.offset;
-                                        _shouldRestoreScroll = true;
-                                      }
-
-                                      context.pushNamed(
-                                        'productDetail',
-                                        pathParameters: {
-                                          'id': product.id.toString(),
-                                        },
-                                      );
-                                    },
                                   );
-                                },
-                              ),
-                            ),
-                            if (state.isLoadingMore)
-                              Container(
-                                padding: const EdgeInsets.all(16),
-                                child: const CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                ),
-                              ),
-                          ],
-                        );
-                      }
+                                }
 
-                      return const SizedBox.shrink();
-                    },
-                  ),
+                                return Column(
+                                  children: [
+                                    Expanded(
+                                      child: GridView.builder(
+                                        controller: _scrollController,
+                                        padding: const EdgeInsets.all(16),
+                                        gridDelegate:
+                                            SliverGridDelegateWithFixedCrossAxisCount(
+                                              crossAxisCount: crossAxisCount,
+                                              childAspectRatio: aspectRatio,
+                                              crossAxisSpacing: spacing,
+                                              mainAxisSpacing: spacing,
+                                            ),
+                                        itemCount: state.products.length,
+                                        itemBuilder: (context, index) {
+                                          final product = state.products[index];
+                                          return ProductCard(
+                                            product: product,
+                                            onTap: () {
+                                              if (_scrollController
+                                                  .hasClients) {
+                                                _savedScrollPosition =
+                                                    _scrollController.offset;
+                                                _shouldRestoreScroll = true;
+                                              }
+
+                                              context.pushNamed(
+                                                'productDetail',
+                                                pathParameters: {
+                                                  'id': product.id.toString(),
+                                                },
+                                              );
+                                            },
+                                          );
+                                        },
+                                      ),
+                                    ),
+                                    if (state.isLoadingMore)
+                                      Container(
+                                        padding: const EdgeInsets.all(16),
+                                        child: const CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                        ),
+                                      ),
+                                  ],
+                                );
+                              }
+
+                              return const SizedBox.shrink();
+                            },
+                          ),
+                        ),
+                      ],
+                    );
+                  },
                 ),
-              ],
-            );
-          },
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -736,8 +943,8 @@ class _ProductPageState extends State<ProductPage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.grey[50],
-        border: Border.all(color: Colors.grey[400]!),
+        color: const Color(0xFFF8FAFC),
+        border: Border.all(color: Colors.grey.shade200),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Row(
@@ -750,7 +957,8 @@ class _ProductPageState extends State<ProductPage> {
             ),
           Text(
             label,
-            style: TextStyle(
+            style: const TextStyle(
+              fontFamily: AppFonts.primaryFont,
               color: Color(0xC6000000),
               fontSize: 12,
               fontWeight: FontWeight.w500,
@@ -762,7 +970,11 @@ class _ProductPageState extends State<ProductPage> {
               onTap: onRemove,
               child: Container(
                 padding: const EdgeInsets.all(2),
-                child: Icon(Icons.close, size: 14, color: Color(0xC6000000)),
+                child: const Icon(
+                  Icons.close,
+                  size: 14,
+                  color: Color(0xC6000000),
+                ),
               ),
             ),
           ],

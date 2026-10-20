@@ -14,11 +14,12 @@ class SearchEventInitial extends SearchEvent {
 
 class SearchEventQueryChanged extends SearchEvent {
   final String query;
+  final List<List<dynamic>> filters;
 
-  const SearchEventQueryChanged(this.query);
+  const SearchEventQueryChanged(this.query, {this.filters = const []});
 
   @override
-  List<Object?> get props => [query];
+  List<Object?> get props => [query, filters];
 }
 
 class SearchEventClearQuery extends SearchEvent {

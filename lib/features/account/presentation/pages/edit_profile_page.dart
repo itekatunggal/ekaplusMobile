@@ -18,7 +18,9 @@ class EditProfilePage extends StatelessWidget {
     return CustomHeaderScaffold(
       title: 'Ubah Profil',
       backgroundColor: const Color(0xFFF6F7F9),
-      // contentColor: const Color(0xFFF6F7F9),
+      // Body full width supaya bottom bar "Selesai" tidak punya tepi putih.
+      // Padding horizontal sudah diatur di dalam _ProfileContent.
+      bodyPadding: EdgeInsets.zero,
       onLeadingPressed: () => context.pop(),
       actions: [
         CustomHeaderActionButton(
@@ -63,31 +65,18 @@ class _ProfileContent extends StatelessWidget {
         Expanded(
           child: SingleChildScrollView(
             physics: const BouncingScrollPhysics(),
-            padding: const EdgeInsets.fromLTRB(16, 18, 16, 24),
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 24),
             child: Center(
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 680),
                 child: Column(
                   children: [
-                    AccountAvatar(
+                    _ProfileSummaryCard(
                       user: user,
-                      size: 92,
-                      showCamera: true,
-                      onTap: () => _editPhoto(context),
+                      onEditPhoto: () => _editPhoto(context),
+                      onCompleteProfile: () => _editPersonalData(context),
                     ),
-                    const SizedBox(height: 9),
-                    TextButton(
-                      onPressed: () => _editPhoto(context),
-                      child: const Text(
-                        'Ubah Foto Profil',
-                        style: TextStyle(
-                          color: AppColors.primaryColor,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 14),
                     _ProfileSection(
                       title: 'Informasi Akun Personal',
                       children: [
@@ -213,7 +202,10 @@ class _ProfileContent extends StatelessWidget {
           ),
         ),
         Container(
-          color: Colors.white,
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            border: Border(top: BorderSide(color: Color(0xFFF1F5F9))),
+          ),
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
           child: SafeArea(
             top: false,
@@ -289,10 +281,10 @@ class _ProfileContent extends StatelessWidget {
     }
   }
 
-  String _roleLabel(String value) {
-    if (value.trim().isEmpty) return '-';
-    return value[0].toUpperCase() + value.substring(1);
-  }
+  // String _roleLabel(String value) {
+  //   if (value.trim().isEmpty) return '-';
+  //   return value[0].toUpperCase() + value.substring(1);
+  // }
 
   String _formatDate(DateTime? value) {
     if (value == null) return 'Belum diisi';
@@ -353,6 +345,203 @@ class _ProfileContent extends StatelessWidget {
       return;
     }
     context.pushNamed('change-password', extra: {'verifyOldPassword': 'old'});
+  }
+}
+
+/// Kartu ringkasan profil: foto, nama, username, badge verifikasi,
+/// kelengkapan profil, dan tombol ubah foto.
+class _ProfileSummaryCard extends StatelessWidget {
+  const _ProfileSummaryCard({
+    required this.user,
+    required this.onEditPhoto,
+    required this.onCompleteProfile,
+  });
+
+  final User user;
+  final VoidCallback onEditPhoto;
+  final VoidCallback onCompleteProfile;
+
+  static const int _totalItems = 6;
+
+  List<String> get _missingPersonal {
+    final missing = <String>[];
+    if (user.fullName.trim().isEmpty) missing.add('Nama');
+    if (user.gender.trim().isEmpty) missing.add('Gender');
+    if (user.placeOfBirth.trim().isEmpty) missing.add('Tempat Lahir');
+    if (user.dateOfBirth == null) missing.add('Tanggal Lahir');
+    return missing;
+  }
+
+  List<String> get _missingAll {
+    final missing = [..._missingPersonal];
+    if (!user.isPhoneVerified) missing.add('Verifikasi HP');
+    if (!user.isEmailVerified) missing.add('Verifikasi Email');
+    return missing;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final missingPersonal = _missingPersonal;
+    final missingAll = _missingAll;
+    final done = _totalItems - missingAll.length;
+    final progress = done / _totalItems;
+    final isComplete = missingAll.isEmpty;
+    final progressColor = isComplete
+        ? const Color(0xFF16A34A)
+        : AppColors.primaryColor;
+
+    final hasUsername = user.username.trim().isNotEmpty;
+    final subtitle = hasUsername ? '@${user.username}' : user.email;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(16, 18, 16, 16),
+      decoration: accountCardDecoration,
+      child: Column(
+        children: [
+          AccountAvatar(
+            user: user,
+            size: 84,
+            showCamera: true,
+            onTap: onEditPhoto,
+          ),
+          const SizedBox(height: 12),
+          Text(
+            user.fullName.trim().isEmpty ? '-' : user.fullName,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: Color(0xFF1E293B),
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          if (subtitle.trim().isNotEmpty) ...[
+            const SizedBox(height: 2),
+            Text(
+              subtitle,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 11),
+            ),
+          ],
+          if (user.isPhoneVerified || user.isEmailVerified) ...[
+            const SizedBox(height: 10),
+            Wrap(
+              alignment: WrapAlignment.center,
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                if (user.isPhoneVerified)
+                  const AccountStatusBadge(label: 'HP Terverifikasi'),
+                if (user.isEmailVerified)
+                  const AccountStatusBadge(label: 'Email Terverifikasi'),
+              ],
+            ),
+          ],
+          const SizedBox(height: 14),
+          SizedBox(
+            height: 36,
+            child: OutlinedButton.icon(
+              onPressed: onEditPhoto,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.primaryColor,
+                side: const BorderSide(color: Color(0xFFFECACA)),
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              icon: const Icon(Icons.photo_camera_outlined, size: 15),
+              label: const Text(
+                'Ubah Foto Profil',
+                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+              ),
+            ),
+          ),
+          const SizedBox(height: 14),
+          const Divider(height: 1, color: Color(0xFFF1F5F9)),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  'Kelengkapan Profil',
+                  style: TextStyle(
+                    color: Color(0xFF1E293B),
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              Text(
+                '$done/$_totalItems',
+                style: TextStyle(
+                  color: progressColor,
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: LinearProgressIndicator(
+              value: progress,
+              minHeight: 6,
+              backgroundColor: const Color(0xFFF1F5F9),
+              valueColor: AlwaysStoppedAnimation<Color>(progressColor),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Icon(
+                isComplete
+                    ? Icons.check_circle_rounded
+                    : Icons.info_outline_rounded,
+                size: 14,
+                color: isComplete
+                    ? const Color(0xFF16A34A)
+                    : const Color(0xFF94A3B8),
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  isComplete
+                      ? 'Profil Anda sudah lengkap'
+                      : 'Belum lengkap: ${missingAll.join(', ')}',
+                  style: const TextStyle(
+                    color: Color(0xFF64748B),
+                    fontSize: 10,
+                    height: 1.4,
+                  ),
+                ),
+              ),
+              if (missingPersonal.isNotEmpty)
+                InkWell(
+                  onTap: onCompleteProfile,
+                  borderRadius: BorderRadius.circular(6),
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                    child: Text(
+                      'Lengkapi',
+                      style: TextStyle(
+                        color: AppColors.primaryColor,
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 }
 

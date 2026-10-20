@@ -58,12 +58,12 @@ class AccountLoggedInView extends StatelessWidget {
                         subtitle: 'Nama, email, username & keamanan',
                         onTap: () => context.pushNamed('edit-profile'),
                       ),
-                      _AccountMenuItem(
-                        icon: Icons.fingerprint_rounded,
-                        title: 'Keamanan Biometrik',
-                        badge: 'Segera',
-                        onTap: () => _comingSoon(context, 'Keamanan biometrik'),
-                      ),
+                      // _AccountMenuItem(
+                      //   icon: Icons.fingerprint_rounded,
+                      //   title: 'Keamanan Biometrik',
+                      //   badge: 'Segera',
+                      //   onTap: () => _comingSoon(context, 'Keamanan biometrik'),
+                      // ),
                       _AccountMenuItem(
                         icon: Icons.logout_rounded,
                         iconColor: AppColors.primaryColor,
@@ -109,7 +109,7 @@ class AccountLoggedInView extends StatelessWidget {
                   ),
                   const SizedBox(height: 18),
                   Text(
-                    'Ekatunggal Mobile App',
+                    'Ekaplus Mobile App',
                     style: TextStyle(
                       fontFamily: AppFonts.primaryFont,
                       color: const Color(0xFF94A3B8),

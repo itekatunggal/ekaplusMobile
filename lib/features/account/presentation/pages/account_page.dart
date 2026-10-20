@@ -3,7 +3,7 @@ import 'package:ekaplus_ekatunggal/core/shared_widgets/custom_header.dart';
 import 'package:ekaplus_ekatunggal/core/shared_widgets/exit_confirmation_wrapper.dart';
 import 'package:ekaplus_ekatunggal/features/account/presentation/widgets/account_guest_view.dart';
 import 'package:ekaplus_ekatunggal/features/account/presentation/widgets/account_logged_in_view.dart';
-import 'package:ekaplus_ekatunggal/features/account/presentation/widgets/account_others_section.dart';
+// import 'package:ekaplus_ekatunggal/features/account/presentation/widgets/account_others_section.dart';
 import 'package:ekaplus_ekatunggal/features/auth/presentation/cubit/auth_session_cubit.dart';
 import 'package:ekaplus_ekatunggal/features/auth/presentation/cubit/auth_session_state.dart';
 import 'package:flutter/material.dart';
@@ -68,7 +68,7 @@ class AccountPage extends StatelessWidget {
                 children: [
                   AccountLoggedInView(user: state.user),
                   const SizedBox(height: 14),
-                  const AccountOthersSection(),
+                  // const AccountOthersSection(),
                   const SizedBox(height: 24),
                 ],
               ),
@@ -84,7 +84,7 @@ class AccountPage extends StatelessWidget {
               children: const [
                 AccountGuestView(),
                 SizedBox(height: 14),
-                AccountOthersSection(),
+                // AccountOthersSection(),
                 SizedBox(height: 24),
               ],
             ),

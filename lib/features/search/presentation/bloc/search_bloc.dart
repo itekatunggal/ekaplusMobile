@@ -87,7 +87,7 @@ class SearchBloc extends Bloc<SearchEvent, SearchState> {
   ) async {
     final query = event.query.trim();
 
-    if (query.isEmpty) {
+    if (query.isEmpty && event.filters.isEmpty) {
       emit(
         SearchStateInitial(hotDeals: _allProducts, categories: _allCategories),
       );
@@ -96,6 +96,7 @@ class SearchBloc extends Bloc<SearchEvent, SearchState> {
 
     final result = await getAllProduct.execute(
       page: 1,
+      filters: event.filters.isEmpty ? null : event.filters,
       search: query.toLowerCase(),
     );
 
