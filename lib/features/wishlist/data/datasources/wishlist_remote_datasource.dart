@@ -55,6 +55,8 @@ class WishlistLocalDataSourceImpl implements WishlistRemoteDataSource {
         "item.id",
         "item.item_code",
         "item.image",
+        "item.uom",
+        "item.item_category",
         "item.disabled",
         "item.status",
         "user.id",

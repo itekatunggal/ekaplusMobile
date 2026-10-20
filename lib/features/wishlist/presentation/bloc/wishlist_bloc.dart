@@ -76,12 +76,14 @@ class WishlistBloc extends Bloc<WishlistEvent, WishlistState> {
 
     result.fold(
       (failure) {
-        // If network failure, keep showing shimmer (dialog will handle notification)
-        if (_isNetworkError(failure)) {
-          emit(WishlistLoading());
-        } else {
-          emit(WishlistError(failure.message ?? ''));
-        }
+        emit(
+          WishlistError(
+            failure.message ??
+                (_isNetworkError(failure)
+                    ? 'Tidak dapat terhubung ke server'
+                    : 'Gagal memuat wishlist'),
+          ),
+        );
       },
       (items) {
         emit(
@@ -182,12 +184,14 @@ class WishlistBloc extends Bloc<WishlistEvent, WishlistState> {
 
     result.fold(
       (failure) {
-        // If network failure, keep showing shimmer (dialog will handle notification)
-        if (_isNetworkError(failure)) {
-          emit(WishlistLoading());
-        } else {
-          emit(WishlistError(failure.message ?? ''));
-        }
+        emit(
+          WishlistError(
+            failure.message ??
+                (_isNetworkError(failure)
+                    ? 'Tidak dapat terhubung ke server'
+                    : 'Gagal memuat wishlist'),
+          ),
+        );
       },
       (items) {
         emit(

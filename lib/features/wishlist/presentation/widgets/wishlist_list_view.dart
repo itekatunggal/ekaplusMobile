@@ -1,4 +1,5 @@
 // lib/features/wishlist/presentation/widgets/wishlist_list_view.dart
+
 // ignore_for_file: deprecated_member_use
 
 import 'package:ekaplus_ekatunggal/constant.dart';
@@ -11,9 +12,16 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 class WishlistListView extends StatefulWidget {
   final int userId;
+
   final List<WishlistItem> wishlistItems;
+
   final ScrollController? scrollController;
+
   final bool isLoadingMore;
+
+  final bool isSelectionMode;
+
+  final VoidCallback? onExitSelectionMode;
 
   const WishlistListView({
     super.key,
@@ -21,6 +29,8 @@ class WishlistListView extends StatefulWidget {
     required this.wishlistItems,
     this.scrollController,
     this.isLoadingMore = false,
+    this.isSelectionMode = false,
+    this.onExitSelectionMode,
   });
 
   @override
@@ -29,18 +39,50 @@ class WishlistListView extends StatefulWidget {
 
 class _WishlistListViewState extends State<WishlistListView>
     with AutomaticKeepAliveClientMixin {
-  bool _isSelectionMode = false;
   final Set<int> _selectedItems = {};
 
   late ScrollController _scrollController;
 
   @override
-  bool get wantKeepAlive => true; // Keep state alive
+  bool get wantKeepAlive => true;
 
   @override
   void initState() {
     super.initState();
+
     _scrollController = widget.scrollController ?? ScrollController();
+  }
+
+  @override
+  void didUpdateWidget(covariant WishlistListView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    // Ketika keluar dari mode selection,
+    // bersihkan semua item yang pernah dipilih.
+    if (oldWidget.isSelectionMode && !widget.isSelectionMode) {
+      if (_selectedItems.isNotEmpty) {
+        setState(() {
+          _selectedItems.clear();
+        });
+      }
+    }
+
+    // Bersihkan selected id yang sudah tidak ada di list.
+    if (widget.isSelectionMode) {
+      final availableIds = widget.wishlistItems
+          .map((item) => item.item.id)
+          .toSet();
+
+      final hasInvalidItem = _selectedItems.any(
+        (id) => !availableIds.contains(id),
+      );
+
+      if (hasInvalidItem) {
+        setState(() {
+          _selectedItems.removeWhere((id) => !availableIds.contains(id));
+        });
+      }
+    }
   }
 
   @override
@@ -48,25 +90,31 @@ class _WishlistListViewState extends State<WishlistListView>
     if (widget.scrollController == null) {
       _scrollController.dispose();
     }
+
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    super.build(context); // Required for AutomaticKeepAliveClientMixin
+    super.build(context);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildHeader(),
-        if (_isSelectionMode) _buildBulkActionBar(),
+        if (widget.isSelectionMode) _buildBulkActionBar(),
+
         Expanded(
           child: ListView.separated(
             controller: _scrollController,
-            padding: const EdgeInsets.fromLTRB(0, 0, 0, 16),
+
+            // Sama rata dengan layout Customer/Wishlist.
+            padding: const EdgeInsets.fromLTRB(12, 0, 12, 20),
+
             itemCount:
                 widget.wishlistItems.length + (widget.isLoadingMore ? 1 : 0),
-            separatorBuilder: (_, __) => const SizedBox(height: 8),
+
+            separatorBuilder: (_, __) => const SizedBox(height: 2),
+
             itemBuilder: (context, index) {
               if (index == widget.wishlistItems.length &&
                   widget.isLoadingMore) {
@@ -76,15 +124,15 @@ class _WishlistListViewState extends State<WishlistListView>
               final item = widget.wishlistItems[index].item;
 
               return WishlistItemCard(
-                key: ValueKey(
-                  'wishlist_${item.id}',
-                ), // Add key for state preservation
+                key: ValueKey('wishlist_${item.id}'),
                 userId: widget.userId,
                 productCode: item.itemCode,
                 productId: item.id,
                 productName: item.itemName,
                 imagePath: item.image,
-                isSelectionMode: _isSelectionMode,
+                categoryName: item.category?.name ?? '',
+                uom: item.uom,
+                isSelectionMode: widget.isSelectionMode,
                 isSelected: _selectedItems.contains(item.id),
                 onSelectionChanged: (isSelected) {
                   _toggleSelection(item.id, isSelected);
@@ -97,116 +145,104 @@ class _WishlistListViewState extends State<WishlistListView>
     );
   }
 
-  Widget _buildHeader() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 10, 16, 6),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Expanded(
-            child: Text(
-              _isSelectionMode ? '${_selectedItems.length} dipilih' : '',
-              style: TextStyle(
-                fontSize: 12.5,
-                fontWeight: FontWeight.w600,
-                fontFamily: AppFonts.primaryFont,
-                color: Colors.grey[700],
-              ),
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          TextButton(
-            onPressed: () {
-              if (mounted) {
-                setState(() {
-                  if (_isSelectionMode) {
-                    _isSelectionMode = false;
-                    _selectedItems.clear();
-                  } else {
-                    _isSelectionMode = true;
-                  }
-                });
-              }
-            },
-            style: TextButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              minimumSize: Size.zero,
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            ),
-            child: Text(
-              _isSelectionMode ? 'Batal' : 'Pilih',
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                fontFamily: AppFonts.primaryFont,
-                color: AppColors.primaryColor,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildBulkActionBar() {
+    final allSelected =
+        widget.wishlistItems.isNotEmpty &&
+        widget.wishlistItems.every(
+          (item) => _selectedItems.contains(item.item.id),
+        );
+
     return Container(
-      margin: const EdgeInsets.fromLTRB(16, 0, 16, 6),
+      margin: const EdgeInsets.fromLTRB(16, 2, 16, 8),
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
       decoration: BoxDecoration(
-        color: AppColors.primaryColor.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(8),
+        color: AppColors.primaryColor.withOpacity(0.07),
+        borderRadius: BorderRadius.circular(9),
+        border: Border.all(color: AppColors.primaryColor.withOpacity(0.12)),
       ),
       child: Row(
         children: [
           Transform.scale(
-            scale: 0.85,
+            scale: 0.82,
             child: Checkbox(
-              value:
-                  widget.wishlistItems.isNotEmpty &&
-                  widget.wishlistItems.every(
-                    (e) => _selectedItems.contains(e.item.id),
-                  ),
+              value: allSelected,
               onChanged: (value) {
-                if (mounted) {
-                  setState(() {
-                    if (value == true) {
-                      for (var item in widget.wishlistItems) {
-                        _selectedItems.add(item.item.id);
-                      }
-                    } else {
-                      _selectedItems.clear();
+                setState(() {
+                  if (value == true) {
+                    for (final item in widget.wishlistItems) {
+                      _selectedItems.add(item.item.id);
                     }
-                  });
-                }
+                  } else {
+                    _selectedItems.clear();
+                  }
+                });
               },
               activeColor: AppColors.primaryColor,
               materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
             ),
           ),
-          const SizedBox(width: 3),
+
+          const SizedBox(width: 2),
+
           const Text(
             'Pilih Semua',
             style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
+              color: Color(0xFF334155),
+              fontSize: 11.5,
+              fontWeight: FontWeight.w600,
               fontFamily: AppFonts.primaryFont,
             ),
           ),
+
+          if (_selectedItems.isNotEmpty) ...[
+            const SizedBox(width: 5),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: AppColors.primaryColor,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                '${_selectedItems.length}',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 9,
+                  fontWeight: FontWeight.w700,
+                  fontFamily: AppFonts.primaryFont,
+                ),
+              ),
+            ),
+          ],
+
           const Spacer(),
-          ElevatedButton.icon(
-            onPressed: _selectedItems.isEmpty
-                ? null
-                : () => _showBulkDeleteConfirmation(),
-            icon: const Icon(Icons.delete_outline, size: 14),
-            label: const Text('Hapus', style: TextStyle(fontSize: 11)),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: AppColors.whiteColor,
-              disabledBackgroundColor: Colors.grey[300],
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-              minimumSize: const Size(0, 28),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(6),
+
+          SizedBox(
+            height: 30,
+            child: ElevatedButton.icon(
+              onPressed: _selectedItems.isEmpty
+                  ? null
+                  : _showBulkDeleteConfirmation,
+              icon: const Icon(Icons.delete_outline_rounded, size: 14),
+              label: const Text(
+                'Hapus',
+                style: TextStyle(
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w700,
+                  fontFamily: AppFonts.primaryFont,
+                ),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primaryColor,
+                foregroundColor: Colors.white,
+                disabledBackgroundColor: const Color(0xFFE2E8F0),
+                disabledForegroundColor: const Color(0xFF94A3B8),
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(7),
+                ),
               ),
             ),
           ),
@@ -216,169 +252,192 @@ class _WishlistListViewState extends State<WishlistListView>
   }
 
   Widget _buildLoadingIndicator() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12),
+    return const Padding(
+      padding: EdgeInsets.symmetric(vertical: 16),
       child: Center(
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const SizedBox(
-              width: 18,
-              height: 18,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: AppColors.primaryColor,
-              ),
-            ),
-            const SizedBox(width: 10),
-            Text(
-              'Memuat lebih banyak...',
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey[600],
-                fontFamily: AppFonts.primaryFont,
-              ),
-            ),
-          ],
+        child: SizedBox(
+          width: 21,
+          height: 21,
+          child: CircularProgressIndicator(
+            strokeWidth: 2.2,
+            color: AppColors.primaryColor,
+          ),
         ),
       ),
     );
   }
 
   void _toggleSelection(int productId, bool isSelected) {
-    if (mounted) {
-      setState(() {
-        if (isSelected) {
-          _selectedItems.add(productId);
-        } else {
-          _selectedItems.remove(productId);
-        }
-      });
-    }
+    if (!mounted) return;
+
+    setState(() {
+      if (isSelected) {
+        _selectedItems.add(productId);
+      } else {
+        _selectedItems.remove(productId);
+      }
+    });
   }
 
   void _showBulkDeleteConfirmation() {
     final selectedCount = _selectedItems.length;
 
+    if (selectedCount == 0) return;
+
     showDialog(
       context: context,
-      builder: (dialogContext) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        child: Padding(
-          padding: const EdgeInsets.all(18),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(
-                Icons.warning_amber_rounded,
-                size: 42,
-                color: Colors.orange,
-              ),
-              const SizedBox(height: 14),
-              Text(
-                'Hapus $selectedCount Item?',
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontFamily: AppFonts.primaryFont,
-                  fontWeight: FontWeight.w700,
+      barrierDismissible: true,
+      builder: (dialogContext) {
+        return Dialog(
+          insetPadding: const EdgeInsets.symmetric(horizontal: 28),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 52,
+                  height: 52,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFEF2F2),
+                    borderRadius: BorderRadius.circular(26),
+                  ),
+                  child: const Icon(
+                    Icons.delete_outline_rounded,
+                    size: 26,
+                    color: AppColors.primaryColor,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 7),
-              const Text(
-                'Apakah Anda yakin ingin menghapus item yang dipilih dari wishlist?',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontFamily: AppFonts.primaryFont,
-                  color: Colors.black87,
+
+                const SizedBox(height: 14),
+
+                Text(
+                  'Hapus $selectedCount Item?',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: Color(0xFF1E293B),
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    fontFamily: AppFonts.primaryFont,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 18),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => Navigator.pop(dialogContext),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 11),
-                        side: const BorderSide(color: Colors.grey),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
+
+                const SizedBox(height: 7),
+
+                const Text(
+                  'Item yang dipilih akan dihapus dari wishlist Anda.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Color(0xFF64748B),
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w400,
+                    fontFamily: AppFonts.primaryFont,
+                    height: 1.4,
+                  ),
+                ),
+
+                const SizedBox(height: 20),
+
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () {
+                          Navigator.pop(dialogContext);
+                        },
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: const Color(0xFF475569),
+                          side: const BorderSide(color: Color(0xFFE2E8F0)),
+                          padding: const EdgeInsets.symmetric(vertical: 11),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(9),
+                          ),
                         ),
-                      ),
-                      child: const Text(
-                        'Batal',
-                        style: TextStyle(
-                          color: Colors.black87,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          fontFamily: AppFonts.primaryFont,
+                        child: const Text(
+                          'Batal',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            fontFamily: AppFonts.primaryFont,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () {
-                        final itemsToDelete = _selectedItems.toList();
 
-                        if (mounted) {
+                    const SizedBox(width: 10),
+
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () {
+                          final itemsToDelete = _selectedItems.toList();
+
                           context.read<WishlistBloc>().add(
                             BulkDeleteWishlistItems(
                               userId: widget.userId,
                               productIds: itemsToDelete,
                             ),
                           );
-                        }
 
-                        Navigator.pop(dialogContext);
+                          Navigator.pop(dialogContext);
 
-                        if (mounted) {
+                          setState(() {
+                            _selectedItems.clear();
+                          });
+
+                          widget.onExitSelectionMode?.call();
+
                           AppSnackbar.showRaw(
                             context,
                             SnackBar(
                               content: Text(
                                 '$selectedCount item dihapus dari wishlist',
-                                style: const TextStyle(fontSize: 13),
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
-                              backgroundColor: Colors.green,
+                              backgroundColor: const Color(0xFF16A34A),
                               behavior: SnackBarBehavior.floating,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              margin: const EdgeInsets.all(12),
                             ),
                           );
-
-                          setState(() {
-                            _isSelectionMode = false;
-                            _selectedItems.clear();
-                          });
-                        }
-                      },
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 11),
-                        backgroundColor: Colors.red,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primaryColor,
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          padding: const EdgeInsets.symmetric(vertical: 11),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(9),
+                          ),
                         ),
-                      ),
-                      child: const Text(
-                        'Hapus',
-                        style: TextStyle(
-                          color: AppColors.whiteColor,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          fontFamily: AppFonts.primaryFont,
+                        child: const Text(
+                          'Hapus',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            fontFamily: AppFonts.primaryFont,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                ],
-              ),
-            ],
+                  ],
+                ),
+              ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }

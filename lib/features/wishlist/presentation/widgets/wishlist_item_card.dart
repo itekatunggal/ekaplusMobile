@@ -18,6 +18,8 @@ class WishlistItemCard extends StatefulWidget {
   final String productCode;
   final String productName;
   final String imagePath;
+  final String categoryName;
+  final String uom;
   final bool isSelectionMode;
   final bool isSelected;
   final ValueChanged<bool>? onSelectionChanged;
@@ -29,6 +31,8 @@ class WishlistItemCard extends StatefulWidget {
     required this.productName,
     required this.productCode,
     required this.imagePath,
+    this.categoryName = '',
+    this.uom = '',
     this.isSelectionMode = false,
     this.isSelected = false,
     this.onSelectionChanged,
@@ -387,135 +391,256 @@ class _WishlistItemCardState extends State<WishlistItemCard>
     );
   }
 
+  Widget _buildSelectionCheckbox() {
+    return GestureDetector(
+      onTap: () {
+        widget.onSelectionChanged?.call(!widget.isSelected);
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        width: 20,
+        height: 20,
+        decoration: BoxDecoration(
+          color: widget.isSelected ? AppColors.primaryColor : Colors.white,
+          borderRadius: BorderRadius.circular(5),
+          border: Border.all(
+            color: widget.isSelected
+                ? AppColors.primaryColor
+                : const Color(0xFFCBD5E1),
+            width: 1.5,
+          ),
+        ),
+        child: widget.isSelected
+            ? const Icon(Icons.check_rounded, color: Colors.white, size: 14)
+            : null,
+      ),
+    );
+  }
+
+  Widget _buildActionButtonsNew(BuildContext context, bool isSmall) {
+    final compact = MediaQuery.of(context).size.width < 370;
+
+    return Row(
+      children: [
+        // ====================================
+        // HAPUS
+        // tampil ringan seperti desain Stitch
+        // ====================================
+        InkWell(
+          onTap: () => _showDeleteConfirmation(context),
+          borderRadius: BorderRadius.circular(7),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 6),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(
+                  Icons.delete_outline_rounded,
+                  size: 15,
+                  color: Color(0xFF94A3B8),
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  'Hapus',
+                  style: TextStyle(
+                    color: const Color(0xFF94A3B8),
+                    fontSize: compact ? 9.5 : 10.5,
+                    fontWeight: FontWeight.w600,
+                    fontFamily: AppFonts.primaryFont,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+
+        const Spacer(),
+
+        // ====================================
+        // DETAIL
+        // ====================================
+        SizedBox(
+          height: 31,
+          child: OutlinedButton.icon(
+            onPressed: _isLoading ? null : _navigateToProductDetail,
+            icon: _isLoading
+                ? const SizedBox(
+                    width: 12,
+                    height: 12,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 1.5,
+                      color: Color(0xFF64748B),
+                    ),
+                  )
+                : const Icon(Icons.menu_book_outlined, size: 14),
+            label: const Text('Detail'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: const Color(0xFF475569),
+              padding: EdgeInsets.symmetric(horizontal: compact ? 7 : 9),
+              side: const BorderSide(color: Color(0xFFE2E8F0), width: 1),
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(7),
+              ),
+              textStyle: TextStyle(
+                fontSize: compact ? 9.5 : 10.5,
+                fontWeight: FontWeight.w600,
+                fontFamily: AppFonts.primaryFont,
+              ),
+            ),
+          ),
+        ),
+
+        const SizedBox(width: 7),
+
+        // ====================================
+        // TANYA PRODUK
+        // ====================================
+        SizedBox(
+          height: 31,
+          child: ElevatedButton.icon(
+            onPressed: () {
+              WhatsAppHelper.openProduct(context, widget.productName);
+            },
+            icon: const Icon(
+              Icons.chat_bubble_outline_rounded,
+              size: 14,
+              color: Color(0xFF34D399),
+            ),
+            label: const Text('Tanya Produk'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF0F172A),
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shadowColor: Colors.transparent,
+              padding: EdgeInsets.symmetric(horizontal: compact ? 8 : 10),
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(7),
+              ),
+              textStyle: TextStyle(
+                fontSize: compact ? 9.3 : 10.2,
+                fontWeight: FontWeight.w700,
+                fontFamily: AppFonts.primaryFont,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     super.build(context);
 
     final media = MediaQuery.of(context);
     final screenWidth = media.size.width;
+
     final textScaler = media.textScaler.clamp(
-      minScaleFactor: 0.9,
+      minScaleFactor: 0.85,
       maxScaleFactor: 1.0,
     );
 
     final isSmallScreen = screenWidth < 360;
-    final isMediumScreen = screenWidth >= 360 && screenWidth < 600;
 
-    final imageSize = isSmallScreen ? 80.0 : (isMediumScreen ? 90.0 : 100.0);
-    final verticalMargin = isSmallScreen ? 5.0 : 6.0;
-    final horizontalPadding = isSmallScreen
-        ? 10.0
-        : (isMediumScreen ? 12.0 : 14.0);
-    final verticalPadding = isSmallScreen ? 10.0 : 12.0;
-    final spacing = isSmallScreen ? 10.0 : 12.0;
+    // Sesuai desain Stitch:
+    // thumbnail compact, tidak mengambil tinggi card berlebihan.
+    final imageSize = isSmallScreen ? 82.0 : 92.0;
 
     return MediaQuery(
       data: media.copyWith(textScaler: textScaler),
       child: AnimatedBuilder(
         animation: _scaleAnimation,
-        builder: (context, child) =>
-            Transform.scale(scale: _scaleAnimation.value, child: child),
+        builder: (context, child) {
+          return Transform.scale(scale: _scaleAnimation.value, child: child);
+        },
         child: GestureDetector(
           onTapDown: (_) {
-            if (mounted) _controller.forward();
+            if (mounted) {
+              _controller.forward();
+            }
           },
           onTapUp: (_) {
-            if (mounted) _controller.reverse();
+            if (mounted) {
+              _controller.reverse();
+            }
+
             if (widget.isSelectionMode) {
               widget.onSelectionChanged?.call(!widget.isSelected);
             }
           },
           onTapCancel: () {
-            if (mounted) _controller.reverse();
+            if (mounted) {
+              _controller.reverse();
+            }
           },
           child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            margin: EdgeInsets.symmetric(
-              vertical: verticalMargin,
-              horizontal: 4,
-            ),
-            padding: EdgeInsets.symmetric(
-              horizontal: horizontalPadding,
-              vertical: verticalPadding,
-            ),
+            duration: const Duration(milliseconds: 180),
+            margin: const EdgeInsets.symmetric(vertical: 5),
+            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              gradient: widget.isSelected
-                  ? LinearGradient(
-                      colors: [
-                        AppColors.primaryColor.withOpacity(0.12),
-                        AppColors.primaryColor.withOpacity(0.06),
-                      ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    )
-                  : null,
-              color: widget.isSelected ? null : Colors.white,
-              borderRadius: BorderRadius.circular(14),
+              color: widget.isSelected
+                  ? AppColors.primaryColor.withOpacity(0.05)
+                  : Colors.white,
+              borderRadius: BorderRadius.circular(16),
               border: Border.all(
                 color: widget.isSelected
                     ? AppColors.primaryColor
-                    : Colors.grey.shade200,
-                width: widget.isSelected ? 2 : 1.5,
+                    : const Color(0xFFF1F5F9),
+                width: widget.isSelected ? 1.5 : 1,
               ),
-              boxShadow: [
+              boxShadow: const [
                 BoxShadow(
-                  color: widget.isSelected
-                      ? AppColors.primaryColor.withOpacity(0.12)
-                      : Colors.black.withOpacity(0.04),
-                  blurRadius: widget.isSelected ? 10 : 6,
-                  offset: Offset(0, widget.isSelected ? 3 : 2),
-                  spreadRadius: 0,
+                  color: Color(0x0D0F172A),
+                  blurRadius: 14,
+                  offset: Offset(0, 4),
                 ),
               ],
             ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child: Column(
               children: [
-                if (widget.isSelectionMode) ...[
-                  Align(
-                    alignment: Alignment.center,
-                    child: Container(
-                      height: imageSize,
-                      alignment: Alignment.center,
-                      child: Transform.scale(
-                        scale: 0.8,
-                        child: Container(
-                          width: 18,
-                          height: 18,
-                          decoration: BoxDecoration(
-                            color: widget.isSelected
-                                ? AppColors.primaryColor
-                                : Colors.white,
-                            borderRadius: BorderRadius.circular(4),
-                            border: Border.all(
-                              color: widget.isSelected
-                                  ? AppColors.primaryColor
-                                  : Colors.grey.shade400,
-                              width: 1.5,
-                            ),
-                          ),
-                          child: widget.isSelected
-                              ? const Icon(
-                                  Icons.check,
-                                  size: 12,
-                                  color: Colors.white,
-                                )
-                              : null,
-                        ),
+                // ==========================
+                // PRODUCT AREA
+                // ==========================
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (widget.isSelectionMode) ...[
+                      SizedBox(
+                        height: imageSize,
+                        child: Center(child: _buildSelectionCheckbox()),
                       ),
+                      const SizedBox(width: 7),
+                    ],
+
+                    _buildProductImage(context, imageSize, isSmallScreen),
+
+                    const SizedBox(width: 12),
+
+                    Expanded(
+                      child: _buildProductInfoNew(context, isSmallScreen),
                     ),
-                  ),
-                  SizedBox(width: isSmallScreen ? 5 : 7),
-                ],
-                _buildProductImage(context, imageSize, isSmallScreen),
-                SizedBox(width: spacing),
-                Expanded(
-                  child: _buildProductInfo(
-                    context,
-                    isSmallScreen,
-                    isMediumScreen,
-                  ),
+                  ],
                 ),
+
+                if (!widget.isSelectionMode) ...[
+                  const SizedBox(height: 11),
+
+                  // Divider seperti Stitch
+                  const Divider(
+                    height: 1,
+                    thickness: 1,
+                    color: Color(0xFFF1F5F9),
+                  ),
+
+                  const SizedBox(height: 8),
+
+                  // Action row
+                  _buildActionButtonsNew(context, isSmallScreen),
+                ],
               ],
             ),
           ),
@@ -534,86 +659,68 @@ class _WishlistItemCardState extends State<WishlistItemCard>
             Container(
               width: size,
               height: size,
+              padding: const EdgeInsets.all(4),
               decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Colors.grey.shade100, Colors.grey.shade50],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.06),
-                    blurRadius: 8,
-                    offset: const Offset(0, 3),
-                    spreadRadius: -2,
-                  ),
-                ],
+                color: const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(11),
+                border: Border.all(color: const Color(0xFFF1F5F9)),
               ),
-              child: Stack(
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: widget.imagePath.isNotEmpty
-                        ? CachedNetworkImage(
-                            imageUrl:
-                                "${ApiConfig.baseImageUrl}/${widget.imagePath}?format=rs:fill:300:300/q:80/ext:webp",
-                            fit: BoxFit.cover,
-                            width: size,
-                            height: size,
-                            placeholder: (_, __) => Shimmer.fromColors(
-                              baseColor: Colors.grey[300]!,
-                              highlightColor: Colors.grey[100]!,
-                              child: Container(color: Colors.white),
-                            ),
-                            errorWidget: (_, __, ___) => Center(
-                              child: Icon(
-                                Icons.image_not_supported_rounded,
-                                size: size * 0.3,
-                                color: Colors.grey.shade400,
-                              ),
-                            ),
-                          )
-                        : Center(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: widget.imagePath.isNotEmpty
+                    ? CachedNetworkImage(
+                        imageUrl:
+                            "${ApiConfig.baseImageUrl}/${widget.imagePath}?format=rs:fill:300:300/q:80/ext:webp",
+
+                        // PENTING:
+                        // Stitch menggunakan contain.
+                        fit: BoxFit.contain,
+
+                        width: size,
+                        height: size,
+
+                        placeholder: (_, __) {
+                          return Shimmer.fromColors(
+                            baseColor: Colors.grey[300]!,
+                            highlightColor: Colors.grey[100]!,
+                            child: Container(color: Colors.white),
+                          );
+                        },
+
+                        errorWidget: (_, __, ___) {
+                          return Center(
                             child: Icon(
-                              Icons.image_rounded,
-                              size: size * 0.35,
+                              Icons.image_not_supported_outlined,
                               color: Colors.grey.shade400,
+                              size: 25,
                             ),
-                          ),
-                  ),
-                  Positioned.fill(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(12),
-                        gradient: LinearGradient(
-                          colors: [
-                            Colors.transparent,
-                            Colors.black.withOpacity(0.02),
-                          ],
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
+                          );
+                        },
+                      )
+                    : Center(
+                        child: Icon(
+                          Icons.image_outlined,
+                          color: Colors.grey.shade400,
+                          size: 25,
                         ),
                       ),
-                    ),
-                  ),
-                ],
               ),
             ),
+
             if (_isLoading)
               Positioned.fill(
                 child: Container(
                   decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.4),
-                    borderRadius: BorderRadius.circular(12),
+                    color: Colors.black.withOpacity(0.25),
+                    borderRadius: BorderRadius.circular(11),
                   ),
                   child: const Center(
                     child: SizedBox(
-                      width: 20,
-                      height: 20,
+                      width: 18,
+                      height: 18,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                        color: Colors.white,
                       ),
                     ),
                   ),
@@ -625,54 +732,102 @@ class _WishlistItemCardState extends State<WishlistItemCard>
     );
   }
 
-  Widget _buildProductInfo(BuildContext context, bool isSmall, bool isMedium) {
-    final codeSize = isSmall ? 9.5 : 10.5;
-    final nameSize = isSmall ? 12.0 : 12.5;
-
+  Widget _buildProductInfoNew(BuildContext context, bool isSmall) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
+        // SKU badge
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+          constraints: const BoxConstraints(maxWidth: double.infinity),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           decoration: BoxDecoration(
-            color: AppColors.primaryColor.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(5),
-            border: Border.all(
-              color: AppColors.primaryColor.withOpacity(0.2),
-              width: 1,
-            ),
+            color: const Color(0xFFF1F5F9),
+            borderRadius: BorderRadius.circular(6),
           ),
           child: Text(
             widget.productCode,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
-              fontSize: codeSize,
+              color: const Color(0xFF64748B),
+              fontSize: isSmall ? 11.0 : 11.5,
               fontWeight: FontWeight.w600,
-              color: AppColors.primaryColor,
               fontFamily: AppFonts.secondaryFont,
-              letterSpacing: 0.2,
+              height: 1.1,
             ),
           ),
         ),
-        SizedBox(height: isSmall ? 5 : 6),
+
+        const SizedBox(height: 6),
+
+        // Product name
         Text(
           widget.productName,
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
           style: TextStyle(
-            fontSize: nameSize,
+            color: const Color(0xFF0F172A),
+            fontSize: isSmall ? 11.5 : 12.0,
             fontWeight: FontWeight.w700,
-            color: Colors.grey.shade900,
             fontFamily: AppFonts.primaryFont,
-            height: 1.3,
-            letterSpacing: -0.2,
+            height: 1.32,
+            letterSpacing: -0.15,
           ),
         ),
-        SizedBox(height: isSmall ? 8 : 10),
-        if (!widget.isSelectionMode) _buildActionButtons(context, isSmall),
+
+        if (widget.categoryName.isNotEmpty || widget.uom.isNotEmpty) ...[
+          const SizedBox(height: 7),
+          Wrap(
+            spacing: 5,
+            runSpacing: 4,
+            children: [
+              if (widget.categoryName.isNotEmpty)
+                _buildMetadataBadge(
+                  icon: Icons.category_outlined,
+                  label: widget.categoryName,
+                ),
+              if (widget.uom.isNotEmpty)
+                _buildMetadataBadge(
+                  icon: Icons.inventory_2_outlined,
+                  label: 'UOM: ${widget.uom}',
+                ),
+            ],
+          ),
+        ],
       ],
+    );
+  }
+
+  Widget _buildMetadataBadge({required IconData icon, required String label}) {
+    return Container(
+      constraints: const BoxConstraints(maxWidth: 150),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(5),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 10, color: const Color(0xFF64748B)),
+          const SizedBox(width: 3),
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Color(0xFF64748B),
+                fontSize: 8.5,
+                fontWeight: FontWeight.w600,
+                fontFamily: AppFonts.primaryFont,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
