@@ -64,6 +64,9 @@ import 'package:ekaplus_ekatunggal/core/shared_widgets/bottom_nav.dart';
 import 'package:ekaplus_ekatunggal/core/shared_widgets/exit_confirmation_wrapper.dart';
 import 'package:ekaplus_ekatunggal/core/utils/global_navigator_key.dart';
 
+import 'package:ekaplus_ekatunggal/features/auth/presentation/cubit/auth_session_cubit.dart';
+import 'package:ekaplus_ekatunggal/features/auth/presentation/cubit/auth_session_state.dart';
+
 final getIt = GetIt.instance;
 
 CustomTransitionPage<void> _smoothPage({
@@ -706,76 +709,190 @@ class MyRouter {
   );
 }
 
+// class AppShell extends StatelessWidget {
+//   final Widget child;
+//   final String currentPath;
+
+//   const AppShell({required this.child, required this.currentPath, super.key});
+
+//   int _locationToIndex(String path) {
+//     if (path.startsWith('/category')) return 1;
+//     if (path.startsWith('/wishlist')) return 2;
+//     if (path.startsWith('/customer')) return 3;
+//     if (path.startsWith('/account')) return 4;
+//     return 0;
+//   }
+
+//   static const List<String> _routeNames = [
+//     'home',
+//     'category',
+//     'wishlist',
+//     'customer',
+//     'account',
+//   ];
+
+//   void _refreshPage(BuildContext context, int index) {
+//     switch (index) {
+//       case 0: // Home
+//         break;
+
+//       case 1: // Category
+//         context.read<CategoryBloc>().add(
+//           const CategoryEventGetAllCategories(1),
+//         );
+//         break;
+
+//       case 2: // Wishlist
+//         break;
+
+//       case 3: // Customer
+//         break;
+//     }
+//   }
+
+//   @override
+//   Widget build(BuildContext context) {
+//     final currentIndex = _locationToIndex(currentPath);
+
+//     return ExitConfirmationWrapper(
+//       alwaysShowConfirmation: true,
+//       child: Scaffold(
+//         body: child,
+//         bottomNavigationBar: BottomNavBar(
+//           currentIndex: currentIndex,
+//           onTap: (i) {
+//             final name = _routeNames[i];
+
+//             if (i == currentIndex) {
+//               GoRouter.of(context).goNamed(name);
+//               WidgetsBinding.instance.addPostFrameCallback((_) {
+//                 try {
+//                   _refreshPage(context, i);
+//                 } catch (e) {
+//                   // Ignore errors jika bloc tidak tersedia
+//                 }
+//               });
+//               return;
+//             }
+
+//             GoRouter.of(context).goNamed(name);
+//           },
+//         ),
+//       ),
+//     );
+//   }
+// }
+
 class AppShell extends StatelessWidget {
   final Widget child;
   final String currentPath;
 
   const AppShell({required this.child, required this.currentPath, super.key});
 
-  int _locationToIndex(String path) {
-    if (path.startsWith('/category')) return 1;
-    if (path.startsWith('/wishlist')) return 2;
-    if (path.startsWith('/customer')) return 3;
-    if (path.startsWith('/account')) return 4;
+  int _locationToIndex({required String path, required bool isLoggedIn}) {
+    if (path.startsWith('/category')) {
+      return 1;
+    }
+
+    if (path.startsWith('/wishlist')) {
+      return 2;
+    }
+
+    if (isLoggedIn) {
+      if (path.startsWith('/customer')) {
+        return 3;
+      }
+
+      if (path.startsWith('/account')) {
+        return 4;
+      }
+    } else {
+      if (path.startsWith('/account')) {
+        return 3;
+      }
+    }
+
     return 0;
   }
 
-  static const List<String> _routeNames = [
-    'home',
-    'category',
-    'wishlist',
-    'customer',
-    'account',
-  ];
+  List<String> _routeNames({required bool isLoggedIn}) {
+    if (isLoggedIn) {
+      return const ['home', 'category', 'wishlist', 'customer', 'account'];
+    }
 
-  void _refreshPage(BuildContext context, int index) {
-    switch (index) {
-      case 0: // Home
+    return const ['home', 'category', 'wishlist', 'account'];
+  }
+
+  void _refreshPage(BuildContext context, String routeName) {
+    switch (routeName) {
+      case 'home':
         break;
 
-      case 1: // Category
+      case 'category':
         context.read<CategoryBloc>().add(
           const CategoryEventGetAllCategories(1),
         );
         break;
 
-      case 2: // Wishlist
+      case 'wishlist':
         break;
 
-      case 3: // Customer
+      case 'customer':
+        break;
+
+      case 'account':
         break;
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final currentIndex = _locationToIndex(currentPath);
+    return BlocBuilder<AuthSessionCubit, AuthSessionState>(
+      builder: (context, authState) {
+        final isLoggedIn = authState is AuthSessionAuthenticated;
 
-    return ExitConfirmationWrapper(
-      alwaysShowConfirmation: true,
-      child: Scaffold(
-        body: child,
-        bottomNavigationBar: BottomNavBar(
-          currentIndex: currentIndex,
-          onTap: (i) {
-            final name = _routeNames[i];
+        final routeNames = _routeNames(isLoggedIn: isLoggedIn);
 
-            if (i == currentIndex) {
-              GoRouter.of(context).goNamed(name);
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                try {
-                  _refreshPage(context, i);
-                } catch (e) {
-                  // Ignore errors jika bloc tidak tersedia
+        final currentIndex = _locationToIndex(
+          path: currentPath,
+          isLoggedIn: isLoggedIn,
+        );
+
+        return ExitConfirmationWrapper(
+          alwaysShowConfirmation: true,
+          child: Scaffold(
+            body: child,
+            bottomNavigationBar: BottomNavBar(
+              currentIndex: currentIndex,
+              showCustomer: isLoggedIn,
+              onTap: (index) {
+                if (index < 0 || index >= routeNames.length) {
+                  return;
                 }
-              });
-              return;
-            }
 
-            GoRouter.of(context).goNamed(name);
-          },
-        ),
-      ),
+                final routeName = routeNames[index];
+
+                if (index == currentIndex) {
+                  GoRouter.of(context).goNamed(routeName);
+
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    try {
+                      _refreshPage(context, routeName);
+                    } catch (_) {
+                      // Bloc mungkin tidak tersedia
+                      // untuk page tertentu.
+                    }
+                  });
+
+                  return;
+                }
+
+                GoRouter.of(context).goNamed(routeName);
+              },
+            ),
+          ),
+        );
+      },
     );
   }
 }

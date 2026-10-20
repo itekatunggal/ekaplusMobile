@@ -101,21 +101,41 @@ class _CategoryPageState extends State<CategoryPage> {
 
                 return SingleChildScrollView(
                   physics: const BouncingScrollPhysics(),
-                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
+                  padding: const EdgeInsets.fromLTRB(0, 0, 0, 20),
                   child: Center(
                     child: ConstrainedBox(
                       constraints: const BoxConstraints(maxWidth: 680),
                       child: Column(
-                        children: state.allCategory.map((typeGroup) {
+                        children: state.allCategory.asMap().entries.map((
+                          entry,
+                        ) {
+                          final index = entry.key;
+                          final typeGroup = entry.value;
+
                           final categories = typeGroup.categories;
                           final typeName = typeGroup.typeName;
                           final isExpanded = _expandedType == typeName;
+
+                          final accentColors = <Color>[
+                            const Color(0xFFC4F4F5),
+                            const Color(0xFFEFD0D3),
+                            const Color(0xFFF5F0B0),
+                            const Color(0xFFD3CECE),
+                            const Color(0xFFCEF4BB),
+                            const Color(0xFF9333EA),
+                            const Color(0xFFEA580C),
+                            const Color(0xFFDB2777),
+                          ];
+
+                          final accentColor =
+                              accentColors[index % accentColors.length];
 
                           return Padding(
                             padding: const EdgeInsets.only(bottom: 14),
                             child: _CategorySection(
                               title: typeName,
                               itemCount: categories.length,
+                              accentColor: accentColor,
                               isExpanded: isExpanded,
                               onToggle: () => _toggleExpand(typeName),
                               child: AnimatedSize(
@@ -141,6 +161,7 @@ class _CategoryPageState extends State<CategoryPage> {
                                               ),
                                           itemBuilder: (_, index) {
                                             final category = categories[index];
+
                                             return _CategoryTile(
                                               category: category,
                                               onTap: () =>
@@ -161,6 +182,7 @@ class _CategoryPageState extends State<CategoryPage> {
                                             itemBuilder: (_, index) {
                                               final category =
                                                   categories[index];
+
                                               return _CategoryTile(
                                                 category: category,
                                                 width: tileWidth,
@@ -201,7 +223,7 @@ class _CategoryPageState extends State<CategoryPage> {
 
         return SingleChildScrollView(
           physics: const NeverScrollableScrollPhysics(),
-          padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
+          padding: const EdgeInsets.fromLTRB(0, 0, 0, 28),
           child: Center(
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 680),
@@ -276,6 +298,7 @@ class _CategorySection extends StatelessWidget {
   const _CategorySection({
     required this.title,
     required this.itemCount,
+    required this.accentColor,
     required this.isExpanded,
     required this.onToggle,
     required this.child,
@@ -283,6 +306,7 @@ class _CategorySection extends StatelessWidget {
 
   final String title;
   final int itemCount;
+  final Color accentColor;
   final bool isExpanded;
   final VoidCallback onToggle;
   final Widget child;
@@ -300,26 +324,46 @@ class _CategorySection extends StatelessWidget {
             child: Row(
               children: [
                 Expanded(
-                  child: Column(
+                  child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        title.toUpperCase(),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Color(0xFF64748B),
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: .45,
+                      // GARIS WARNA
+                      Container(
+                        width: 3,
+                        height: 30,
+                        margin: const EdgeInsets.only(top: 1, right: 8),
+                        decoration: BoxDecoration(
+                          color: accentColor,
+                          borderRadius: BorderRadius.circular(3),
                         ),
                       ),
-                      const SizedBox(height: 3),
-                      Text(
-                        '$itemCount kategori produk',
-                        style: const TextStyle(
-                          color: Color(0xFF94A3B8),
-                          fontSize: 9.5,
+
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              title.toUpperCase(),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: Color(0xFF64748B),
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: .45,
+                              ),
+                            ),
+
+                            const SizedBox(height: 3),
+
+                            Text(
+                              '$itemCount kategori produk',
+                              style: const TextStyle(
+                                color: Color(0xFF94A3B8),
+                                fontSize: 9.5,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],
