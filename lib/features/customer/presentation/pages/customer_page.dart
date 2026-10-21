@@ -11,8 +11,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
-class CustomerPage extends StatelessWidget {
+class CustomerPage extends StatefulWidget {
   const CustomerPage({super.key});
+
+  @override
+  State<CustomerPage> createState() => _CustomerPageState();
+}
+
+class _CustomerPageState extends State<CustomerPage> {
+  int _creditReloadKey = 0;
 
   void _showComingSoon(BuildContext context, String feature) {
     AppSnackbar.show(
@@ -42,6 +49,12 @@ class CustomerPage extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Future<void> _refresh(BuildContext context) async {
+    await context.read<ActiveCompanyCubit>().refreshCompanies();
+    if (!mounted) return;
+    setState(() => _creditReloadKey++);
   }
 
   @override
@@ -97,8 +110,7 @@ class CustomerPage extends StatelessWidget {
           body: RefreshIndicator(
             color: AppColors.primaryColor,
 
-            onRefresh: () =>
-                context.read<ActiveCompanyCubit>().refreshCompanies(),
+            onRefresh: () => _refresh(context),
 
             child: ListView(
               padding: EdgeInsets.zero,
@@ -111,6 +123,7 @@ class CustomerPage extends StatelessWidget {
                 activeCompany != null
                     ? CustomerCompanyCard(
                         company: activeCompany,
+                        reloadKey: _creditReloadKey,
                         onChangeCompany: () => context.pushNamed(
                           'memberList',
                           extra: {'initialTabIndex': 1},

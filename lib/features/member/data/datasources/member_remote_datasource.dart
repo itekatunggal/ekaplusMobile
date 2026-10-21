@@ -253,6 +253,15 @@ class MemberRemoteDataSourceImpl implements MemberRemoteDataSource {
     return int.tryParse(v.toString());
   }
 
+  int _relatedId(Map<String, dynamic> row, String field) {
+    final explicitId = _safeInt(row['${field}_id']);
+    if (explicitId > 0) return explicitId;
+
+    final value = row[field];
+    if (value is Map) return _safeInt(value['id']);
+    return _safeInt(value);
+  }
+
   String? _safeNullableString(dynamic v) {
     if (v == null) return null;
     final s = v.toString();
@@ -334,31 +343,44 @@ class MemberRemoteDataSourceImpl implements MemberRemoteDataSource {
       ...?extraFilters,
     ];
 
+    final byId = <int, Map<String, dynamic>>{};
     try {
-      return await _getResourceList(
+      final batchRows = await _getResourceList(
         resource,
         fields: fields,
         filters: inFilters,
       );
+      for (final row in batchRows) {
+        final id = _safeInt(row['id']);
+        if (id > 0) byId[id] = row;
+      }
     } catch (_) {
-      final all = <Map<String, dynamic>>[];
-      for (final id in uniqueIds) {
+      // Missing IDs are retried individually below.
+    }
+
+    // A successful batch response can still be partial. Reconcile it against
+    // every requested ID so one membership cannot silently disappear.
+    for (final id in uniqueIds) {
+      if (byId.containsKey(id)) continue;
+      try {
         final rows = await _getResourceList(
           resource,
           fields: fields,
           filters: [
-            ['id', '=', '$id'],
+            ['id', '=', id],
             ...?extraFilters,
           ],
         );
-        all.addAll(rows);
+        for (final row in rows) {
+          final rowId = _safeInt(row['id']);
+          if (rowId > 0) byId[rowId] = row;
+        }
+      } catch (_) {
+        // The compact member_of row remains the final source of truth.
       }
-      final byId = <int, Map<String, dynamic>>{};
-      for (final row in all) {
-        byId[_safeInt(row['id'])] = row;
-      }
-      return byId.values.toList();
     }
+
+    return byId.values.toList();
   }
 
   Future<List<Map<String, dynamic>>> _getByFieldValues(
@@ -1215,8 +1237,28 @@ class MemberRemoteDataSourceImpl implements MemberRemoteDataSource {
       if (id > 0) branchCustomerById[id] = row;
     }
 
-    final allGpids = groupCustomerRows
-        .map((e) => _safeInt(e['gpid']))
+    // Compact memberofuser rows contain BCID IDs only. Load their GC records
+    // after branch_customer has exposed gcid_id (gcid itself can be an object).
+    final missingGcids = branchCustomerById.values
+        .map((row) => _relatedId(row, 'gcid'))
+        .where((id) => id > 0 && !groupCustomerById.containsKey(id))
+        .toSet()
+        .toList();
+    final legacyGroupCustomerRows = await _getByIds(
+      'group_customer',
+      missingGcids,
+      fields: ['*'],
+    );
+    for (final row in legacyGroupCustomerRows) {
+      final id = _safeInt(row['id']);
+      if (id <= 0) continue;
+      groupCustomerById[id] = row;
+      final gpid = _relatedId(row, 'gpid');
+      if (gpid > 0) groupCustomerByGpid.putIfAbsent(gpid, () => row);
+    }
+
+    final allGpids = groupCustomerById.values
+        .map((e) => _relatedId(e, 'gpid'))
         .followedBy(gpids)
         .where((e) => e > 0)
         .toList();
@@ -1230,7 +1272,7 @@ class MemberRemoteDataSourceImpl implements MemberRemoteDataSource {
     };
 
     final nbids = groupParentRows
-        .map((e) => _safeInt(e['nbid']))
+        .map((e) => _relatedId(e, 'nbid'))
         .where((e) => e > 0)
         .toList();
     final nationalBrandRows = await _getByIds(
@@ -1295,7 +1337,7 @@ class MemberRemoteDataSourceImpl implements MemberRemoteDataSource {
     for (final bc in branchCustomerById.values) {
       final bcid = _safeInt(bc['id']);
       if (bcid <= 0 || !addedBcid.add(bcid)) continue;
-      final gcid = _safeInt(bc['gcid']);
+      final gcid = _relatedId(bc, 'gcid');
       final legacyMembership = legacyBcidMembershipRows.firstWhere(
         (e) => _safeInt(e['ref_id']) == bcid,
         orElse: () => const <String, dynamic>{},
@@ -1306,9 +1348,9 @@ class MemberRemoteDataSourceImpl implements MemberRemoteDataSource {
       final gc =
           groupCustomerById[gcid] ??
           (fallbackGpid > 0 ? groupCustomerByGpid[fallbackGpid] : null);
-      final gpid = gc == null ? fallbackGpid : _safeInt(gc['gpid']);
+      final gpid = gc == null ? fallbackGpid : _relatedId(gc, 'gpid');
       final gp = groupParentById[gpid];
-      final nbid = gp == null ? 0 : _safeInt(gp['nbid']);
+      final nbid = gp == null ? 0 : _relatedId(gp, 'nbid');
       final nb = nationalBrandById[nbid];
 
       final mo =
@@ -1413,6 +1455,41 @@ class MemberRemoteDataSourceImpl implements MemberRemoteDataSource {
       );
     }
 
+    // memberofuser is authoritative for access. Keep a compact fallback card
+    // even when enrichment endpoints fail to return a requested BCID.
+    for (final membership in legacyBcidMembershipRows) {
+      final bcid = _safeInt(membership['ref_id']);
+      if (bcid <= 0 || !addedBcid.add(bcid)) continue;
+
+      final compactName =
+          _safeNullableString(membership['name'])?.trim() ?? 'BCID #$bcid';
+      final separator = compactName.lastIndexOf(' - ');
+      final companyName = separator > 0
+          ? compactName.substring(0, separator).trim()
+          : compactName;
+      final branchCity = separator > 0
+          ? compactName.substring(separator + 3).trim()
+          : null;
+
+      result.add(
+        ActiveMemberCompany(
+          memberOfId: _safeInt(membership['id']),
+          refType: 'bcid',
+          refId: bcid,
+          userId: _safeInt(membership['user_id'] ?? membership['user']),
+          memberOfStatus: _safeNullableString(membership['status']),
+          memberIsOwner: _isTruthy(membership['is_owner']),
+          memberIsSharing: _isTruthy(membership['is_sharing']),
+          shareFromUserId: _safeNullableInt(membership['share_from']),
+          branchCustomerId: bcid,
+          branchCity: branchCity?.isEmpty ?? true ? null : branchCity,
+          gcName: companyName,
+          customerCompanyName: companyName,
+          customerRegisterStatus: 'approved',
+        ),
+      );
+    }
+
     // The active-company list must reflect the current customer hierarchy.
     // customer_register is only a fallback when no membership exists (see
     // the early return above); merging it here reintroduced stale names and
@@ -1491,13 +1568,13 @@ class MemberRemoteDataSourceImpl implements MemberRemoteDataSource {
       throw Exception('BCID tidak ditemukan');
     }
     final bc = bcRows.first;
-    final gcid = _safeInt(bc['gcid']);
+    final gcid = _relatedId(bc, 'gcid');
     final gcRows = await _getByIds('group_customer', [gcid], fields: ['*']);
     final gc = gcRows.isEmpty ? null : gcRows.first;
-    final gpid = gc == null ? 0 : _safeInt(gc['gpid']);
+    final gpid = gc == null ? 0 : _relatedId(gc, 'gpid');
     final gpRows = await _getByIds('group_parent', [gpid], fields: ['*']);
     final gp = gpRows.isEmpty ? null : gpRows.first;
-    final nbid = gp == null ? 0 : _safeInt(gp['nbid']);
+    final nbid = gp == null ? 0 : _relatedId(gp, 'nbid');
     final nbRows = await _getByIds('national_brand', [nbid], fields: ['*']);
     final nb = nbRows.isEmpty ? null : nbRows.first;
 
