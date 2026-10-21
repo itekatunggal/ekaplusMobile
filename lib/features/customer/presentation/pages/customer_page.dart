@@ -19,6 +19,10 @@ class CustomerPage extends StatefulWidget {
 }
 
 class _CustomerPageState extends State<CustomerPage> {
+  // Fitur pengajuan perusahaan disiapkan untuk update berikutnya.
+  // Ubah menjadi true saat fitur akan ditampilkan kembali.
+  final bool _showCompanyRegistrationFeatures = false;
+
   int _creditReloadKey = 0;
 
   void _showComingSoon(BuildContext context, String feature) {
@@ -157,14 +161,15 @@ class _CustomerPageState extends State<CustomerPage> {
                       ),
                     ),
 
-                    CustomerMenuItem(
-                      icon: Icons.add_rounded,
-                      iconColor: AppColors.primaryColor,
-                      iconBackground: const Color(0xFFFEF2F2),
-                      title: 'Tambah / Gabung Perusahaan Baru',
-                      subtitle: 'Registrasi cabang atau gabung kode entitas',
-                      onTap: () => context.pushNamed('companySelection'),
-                    ),
+                    if (_showCompanyRegistrationFeatures)
+                      CustomerMenuItem(
+                        icon: Icons.add_rounded,
+                        iconColor: AppColors.primaryColor,
+                        iconBackground: const Color(0xFFFEF2F2),
+                        title: 'Tambah / Gabung Perusahaan Baru',
+                        subtitle: 'Registrasi cabang atau gabung kode entitas',
+                        onTap: () => context.pushNamed('companySelection'),
+                      ),
                   ],
                 ),
 

@@ -105,7 +105,8 @@ CustomTransitionPage<void> _smoothPage({
 class MyRouter {
   GoRouter get router => GoRouter(
     navigatorKey: globalNavigatorKey,
-    initialLocation: "/splash",
+    // initialLocation: "/splash",
+    initialLocation: "/customer",
     // initialLocation: "/account",
     routes: [
       // ********** Splash Screen (tanpa bottom nav) **********

@@ -34,7 +34,14 @@ class MemberListPage extends StatefulWidget {
 
 class _MemberListPageState extends State<MemberListPage>
     with SingleTickerProviderStateMixin {
+  // Fitur daftar pengajuan disiapkan untuk update berikutnya.
+  // Ubah menjadi true saat tab akan ditampilkan kembali.
+  final bool _showRegistrationTab = false;
+
   late TabController _tabController;
+  final TextEditingController _searchController = TextEditingController();
+  final FocusNode _searchFocusNode = FocusNode();
+  String _searchQuery = '';
 
   // final GetMemberRegistrationsByUserId _getMemberRegistrationsByUserId =
   //     myinjection<GetMemberRegistrationsByUserId>();
@@ -54,13 +61,18 @@ class _MemberListPageState extends State<MemberListPage>
   void initState() {
     super.initState();
 
+    final initialTabIndex = _showRegistrationTab && widget.initialTabIndex == 1
+        ? 1
+        : 0;
     _tabController = TabController(
-      length: 2,
+      length: _showRegistrationTab ? 2 : 1,
       vsync: this,
-      initialIndex: widget.initialTabIndex,
+      initialIndex: initialTabIndex,
     );
     rBlok = context.read<MemberRegistrationCubit>();
-    rBlok.getUserRegistrations();
+    if (_showRegistrationTab) {
+      rBlok.getUserRegistrations();
+    }
     rBlok.getActiveMemberCompanies();
     context.read<ActiveCompanyCubit>().loadCompaniesAndResolveActive();
   }
@@ -68,11 +80,25 @@ class _MemberListPageState extends State<MemberListPage>
   @override
   void dispose() {
     _tabController.dispose();
+    _searchController.dispose();
+    _searchFocusNode.dispose();
     super.dispose();
   }
 
+  void _onSearchChanged(String value) {
+    setState(() => _searchQuery = value.trim().toLowerCase());
+  }
+
+  void _clearSearch() {
+    _searchController.clear();
+    setState(() => _searchQuery = '');
+    _searchFocusNode.requestFocus();
+  }
+
   Future<void> _refreshAll() async {
-    rBlok.getUserRegistrations();
+    if (_showRegistrationTab) {
+      rBlok.getUserRegistrations();
+    }
     rBlok.getActiveMemberCompanies();
   }
 
@@ -84,94 +110,223 @@ class _MemberListPageState extends State<MemberListPage>
     );
   }
 
+  void _showComingSoon(String feature) {
+    AppSnackbar.show(
+      context,
+      message: '$feature akan segera tersedia',
+      type: AppSnackbarType.info,
+    );
+  }
+
+  // ================= HEADER =================
+
+  Widget _buildHeader(BuildContext context) {
+    return SizedBox(
+      height: 178,
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: CustomHeaderAppBar(
+              title: 'Daftar Perusahaan',
+              brandStyle: true,
+              brandLabel: 'EKAPLUS',
+              showBackButton: true,
+              onBackPressed: () => context.pop(),
+              height: 178,
+              actions: [
+                CustomHeaderActionButton(
+                  tooltip: 'Bantuan',
+                  onPressed: () => _showComingSoon('Panduan perusahaan'),
+                  icon: const Icon(
+                    Icons.help_outline_rounded,
+                    color: Colors.white,
+                    size: 19,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Search bar
+          Positioned(
+            left: 16,
+            right: 16,
+            bottom: 18,
+            child: _buildSearchField(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSearchField() {
+    return Container(
+      height: 42,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(11),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x100F172A),
+            blurRadius: 8,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: TextField(
+        controller: _searchController,
+        focusNode: _searchFocusNode,
+        textInputAction: TextInputAction.search,
+        onChanged: _onSearchChanged,
+        style: const TextStyle(
+          color: Color(0xFF1E293B),
+          fontSize: 11.5,
+          fontWeight: FontWeight.w500,
+          fontFamily: AppFonts.primaryFont,
+        ),
+        decoration: InputDecoration(
+          hintText: 'Cari nama perusahaan...',
+          hintStyle: const TextStyle(
+            color: Color(0xFF94A3B8),
+            fontSize: 11,
+            fontWeight: FontWeight.w400,
+            fontFamily: AppFonts.primaryFont,
+          ),
+          prefixIcon: const Icon(
+            Icons.search_rounded,
+            color: Color(0xFF94A3B8),
+            size: 18,
+          ),
+          suffixIcon: _searchController.text.isNotEmpty
+              ? IconButton(
+                  tooltip: 'Hapus pencarian',
+                  onPressed: _clearSearch,
+                  splashRadius: 18,
+                  icon: const Icon(
+                    Icons.close_rounded,
+                    color: Color(0xFF94A3B8),
+                    size: 17,
+                  ),
+                )
+              : null,
+          border: InputBorder.none,
+          enabledBorder: InputBorder.none,
+          focusedBorder: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(vertical: 12),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.whiteColor,
-      appBar: CustomHeaderAppBar(
-        title: 'Member',
-        subtitle: 'Daftar Perusahaan',
-        onBackPressed: () => context.goNamed('account'),
-      ),
-      body: BlocListener<MemberRegistrationCubit, MemberRegistrationState>(
-        bloc: rBlok,
-        listener: (context, state) {
-          if (state is MemberRegistrationLoading) {
-            setState(() {
-              _isRegistrationsLoading = true;
-              _registrationsError = null;
-            });
-          } else if (state is MemberRegistrationUserRegistrationsLoaded) {
-            setState(() {
-              _userRegistrations = state.registrations;
-              _isRegistrationsLoading = false;
-              _registrationsError = null;
-            });
-          } else if (state is MemberRegistrationActiveCompaniesLoading) {
-            setState(() {
-              _isActiveCompaniesLoading = true;
-              _activeCompaniesError = null;
-            });
-          } else if (state is MemberRegistrationActiveCompaniesLoaded) {
-            setState(() {
-              _activeCompanies = state.companies;
-              _isActiveCompaniesLoading = false;
-              _activeCompaniesError = null;
-            });
-            context.read<ActiveCompanyCubit>().loadCompaniesAndResolveActive(
-              force: true,
-            );
-          } else if (state is MemberRegistrationActiveCompaniesError) {
-            setState(() {
-              _isActiveCompaniesLoading = false;
-              _activeCompaniesError = state.message;
-            });
-          } else if (state is MemberRegistrationError) {
-            setState(() {
-              _isRegistrationsLoading = false;
-              _registrationsError = state.message;
-            });
-          }
-        },
-        child: Column(
+    final media = MediaQuery.of(context);
+    final scaler = media.textScaler.clamp(
+      minScaleFactor: 0.90,
+      maxScaleFactor: 1.0,
+    );
+
+    return MediaQuery(
+      data: media.copyWith(textScaler: scaler),
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF6F7F9),
+        body: Column(
           children: [
-            Container(
-              color: AppColors.whiteColor,
-              child: TabBar(
-                controller: _tabController,
-                labelColor: AppColors.primaryColor,
-                unselectedLabelColor: AppColors.grayColor,
-                labelStyle: TextStyle(
-                  fontFamily: AppFonts.primaryFont,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                ),
-                unselectedLabelStyle: TextStyle(
-                  fontFamily: AppFonts.primaryFont,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                ),
-                indicatorColor: AppColors.primaryColor,
-                indicatorWeight: 3,
-                tabs: const [
-                  Tab(text: 'Daftar Pengajuan'),
-                  Tab(text: 'Perusahaan Aktif'),
-                ],
-              ),
-            ),
-            Container(
-              width: double.infinity,
-              height: 1,
-              color: const Color(0xFFE0E0E0),
-            ),
+            _buildHeader(context),
             Expanded(
-              child: TabBarView(
-                controller: _tabController,
-                children: [
-                  _buildRegistrationList(),
-                  _buildActiveCompaniesList(),
-                ],
-              ),
+              child:
+                  BlocListener<
+                    MemberRegistrationCubit,
+                    MemberRegistrationState
+                  >(
+                    bloc: rBlok,
+                    listener: (context, state) {
+                      if (state is MemberRegistrationLoading) {
+                        setState(() {
+                          _isRegistrationsLoading = true;
+                          _registrationsError = null;
+                        });
+                      } else if (state
+                          is MemberRegistrationUserRegistrationsLoaded) {
+                        setState(() {
+                          _userRegistrations = state.registrations;
+                          _isRegistrationsLoading = false;
+                          _registrationsError = null;
+                        });
+                      } else if (state
+                          is MemberRegistrationActiveCompaniesLoading) {
+                        setState(() {
+                          _isActiveCompaniesLoading = true;
+                          _activeCompaniesError = null;
+                        });
+                      } else if (state
+                          is MemberRegistrationActiveCompaniesLoaded) {
+                        setState(() {
+                          _activeCompanies = state.companies;
+                          _isActiveCompaniesLoading = false;
+                          _activeCompaniesError = null;
+                        });
+                        context
+                            .read<ActiveCompanyCubit>()
+                            .loadCompaniesAndResolveActive(force: true);
+                      } else if (state
+                          is MemberRegistrationActiveCompaniesError) {
+                        setState(() {
+                          _isActiveCompaniesLoading = false;
+                          _activeCompaniesError = state.message;
+                        });
+                      } else if (state is MemberRegistrationError) {
+                        setState(() {
+                          _isRegistrationsLoading = false;
+                          _registrationsError = state.message;
+                        });
+                      }
+                    },
+                    child: _showRegistrationTab
+                        ? Column(
+                            children: [
+                              Container(
+                                color: AppColors.whiteColor,
+                                child: TabBar(
+                                  controller: _tabController,
+                                  labelColor: AppColors.primaryColor,
+                                  unselectedLabelColor: AppColors.grayColor,
+                                  labelStyle: TextStyle(
+                                    fontFamily: AppFonts.primaryFont,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                  unselectedLabelStyle: TextStyle(
+                                    fontFamily: AppFonts.primaryFont,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                  indicatorColor: AppColors.primaryColor,
+                                  indicatorWeight: 3,
+                                  tabs: const [
+                                    Tab(text: 'Daftar Pengajuan'),
+                                    Tab(text: 'Perusahaan Aktif'),
+                                  ],
+                                ),
+                              ),
+                              Container(
+                                width: double.infinity,
+                                height: 1,
+                                color: const Color(0xFFE0E0E0),
+                              ),
+                              Expanded(
+                                child: TabBarView(
+                                  controller: _tabController,
+                                  children: [
+                                    _buildRegistrationList(),
+                                    _buildActiveCompaniesList(),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          )
+                        : _buildActiveCompaniesList(),
+                  ),
             ),
           ],
         ),
@@ -228,7 +383,9 @@ class _MemberListPageState extends State<MemberListPage>
 
   Widget _buildActiveCompaniesList() {
     if (_isActiveCompaniesLoading && _activeCompanies.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
+      return const Center(
+        child: CircularProgressIndicator(color: AppColors.primaryColor),
+      );
     }
 
     if (_activeCompaniesError != null && _activeCompanies.isEmpty) {
@@ -250,7 +407,27 @@ class _MemberListPageState extends State<MemberListPage>
       );
     }
 
+    final visibleCompanies = _activeCompanies.where((company) {
+      if (_searchQuery.isEmpty) return true;
+
+      final gcCompanyName = (company.gcName ?? '').trim();
+      final fallbackCompanyName = (company.customerCompanyName ?? '').trim();
+      final companyName = gcCompanyName.isNotEmpty
+          ? gcCompanyName
+          : fallbackCompanyName;
+      return companyName.toLowerCase().contains(_searchQuery);
+    }).toList();
+
+    if (visibleCompanies.isEmpty) {
+      return _buildEmptyState(
+        icon: Icons.search_off_rounded,
+        title: 'Perusahaan Tidak Ditemukan',
+        subtitle: 'Tidak ada nama perusahaan yang cocok dengan pencarian Anda.',
+      );
+    }
+
     return RefreshIndicator(
+      color: AppColors.primaryColor,
       onRefresh: () async {
         await _refreshAll();
         if (!mounted) return;
@@ -262,10 +439,10 @@ class _MemberListPageState extends State<MemberListPage>
               ? activeState.activeBcid
               : null;
           return ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: _activeCompanies.length,
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+            itemCount: visibleCompanies.length,
             itemBuilder: (context, index) {
-              final company = _activeCompanies[index];
+              final company = visibleCompanies[index];
               return Padding(
                 padding: const EdgeInsets.only(bottom: 12),
                 child: ActiveMemberCard(
@@ -338,14 +515,23 @@ class _MemberListPageState extends State<MemberListPage>
       child: Column(
         children: [
           const Spacer(),
-          Icon(icon, size: 80, color: AppColors.grayColor.withOpacity(0.5)),
-          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(22),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade100,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, size: 44, color: Colors.grey.shade400),
+          ),
+          const SizedBox(height: 20),
           Text(
             title,
-            style: TextStyle(
+            textAlign: TextAlign.center,
+            style: const TextStyle(
               fontFamily: AppFonts.primaryFont,
               fontSize: 16,
               fontWeight: FontWeight.w700,
+              color: Color(0xFF1E293B),
             ),
           ),
           const SizedBox(height: 8),
@@ -709,23 +895,27 @@ class _MemberListPageState extends State<MemberListPage>
       final data = body['data'];
       if (data is! List) return const [];
 
-      return data.whereType<Map>().map((e) {
-        final row = Map<String, dynamic>.from(e);
-        final type = (row['type'] ?? '').toString().trim().toLowerCase();
-        if (type.isNotEmpty && type != 'shipping') {
-          return <String, dynamic>{};
-        }
-        final picPhone = (row['pic_phone'] ?? '').toString().trim();
-        if (picPhone.isNotEmpty) {
-          final digits = picPhone.replaceAll(RegExp(r'[^0-9]'), '');
-          if (digits.startsWith('62') && digits.length > 2) {
-            row['pic_phone'] = '0${digits.substring(2)}';
-          } else if (picPhone.startsWith('+62') && digits.length > 2) {
-            row['pic_phone'] = '0${digits.substring(2)}';
-          }
-        }
-        return row;
-      }).where((row) => row.isNotEmpty).toList();
+      return data
+          .whereType<Map>()
+          .map((e) {
+            final row = Map<String, dynamic>.from(e);
+            final type = (row['type'] ?? '').toString().trim().toLowerCase();
+            if (type.isNotEmpty && type != 'shipping') {
+              return <String, dynamic>{};
+            }
+            final picPhone = (row['pic_phone'] ?? '').toString().trim();
+            if (picPhone.isNotEmpty) {
+              final digits = picPhone.replaceAll(RegExp(r'[^0-9]'), '');
+              if (digits.startsWith('62') && digits.length > 2) {
+                row['pic_phone'] = '0${digits.substring(2)}';
+              } else if (picPhone.startsWith('+62') && digits.length > 2) {
+                row['pic_phone'] = '0${digits.substring(2)}';
+              }
+            }
+            return row;
+          })
+          .where((row) => row.isNotEmpty)
+          .toList();
     } catch (_) {
       return const [];
     }

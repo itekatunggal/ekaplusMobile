@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../constant.dart';
+import '../../../../core/shared_widgets/custom_header.dart';
 import '../../domain/entities/active_member_company.dart';
 
 class ActiveCompanyDetailDialog extends StatelessWidget {
@@ -21,29 +22,22 @@ class ActiveCompanyDetailDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bcName = company.displayName;
-    // final gpName = company.gpName ?? company.gpCode ?? '-';
-    final pageBg = const Color(0xFFF1F2F4);
+    final gcName = (company.gcName ?? '').trim();
+    final customerCompanyName = (company.customerCompanyName ?? '').trim();
+    final companyName = gcName.isNotEmpty
+        ? gcName
+        : (customerCompanyName.isEmpty
+              ? company.displayName
+              : customerCompanyName);
+    const pageBg = Color(0xFFF6F7F9);
     return Dialog.fullscreen(
       child: Scaffold(
         backgroundColor: pageBg,
-        appBar: AppBar(
-          backgroundColor: const Color(0xFFF3F3F4),
-          elevation: 0,
-          scrolledUnderElevation: 0,
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back, color: Colors.black87),
-            onPressed: onClose,
-          ),
-          title: Text(
-            bcName,
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-              color: Color(0xFF1E2329),
-            ),
-          ),
-          centerTitle: true,
+        appBar: CustomHeaderAppBar(
+          title: 'Detail Customer',
+          // subtitle: company.bcidDisplayLabel,
+          centerTitle: false,
+          onBackPressed: onClose,
         ),
         body: Column(
           children: [
@@ -64,39 +58,15 @@ class ActiveCompanyDetailDialog extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'Detail Perusahaan Aktif',
-                        style: TextStyle(
-                          fontFamily: AppFonts.primaryFont,
-                          fontSize: 24,
-                          fontWeight: FontWeight.w800,
-                          color: const Color(0xFF111827),
-                        ),
+                      _companySummary(
+                        companyName: companyName,
+                        city: company.branchCity,
+                        branchName: company.branchName,
                       ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Berikut adalah hierarki perusahaan aktif Anda saat ini. Pastikan data yang ditampilkan sudah sesuai.',
-                        style: TextStyle(
-                          fontFamily: AppFonts.primaryFont,
-                          fontSize: 12,
-                          color: const Color(0xFF6B7280),
-                          height: 1.5,
-                        ),
-                      ),
-                      // const SizedBox(height: 18),
-                      // _section(
-                      //   icon: Icons.grid_view_rounded,
-                      //   title: 'Ringkasan',
-                      //   children: [
-                      //     _itemStack('Group Parent', gpName),
-                      //     const SizedBox(height: 14),
-                      //     _itemStack('Branch Customer', bcName),
-                      //   ],
-                      // ),
-                      const SizedBox(height: 18),
+                      const SizedBox(height: 14),
                       _section(
-                        icon: Icons.person,
-                        title: 'Detail Pemilik',
+                        icon: Icons.person_outline_rounded,
+                        title: 'Informasi Pemilik',
                         children: [
                           _itemStack('Nama Pemilik', company.customerOwnerName),
                           const SizedBox(height: 14),
@@ -107,13 +77,10 @@ class ActiveCompanyDetailDialog extends StatelessWidget {
                       ),
                       const SizedBox(height: 14),
                       _section(
-                        icon: Icons.description_rounded,
-                        title: 'Detail Perusahaan',
+                        icon: Icons.apartment_rounded,
+                        title: 'Informasi Perusahaan',
                         children: [
-                          _itemStack(
-                            'Nama Perusahaan',
-                            company.customerCompanyName,
-                          ),
+                          _itemStack('Nama Perusahaan', companyName),
                           const SizedBox(height: 14),
                           Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -154,24 +121,12 @@ class ActiveCompanyDetailDialog extends StatelessWidget {
                         ],
                       ),
 
-                      // const SizedBox(height: 14),
-                      // _section(
-                      //   icon: Icons.place_outlined,
-                      //   title: 'Alamat BCID',
-                      //   children: [],
-                      // ),
-                      // const SizedBox(height: 14),
-                      // _section(
-                      //   icon: Icons.contacts_outlined,
-                      //   title: 'Kontak BCID',
-                      //   children: [],
-                      // ),
                       const SizedBox(height: 14),
                       _section(
-                        icon: Icons.store_outlined,
-                        title: 'Branch Customer',
+                        icon: Icons.storefront_outlined,
+                        title: 'Informasi Cabang',
                         children: [
-                          _itemStack('Nama Usaha', bcName),
+                          _itemStack('Nama Perusahaan', companyName),
                           const SizedBox(height: 14),
                           _itemStack('Cabang Terdekat', company.branchName),
                           const SizedBox(height: 14),
@@ -195,7 +150,7 @@ class ActiveCompanyDetailDialog extends StatelessWidget {
                       ),
                       const SizedBox(height: 14),
                       _section(
-                        icon: Icons.store_outlined,
+                        icon: Icons.local_shipping_outlined,
                         title: 'Alamat Pengiriman',
                         children: _buildShippingAddressChildren(),
                       ),
@@ -215,52 +170,41 @@ class ActiveCompanyDetailDialog extends StatelessWidget {
   Widget _footer(BuildContext context) {
     final canSetActive = !isActiveSelected && onSetActive != null;
     return Container(
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: Colors.white,
-        border: Border(top: BorderSide(color: const Color(0xFFE5E7EB))),
+        border: Border(top: BorderSide(color: Color(0xFFE2E8F0))),
+        boxShadow: [
+          BoxShadow(
+            color: Color(0x0D0F172A),
+            blurRadius: 12,
+            offset: Offset(0, -3),
+          ),
+        ],
       ),
-      padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
+      padding: EdgeInsets.fromLTRB(
+        16,
+        10,
+        16,
+        10 + MediaQuery.paddingOf(context).bottom,
+      ),
       child: SizedBox(
         width: double.infinity,
-        height: 50,
+        height: 48,
         child: Row(
           children: [
             if (canSetActive) ...[
               Expanded(child: _SetActiveButton(onSetActive: onSetActive!)),
               const SizedBox(width: 10),
-            ] else
-              Expanded(
-                child: ElevatedButton(
-                  onPressed: null,
-                  style: ElevatedButton.styleFrom(
-                    disabledBackgroundColor: const Color(0xFFE5E7EB),
-                    disabledForegroundColor: const Color(0xFF4B5563),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    elevation: 0,
-                  ),
-                  child: Text(
-                    'Aktif',
-                    style: TextStyle(
-                      fontFamily: AppFonts.primaryFont,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-              ),
-            const SizedBox(width: 10),
+            ],
             Expanded(
-              child: ElevatedButton(
+              child: OutlinedButton(
                 onPressed: onClose,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primaryColor,
-                  foregroundColor: Colors.white,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.primaryColor,
+                  side: const BorderSide(color: Color(0xFFFECACA)),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  elevation: 0,
                 ),
                 child: Text(
                   'Selesai',
@@ -278,6 +222,146 @@ class ActiveCompanyDetailDialog extends StatelessWidget {
     );
   }
 
+  Widget _companySummary({
+    required String companyName,
+    required String? city,
+    required String? branchName,
+  }) {
+    final cityLabel = (city ?? '').trim();
+    final branchLabel = (branchName ?? '').trim();
+
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: isActiveSelected
+              ? const Color(0xFF10B981)
+              : const Color(0xFFE2E8F0),
+          width: isActiveSelected ? 1.5 : 1,
+        ),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0D0F172A),
+            blurRadius: 10,
+            offset: Offset(0, 3),
+          ),
+        ],
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        children: [
+          if (isActiveSelected)
+            Container(
+              width: double.infinity,
+              color: const Color(0xFF10B981),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+              child: const Row(
+                children: [
+                  SizedBox(
+                    width: 6,
+                    height: 6,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ),
+                  SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'PERUSAHAAN TERPILIH SAAT INI',
+                      style: TextStyle(
+                        fontFamily: AppFonts.primaryFont,
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: Color(0x40FFFFFF),
+                      borderRadius: BorderRadius.all(Radius.circular(20)),
+                    ),
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      child: Text(
+                        'Aktif',
+                        style: TextStyle(
+                          fontFamily: AppFonts.primaryFont,
+                          color: Colors.white,
+                          fontSize: 9,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          Padding(
+            padding: const EdgeInsets.all(14),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 46,
+                  height: 46,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFECFDF5),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFFA7F3D0)),
+                  ),
+                  child: const Icon(
+                    Icons.apartment_rounded,
+                    color: Color(0xFF059669),
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        companyName,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontFamily: AppFonts.primaryFont,
+                          color: Color(0xFF0F172A),
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          height: 1.2,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        [
+                          cityLabel,
+                          branchLabel,
+                        ].where((value) => value.isNotEmpty).join(' • '),
+                        style: const TextStyle(
+                          fontFamily: AppFonts.primaryFont,
+                          color: Color(0xFF64748B),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _section({
     required IconData icon,
     required String title,
@@ -285,11 +369,11 @@ class ActiveCompanyDetailDialog extends StatelessWidget {
   }) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+      padding: const EdgeInsets.fromLTRB(12, 11, 12, 12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE9EAEC)),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
         boxShadow: const [
           BoxShadow(
             color: Color(0x08000000),
@@ -304,27 +388,27 @@ class ActiveCompanyDetailDialog extends StatelessWidget {
           Row(
             children: [
               Container(
-                width: 28,
-                height: 28,
+                width: 26,
+                height: 26,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFDECEC),
+                  color: const Color(0xFFECFDF5),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(icon, color: const Color(0xFFC62828), size: 15),
+                child: Icon(icon, color: const Color(0xFF059669), size: 15),
               ),
               const SizedBox(width: 10),
               Text(
                 title,
                 style: TextStyle(
                   fontFamily: AppFonts.primaryFont,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.primaryColor,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: const Color(0xFF0F172A),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 13),
           ...children,
         ],
       ),
@@ -340,18 +424,18 @@ class ActiveCompanyDetailDialog extends StatelessWidget {
           label,
           style: TextStyle(
             fontFamily: AppFonts.primaryFont,
-            fontSize: 12,
+            fontSize: 10,
             fontWeight: FontWeight.w500,
             color: const Color(0xFF6B7280),
             letterSpacing: 0.4,
           ),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 3),
         Text(
           v.isEmpty ? '-' : v,
           style: TextStyle(
             fontFamily: AppFonts.primaryFont,
-            fontSize: 14,
+            fontSize: 12,
             fontWeight: FontWeight.w600,
             color: AppColors.blackColor,
             height: 1.25,
@@ -364,7 +448,7 @@ class ActiveCompanyDetailDialog extends StatelessWidget {
   Widget _item(String label, String? value) {
     final v = (value ?? '').trim();
     return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.only(bottom: 8),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -390,7 +474,7 @@ class ActiveCompanyDetailDialog extends StatelessWidget {
               v.isEmpty ? '-' : v,
               style: TextStyle(
                 fontFamily: AppFonts.primaryFont,
-                fontSize: 14,
+                fontSize: 12,
                 fontWeight: FontWeight.w600,
                 color: const Color(0xFF111827),
                 height: 1.35,
@@ -575,9 +659,9 @@ class _SetActiveButtonState extends State<_SetActiveButton> {
               });
             },
       style: ElevatedButton.styleFrom(
-        backgroundColor: const Color(0xFF0EA5E9),
+        backgroundColor: const Color(0xFF10B981),
         foregroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         elevation: 0,
       ),
       child: AnimatedSwitcher(
@@ -595,7 +679,7 @@ class _SetActiveButtonState extends State<_SetActiveButton> {
                 ),
               )
             : Text(
-                _done ? 'Aktif' : 'Set Aktif',
+                _done ? 'Perusahaan Aktif' : 'Pilih Perusahaan',
                 key: ValueKey(_done ? 'done' : 'idle'),
                 style: TextStyle(
                   fontFamily: AppFonts.primaryFont,
