@@ -867,8 +867,10 @@ class _SearchPageState extends State<SearchPage> {
   }
 
   Widget _buildCategoryIcon(category) {
-    final String iconPath =
-        "${ApiConfig.baseImageUrl}/${category.icon}?format=rs:fill:250:250/q:80/ext:webp";
+    final String iconPath = ApiConfig.getImageUrl(
+      category.icon,
+      format: 'rs:fill:250:250/q:80/ext:webp',
+    );
 
     if (iconPath.isEmpty) {
       return Container(

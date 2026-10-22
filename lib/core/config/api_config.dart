@@ -58,14 +58,48 @@ class ApiConfig {
     return '$baseTransaksiUrl/$endpoint';
   }
 
-  static String getImageUrl(String? relativePath) {
-    if (relativePath == null || relativePath.isEmpty) {
+  static String getImageUrl(String? path, {String? format}) {
+    if (path == null || path.trim().isEmpty) {
       return '';
     }
-    // Remove leading slash if exists
-    final path = relativePath.startsWith('/')
-        ? relativePath.substring(1)
-        : relativePath;
-    return '$baseImageUrl/$path';
+
+    final normalizedPath = path.trim();
+    final url =
+        normalizedPath.startsWith('http://') ||
+            normalizedPath.startsWith('https://')
+        ? normalizedPath
+        : '$baseImageUrl/${normalizedPath.replaceFirst(RegExp(r'^/+'), '')}';
+    final formattedUrl = format == null || format.isEmpty
+        ? url
+        : '$url${url.contains('?') ? '&' : '?'}format=$format';
+
+    return addImageUpdatedAt(formattedUrl);
+  }
+
+  /// Adds a daily cache version to images served by the EKAPLUS files API.
+  static String addImageUpdatedAt(String url, {DateTime? date}) {
+    final uri = Uri.tryParse(url);
+    if (uri == null ||
+        uri.host.toLowerCase() != 'api-ekaplus.ekatunggal.com' ||
+        !uri.path.startsWith('/files/')) {
+      return url;
+    }
+
+    final currentDate = date ?? DateTime.now();
+    final year = currentDate.year.toString().padLeft(4, '0');
+    final month = currentDate.month.toString().padLeft(2, '0');
+    final day = currentDate.day.toString().padLeft(2, '0');
+    final updatedAt = '$year-$month-$day';
+    final existingUpdatedAt = RegExp(r'([?&])updated_at=[^&]*');
+    if (existingUpdatedAt.hasMatch(url)) {
+      return url.replaceFirstMapped(
+        existingUpdatedAt,
+        (match) => '${match.group(1)}updated_at=$updatedAt',
+      );
+    }
+    final separator = url.contains('?') ? '&' : '?';
+
+    return '$url${url.endsWith('?') || url.endsWith('&') ? '' : separator}'
+        'updated_at=$updatedAt';
   }
 }

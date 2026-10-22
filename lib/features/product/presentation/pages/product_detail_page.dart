@@ -515,7 +515,7 @@ class _FullScreenGalleryViewerState extends State<_FullScreenGalleryViewer> {
             itemCount: widget.variants.length,
             itemBuilder: (context, index) {
               final variant = widget.variants[index];
-              final imageUrl = "${ApiConfig.baseImageUrl}/${variant.image}";
+              final imageUrl = ApiConfig.getImageUrl(variant.image);
 
               return PhotoView(
                 imageProvider: CachedNetworkImageProvider(imageUrl),
@@ -714,8 +714,10 @@ class _FullScreenThumbnailItem extends StatelessWidget {
     }
 
     return CachedNetworkImage(
-      imageUrl:
-          "${ApiConfig.baseImageUrl}/${variant.image}?format=rs:fill:200:200/q:80/ext:webp",
+      imageUrl: ApiConfig.getImageUrl(
+        variant.image,
+        format: 'rs:fill:200:200/q:80/ext:webp',
+      ),
       fit: BoxFit.cover,
       placeholder: (context, url) => Container(
         color: Colors.grey.shade800,
@@ -776,7 +778,7 @@ class _ImagePage extends StatelessWidget {
 
     return CachedNetworkImage(
       key: ValueKey<int>(variant.id),
-      imageUrl: "${ApiConfig.baseImageUrl}/${variant.image}",
+      imageUrl: ApiConfig.getImageUrl(variant.image),
       fit: BoxFit.cover,
       width: double.infinity,
       height: double.infinity,
@@ -974,7 +976,8 @@ class _WishlistButton extends StatelessWidget {
   void _showSnackbar(BuildContext context, bool isInWishlist) {
     final bool isIOS = io.Platform.isIOS;
 
-    AppSnackbar.showRaw(context, 
+    AppSnackbar.showRaw(
+      context,
       SnackBar(
         content: Text(
           isInWishlist ? 'Dihapus dari wishlist' : 'Ditambahkan ke wishlist',
@@ -1409,8 +1412,10 @@ class _ThumbnailItem extends StatelessWidget {
     }
 
     return CachedNetworkImage(
-      imageUrl:
-          "${ApiConfig.baseImageUrl}/${variant.image}?format=rs:fill:250:250/q:80/ext:webp",
+      imageUrl: ApiConfig.getImageUrl(
+        variant.image,
+        format: 'rs:fill:250:250/q:80/ext:webp',
+      ),
       fit: BoxFit.cover,
       placeholder: (context, url) => Shimmer.fromColors(
         baseColor: Colors.grey[200]!,

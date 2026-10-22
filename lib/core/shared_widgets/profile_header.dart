@@ -144,7 +144,7 @@ class _ProfileHeaderState extends State<ProfileHeader> {
                   }
                 } else if (profilePic.startsWith('http')) {
                   return Image.network(
-                    profilePic,
+                    ApiConfig.addImageUpdatedAt(profilePic),
                     fit: BoxFit.contain,
                     errorBuilder: (_, __, ___) =>
                         _buildDefaultAvatar(user.fullName),
@@ -158,7 +158,7 @@ class _ProfileHeaderState extends State<ProfileHeader> {
                   );
                 } else {
                   return Image.network(
-                    "${ApiConfig.baseImageUrl}/$profilePic",
+                    ApiConfig.getImageUrl(profilePic),
                     fit: BoxFit.contain,
                     errorBuilder: (_, __, ___) =>
                         _buildDefaultAvatar(user.fullName),
@@ -322,7 +322,7 @@ class _ProfileHeaderState extends State<ProfileHeader> {
               ),
               // IconButton(
               //   onPressed: () {
-              //     AppSnackbar.showRaw(context, 
+              //     AppSnackbar.showRaw(context,
               //       const SnackBar(content: Text('Notifikasi (segera hadir)')),
               //     );
               //   },

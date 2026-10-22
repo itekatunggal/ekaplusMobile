@@ -28,7 +28,10 @@ class ProductCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final imagePath = product.variants.isNotEmpty
-        ? "${ApiConfig.baseImageUrl}/${product.variants[0].image}?format=rs:fill:400:400/q:80/ext:webp"
+        ? ApiConfig.getImageUrl(
+            product.variants[0].image,
+            format: 'rs:fill:400:400/q:80/ext:webp',
+          )
         : "";
 
     final media = MediaQuery.of(context);

@@ -436,8 +436,10 @@ class _CategoryTile extends StatelessWidget {
                     color: const Color(0xFFF8FAFC),
                     padding: const EdgeInsets.all(10),
                     child: CachedNetworkImage(
-                      imageUrl:
-                          '${ApiConfig.baseImageUrl}/${category.icon}?format=rs:fill:250:250/q:80/ext:webp',
+                      imageUrl: ApiConfig.getImageUrl(
+                        category.icon,
+                        format: 'rs:fill:250:250/q:80/ext:webp',
+                      ),
                       fit: BoxFit.contain,
                       placeholder: (_, __) => Shimmer.fromColors(
                         baseColor: const Color(0xFFE2E8F0),

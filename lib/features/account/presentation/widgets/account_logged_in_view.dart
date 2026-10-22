@@ -458,8 +458,14 @@ class AccountStatusBadge extends StatelessWidget {
 const accountCardDecoration = BoxDecoration(
   color: Colors.white,
   borderRadius: BorderRadius.all(Radius.circular(16)),
+  border: Border.fromBorderSide(BorderSide(color: Color(0xFFE5EAF0), width: 1)),
   boxShadow: [
-    BoxShadow(color: Color(0x0D0F172A), blurRadius: 10, offset: Offset(0, 2)),
+    BoxShadow(
+      color: Color(0x120F172A),
+      blurRadius: 18,
+      spreadRadius: 0,
+      offset: Offset(0, 5),
+    ),
   ],
 );
 
@@ -541,9 +547,7 @@ class AccountAvatar extends StatelessWidget {
       );
     }
     if (value.isNotEmpty) {
-      final url = value.startsWith('http')
-          ? value
-          : '${ApiConfig.baseImageUrl}/$value';
+      final url = ApiConfig.getImageUrl(value);
       return Image.network(
         url,
         fit: BoxFit.cover,

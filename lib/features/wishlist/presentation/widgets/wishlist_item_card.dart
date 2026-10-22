@@ -669,8 +669,10 @@ class _WishlistItemCardState extends State<WishlistItemCard>
                 borderRadius: BorderRadius.circular(8),
                 child: widget.imagePath.isNotEmpty
                     ? CachedNetworkImage(
-                        imageUrl:
-                            "${ApiConfig.baseImageUrl}/${widget.imagePath}?format=rs:fill:300:300/q:80/ext:webp",
+                        imageUrl: ApiConfig.getImageUrl(
+                          widget.imagePath,
+                          format: 'rs:fill:300:300/q:80/ext:webp',
+                        ),
 
                         // PENTING:
                         // Stitch menggunakan contain.

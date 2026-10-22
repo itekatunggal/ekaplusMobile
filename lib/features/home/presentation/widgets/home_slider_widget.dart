@@ -32,7 +32,7 @@ class HomeSliderWidget extends StatelessWidget {
       }
     } catch (_) {
       if (context.mounted) {
-        AppSnackbar.showRaw(context, 
+        AppSnackbar.showRaw(context,
           const SnackBar(content: Text('Tidak dapat membuka link')),
         );
       }
@@ -48,8 +48,7 @@ class HomeSliderWidget extends StatelessWidget {
     if (type == 'Link') {
       final link = banner.link?.trim() ?? '';
       if (link.isEmpty) {
-        AppSnackbar.showRaw(
-          context,
+        AppSnackbar.showRaw(context,
           const SnackBar(content: Text('Link tidak tersedia')),
         );
         return;
@@ -58,7 +57,8 @@ class HomeSliderWidget extends StatelessWidget {
     } else if (type == 'Page') {
       final pageName = banner.pages?.trim() ?? '';
       if (pageName.isEmpty) {
-        AppSnackbar.showRaw(context, 
+        AppSnackbar.showRaw(
+          context,
           const SnackBar(content: Text('Halaman tujuan tidak tersedia')),
         );
         return;
@@ -138,12 +138,15 @@ class HomeSliderWidget extends StatelessWidget {
       items: visible.map((banner) {
         return Builder(
           builder: (BuildContext context) {
-            final img =
-                "${ApiConfig.baseImageUrl}/${banner.img}?format=rs:fit:${isMobile
-                    ? 600
-                    : isTablet
-                    ? 1200
-                    : 1600}:400/q:80/ext:webp";
+            final img = ApiConfig.getImageUrl(
+              banner.img,
+              format:
+                  'rs:fit:${isMobile
+                      ? 600
+                      : isTablet
+                      ? 1200
+                      : 1600}:400/q:80/ext:webp',
+            );
 
             Widget imgWidget;
             if (img.startsWith('assets/')) {

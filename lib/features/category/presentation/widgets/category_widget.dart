@@ -372,8 +372,10 @@ class _CategoryModalWidgetState extends State<CategoryModalWidget> {
   }
 
   Widget _buildCategoryImage(CategorySimpleEntity category) {
-    final String iconPath =
-        "${ApiConfig.baseImageUrl}/${category.icon}?format=rs:fill:200:200/q:80/ext:webp";
+    final String iconPath = ApiConfig.getImageUrl(
+      category.icon,
+      format: 'rs:fill:200:200/q:80/ext:webp',
+    );
 
     if (iconPath.startsWith('http')) {
       return CachedNetworkImage(
