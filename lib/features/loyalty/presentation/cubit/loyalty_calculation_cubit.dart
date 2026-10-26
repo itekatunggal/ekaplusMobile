@@ -45,25 +45,30 @@ class LoyaltyCalculationCubit extends Cubit<LoyaltyCalculationState> {
   final LoyaltyService _service;
   final int gpid;
   final String? bcid;
+  int _calculationRequestVersion = 0;
+  int _historyRequestVersion = 0;
 
   Future<void> load() async {
     await Future.wait([loadCalculation(), loadHistory()]);
   }
 
   Future<void> loadCalculation() async {
-    emit(state.copyWith(status: LoyaltyCalculationStatus.loading));
+    final version = ++_calculationRequestVersion;
+    final hasExistingData = state.status == LoyaltyCalculationStatus.success;
+    if (!hasExistingData) {
+      emit(state.copyWith(status: LoyaltyCalculationStatus.loading));
+    }
     try {
       final ledger = await _service.getActiveLedger(gpid);
+      if (version != _calculationRequestVersion || isClosed) return;
       if (ledger == null || ledger.calculationId <= 0) {
-        if (!isClosed) {
-          emit(
-            LoyaltyCalculationState(
-              status: LoyaltyCalculationStatus.success,
-              historyStatus: state.historyStatus,
-              history: state.history,
-            ),
-          );
-        }
+        emit(
+          LoyaltyCalculationState(
+            status: LoyaltyCalculationStatus.success,
+            historyStatus: state.historyStatus,
+            history: state.history,
+          ),
+        );
         return;
       }
       final categoryIconsFuture = _service.getCategoryIcons().catchError(
@@ -73,30 +78,31 @@ class LoyaltyCalculationCubit extends Cubit<LoyaltyCalculationState> {
         ledger.calculationId,
       );
       final categoryIcons = await categoryIconsFuture;
+      if (version != _calculationRequestVersion || isClosed) return;
       details.sort((a, b) {
         final pointOrder = b.awardedPoint.compareTo(a.awardedPoint);
         return pointOrder != 0
             ? pointOrder
             : b.purchaseAmount.compareTo(a.purchaseAmount);
       });
-      if (!isClosed) {
-        emit(
-          state.copyWith(
-            status: LoyaltyCalculationStatus.success,
-            ledger: ledger,
-            details: details,
-            categoryIcons: categoryIcons,
-          ),
-        );
-      }
+      emit(
+        state.copyWith(
+          status: LoyaltyCalculationStatus.success,
+          ledger: ledger,
+          details: details,
+          categoryIcons: categoryIcons,
+        ),
+      );
     } catch (_) {
-      if (!isClosed) {
+      if (version != _calculationRequestVersion || isClosed) return;
+      if (!hasExistingData) {
         emit(state.copyWith(status: LoyaltyCalculationStatus.failure));
       }
     }
   }
 
   Future<void> loadHistory() async {
+    final version = ++_historyRequestVersion;
     final normalizedBcid = bcid?.trim() ?? '';
     if (normalizedBcid.isEmpty) {
       emit(
@@ -107,19 +113,23 @@ class LoyaltyCalculationCubit extends Cubit<LoyaltyCalculationState> {
       );
       return;
     }
-    emit(state.copyWith(historyStatus: LoyaltyCalculationStatus.loading));
+    final hasExistingData =
+        state.historyStatus == LoyaltyCalculationStatus.success;
+    if (!hasExistingData) {
+      emit(state.copyWith(historyStatus: LoyaltyCalculationStatus.loading));
+    }
     try {
       final history = await _service.getHistory(normalizedBcid, limit: 3);
-      if (!isClosed) {
-        emit(
-          state.copyWith(
-            historyStatus: LoyaltyCalculationStatus.success,
-            history: history,
-          ),
-        );
-      }
+      if (version != _historyRequestVersion || isClosed) return;
+      emit(
+        state.copyWith(
+          historyStatus: LoyaltyCalculationStatus.success,
+          history: history,
+        ),
+      );
     } catch (_) {
-      if (!isClosed) {
+      if (version != _historyRequestVersion || isClosed) return;
+      if (!hasExistingData) {
         emit(state.copyWith(historyStatus: LoyaltyCalculationStatus.failure));
       }
     }

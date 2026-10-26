@@ -10,6 +10,7 @@ import 'package:ekaplus_ekatunggal/features/loyalty/presentation/widgets/loyalty
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shimmer/shimmer.dart';
 
 class LoyaltyCalculationDetailPage extends StatelessWidget {
   const LoyaltyCalculationDetailPage({
@@ -25,89 +26,98 @@ class LoyaltyCalculationDetailPage extends StatelessWidget {
   Widget build(BuildContext context) => CustomHeaderScaffold(
     title: 'Rincian Poin',
     showBackButton: true,
-    body: BlocBuilder<LoyaltyCalculationCubit, LoyaltyCalculationState>(
-      builder: (context, state) => RefreshIndicator(
-        color: AppColors.primaryColor,
-        onRefresh: context.read<LoyaltyCalculationCubit>().load,
-        child: ListView(
-          padding: EdgeInsets.zero,
-          physics: const AlwaysScrollableScrollPhysics(
-            parent: BouncingScrollPhysics(),
+    body: Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 680),
+        child: BlocBuilder<LoyaltyCalculationCubit, LoyaltyCalculationState>(
+          builder: (context, state) => RefreshIndicator(
+            color: AppColors.primaryColor,
+            onRefresh: context.read<LoyaltyCalculationCubit>().load,
+            child: ListView(
+              padding: EdgeInsets.zero,
+              physics: const AlwaysScrollableScrollPhysics(
+                parent: BouncingScrollPhysics(),
+              ),
+              children: [
+                if (state.status == LoyaltyCalculationStatus.initial ||
+                    state.status == LoyaltyCalculationStatus.loading)
+                  const _CalculationSkeleton()
+                else if (state.status == LoyaltyCalculationStatus.failure)
+                  _ErrorCard(
+                    message: 'Rincian poin belum dapat dimuat.',
+                    onRetry: context
+                        .read<LoyaltyCalculationCubit>()
+                        .loadCalculation,
+                  )
+                else ...[
+                  _LedgerSummary(
+                    ledger: state.ledger,
+                    groupParentCode: groupParentCode,
+                    groupParentName: groupParentName,
+                  ),
+                  const SizedBox(height: 16),
+                  _SectionHeading(title: 'Perolehan Berdasarkan Kategori'),
+                  const SizedBox(height: 8),
+                  if (state.details.isEmpty)
+                    const _EmptyCard(
+                      icon: Icons.add_chart_rounded,
+                      title: 'Belum Ada Perolehan Poin',
+                      message:
+                          'Rincian pembelian yang masuk dalam perhitungan poin akan tampil di sini.',
+                    )
+                  else
+                    ...state.details.map(
+                      (item) => Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: _CategoryTicket(
+                          item: item,
+                          categoryIcon: _findCategoryIcon(
+                            state.categoryIcons,
+                            item.category,
+                          ),
+                          onTap: state.ledger == null
+                              ? null
+                              : () =>
+                                    _openCategory(context, state.ledger!, item),
+                        ),
+                      ),
+                    ),
+                  const SizedBox(height: 8),
+                  _SectionHeading(
+                    title: 'Riwayat Penukaran',
+                    trailing: 'Aktivitas Terbaru',
+                  ),
+                  const SizedBox(height: 8),
+                  _HistoryPreview(state: state),
+                  if (state.history.isNotEmpty &&
+                      context.read<LoyaltyCalculationCubit>().bcid != null)
+                    Center(
+                      child: TextButton.icon(
+                        onPressed: () => context.pushNamed(
+                          'loyalty-history',
+                          extra: {
+                            'bcid': context
+                                .read<LoyaltyCalculationCubit>()
+                                .bcid,
+                          },
+                        ),
+                        label: const Text('Lihat Semua Riwayat'),
+                        iconAlignment: IconAlignment.end,
+                        icon: const Icon(Icons.chevron_right_rounded, size: 17),
+                        style: TextButton.styleFrom(
+                          foregroundColor: AppColors.primaryColor,
+                          textStyle: const TextStyle(
+                            fontSize: 9.5,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+                const SizedBox(height: 24),
+              ],
+            ),
           ),
-          children: [
-            if (state.status == LoyaltyCalculationStatus.loading)
-              const _CalculationSkeleton()
-            else if (state.status == LoyaltyCalculationStatus.failure)
-              _ErrorCard(
-                message: 'Rincian poin belum dapat dimuat.',
-                onRetry: context
-                    .read<LoyaltyCalculationCubit>()
-                    .loadCalculation,
-              )
-            else ...[
-              _LedgerSummary(
-                ledger: state.ledger,
-                groupParentCode: groupParentCode,
-                groupParentName: groupParentName,
-              ),
-              const SizedBox(height: 16),
-              _SectionHeading(title: 'Perolehan Berdasarkan Kategori'),
-              const SizedBox(height: 8),
-              if (state.details.isEmpty)
-                const _EmptyCard(
-                  icon: Icons.add_chart_rounded,
-                  title: 'Belum Ada Perolehan Poin',
-                  message:
-                      'Rincian pembelian yang masuk dalam perhitungan poin akan tampil di sini.',
-                )
-              else
-                ...state.details.map(
-                  (item) => Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: _CategoryTicket(
-                      item: item,
-                      categoryIcon: _findCategoryIcon(
-                        state.categoryIcons,
-                        item.category,
-                      ),
-                      onTap: state.ledger == null
-                          ? null
-                          : () => _openCategory(context, state.ledger!, item),
-                    ),
-                  ),
-                ),
-              const SizedBox(height: 8),
-              _SectionHeading(
-                title: 'Riwayat Penukaran',
-                trailing: 'Aktivitas Terbaru',
-              ),
-              const SizedBox(height: 8),
-              _HistoryPreview(state: state),
-              if (state.history.isNotEmpty &&
-                  context.read<LoyaltyCalculationCubit>().bcid != null)
-                Center(
-                  child: TextButton.icon(
-                    onPressed: () => context.pushNamed(
-                      'loyalty-history',
-                      extra: {
-                        'bcid': context.read<LoyaltyCalculationCubit>().bcid,
-                      },
-                    ),
-                    label: const Text('Lihat Semua Riwayat'),
-                    iconAlignment: IconAlignment.end,
-                    icon: const Icon(Icons.chevron_right_rounded, size: 17),
-                    style: TextButton.styleFrom(
-                      foregroundColor: AppColors.primaryColor,
-                      textStyle: const TextStyle(
-                        fontSize: 9.5,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ),
-            ],
-            const SizedBox(height: 24),
-          ],
         ),
       ),
     ),
@@ -400,7 +410,7 @@ class _LedgerSummary extends StatelessWidget {
                       color: Color(0xFF0F172A),
                       fontSize: 24,
                       height: 1,
-                      fontWeight: FontWeight.w800,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                   const SizedBox(width: 4),
@@ -472,7 +482,7 @@ class _CategoryTicket extends StatelessWidget {
 
   static const double _pointAreaWidth = 72;
   static const double _notchRadius = 5.0;
-  static const double _cardRadius = 13;
+  static const double _cardRadius = 16;
 
   @override
   Widget build(BuildContext context) {
@@ -583,7 +593,7 @@ class _CategoryTicket extends StatelessWidget {
                                         overflow: TextOverflow.ellipsis,
                                         style: const TextStyle(
                                           color: Color(0xFF94A3B8),
-                                          fontSize: 7.5,
+                                          fontSize: 8,
                                           height: 1.2,
                                           fontWeight: FontWeight.w500,
                                           fontStyle: FontStyle.italic,
@@ -629,7 +639,7 @@ class _CategoryTicket extends StatelessWidget {
                                 color: hasPoint
                                     ? const Color(0xFF64748B)
                                     : const Color(0xFFA8B2C1),
-                                fontSize: 7,
+                                fontSize: 8,
                                 height: 1,
                                 fontWeight: FontWeight.w700,
                                 letterSpacing: .45,
@@ -890,7 +900,25 @@ class _HistoryPreview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (state.historyStatus == LoyaltyCalculationStatus.loading) {
+    if (state.history.isNotEmpty) {
+      return Column(
+        children: state.history.take(2).map((item) {
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: _HistoryCard(
+              item: item,
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => LoyaltyRedemptionDetailPage(item: item),
+                ),
+              ),
+            ),
+          );
+        }).toList(),
+      );
+    }
+    if (state.historyStatus == LoyaltyCalculationStatus.initial ||
+        state.historyStatus == LoyaltyCalculationStatus.loading) {
       return const _HistorySkeleton();
     }
     if (state.historyStatus == LoyaltyCalculationStatus.failure) {
@@ -899,27 +927,10 @@ class _HistoryPreview extends StatelessWidget {
         onRetry: context.read<LoyaltyCalculationCubit>().loadHistory,
       );
     }
-    if (state.history.isEmpty) {
-      return const _EmptyCard(
-        icon: Icons.history_rounded,
-        title: 'Belum Ada Riwayat',
-        message: 'Aktivitas penukaran poin akan tampil di sini.',
-      );
-    }
-    return Column(
-      children: state.history.take(2).map((item) {
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 12),
-          child: _HistoryCard(
-            item: item,
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => LoyaltyRedemptionDetailPage(item: item),
-              ),
-            ),
-          ),
-        );
-      }).toList(),
+    return const _EmptyCard(
+      icon: Icons.history_rounded,
+      title: 'Belum Ada Riwayat',
+      message: 'Aktivitas penukaran poin akan tampil di sini.',
     );
   }
 }
@@ -941,17 +952,30 @@ class _HistoryCard extends StatelessWidget {
       LoyaltyRedemptionStatus.rejected => const Color(0xFFFFF1F2),
       _ => const Color(0xFFFFFBEB),
     };
+    final statusBorder = switch (item.status) {
+      LoyaltyRedemptionStatus.approved => const Color(0xFFA7F3D0),
+      LoyaltyRedemptionStatus.rejected => const Color(0xFFFECACA),
+      _ => const Color(0xFFFDE68A),
+    };
     return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(13),
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(16),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(13),
+        borderRadius: BorderRadius.circular(16),
         child: Container(
-          padding: const EdgeInsets.all(11),
+          padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(13),
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
             border: Border.all(color: const Color(0xFFF1F5F9)),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x0D0F172A),
+                blurRadius: 10,
+                offset: Offset(0, 2),
+              ),
+            ],
           ),
           child: Row(
             children: [
@@ -992,12 +1016,13 @@ class _HistoryCard extends StatelessWidget {
                       decoration: BoxDecoration(
                         color: statusBackground,
                         borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: statusBorder),
                       ),
                       child: Text(
                         redemptionStatusLabel(item.status),
                         style: TextStyle(
                           color: statusColor,
-                          fontSize: 7.5,
+                          fontSize: 8,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -1022,7 +1047,7 @@ class _HistoryCard extends StatelessWidget {
                     formatDate(item.createdAt),
                     style: const TextStyle(
                       color: Color(0xFF94A3B8),
-                      fontSize: 7.5,
+                      fontSize: 8,
                     ),
                   ),
                 ],
@@ -1042,23 +1067,70 @@ class _ErrorCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(16),
+    width: double.infinity,
+    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
     decoration: BoxDecoration(
       color: Colors.white,
-      borderRadius: BorderRadius.circular(13),
+      borderRadius: BorderRadius.circular(16),
       border: Border.all(color: const Color(0xFFF1F5F9)),
+      boxShadow: const [
+        BoxShadow(
+          color: Color(0x0D0F172A),
+          blurRadius: 10,
+          offset: Offset(0, 2),
+        ),
+      ],
     ),
-    child: Row(
+    child: Column(
       children: [
-        const Icon(Icons.cloud_off_outlined, color: Color(0xFF94A3B8)),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Text(
-            message,
-            style: const TextStyle(color: Color(0xFF64748B), fontSize: 9.5),
+        Container(
+          width: 58,
+          height: 58,
+          decoration: const BoxDecoration(
+            color: Color(0xFFFFE4E6),
+            shape: BoxShape.circle,
+          ),
+          child: const Icon(
+            Icons.cloud_off_outlined,
+            color: AppColors.primaryColor,
+            size: 28,
           ),
         ),
-        TextButton(onPressed: onRetry, child: const Text('Coba Lagi')),
+        const SizedBox(height: 12),
+        const Text(
+          'Data Belum Dapat Dimuat',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: Color(0xFF1E293B),
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 5),
+        Text(
+          message,
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            color: Color(0xFF64748B),
+            fontSize: 11,
+            height: 1.4,
+          ),
+        ),
+        const SizedBox(height: 16),
+        OutlinedButton.icon(
+          onPressed: onRetry,
+          icon: const Icon(Icons.refresh_rounded, size: 17),
+          label: const Text('Coba Lagi'),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: AppColors.primaryColor,
+            side: const BorderSide(color: AppColors.primaryColor),
+            minimumSize: const Size(132, 42),
+            textStyle: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
       ],
     ),
   );
@@ -1077,31 +1149,47 @@ class _EmptyCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
     width: double.infinity,
-    padding: const EdgeInsets.all(18),
+    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
     decoration: BoxDecoration(
       color: Colors.white,
-      borderRadius: BorderRadius.circular(13),
+      borderRadius: BorderRadius.circular(16),
       border: Border.all(color: const Color(0xFFF1F5F9)),
+      boxShadow: const [
+        BoxShadow(
+          color: Color(0x0D0F172A),
+          blurRadius: 10,
+          offset: Offset(0, 2),
+        ),
+      ],
     ),
     child: Column(
       children: [
-        Icon(icon, color: const Color(0xFF94A3B8), size: 25),
-        const SizedBox(height: 7),
+        Container(
+          width: 58,
+          height: 58,
+          decoration: const BoxDecoration(
+            color: Color(0xFFF1F5F9),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(icon, color: const Color(0xFF94A3B8), size: 28),
+        ),
+        const SizedBox(height: 12),
         Text(
           title,
+          textAlign: TextAlign.center,
           style: const TextStyle(
             color: Color(0xFF1E293B),
-            fontSize: 10.5,
+            fontSize: 13,
             fontWeight: FontWeight.w700,
           ),
         ),
-        const SizedBox(height: 3),
+        const SizedBox(height: 5),
         Text(
           message,
           textAlign: TextAlign.center,
           style: const TextStyle(
             color: Color(0xFF64748B),
-            fontSize: 9,
+            fontSize: 11,
             height: 1.4,
           ),
         ),
@@ -1114,27 +1202,28 @@ class _CalculationSkeleton extends StatelessWidget {
   const _CalculationSkeleton();
 
   @override
-  Widget build(BuildContext context) => Column(
-    children: [
-      for (var index = 0; index < 5; index++) ...[
-        Container(
-          height: index == 0 ? 105 : 72,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(index == 0 ? 16 : 13),
-            border: Border.all(color: const Color(0xFFF1F5F9)),
-          ),
-          child: const Center(
-            child: LinearProgressIndicator(
-              minHeight: 3,
-              color: Color(0xFFE2E8F0),
-              backgroundColor: Color(0xFFF8FAFC),
-            ),
-          ),
-        ),
+  Widget build(BuildContext context) => Shimmer.fromColors(
+    baseColor: const Color(0xFFE2E8F0),
+    highlightColor: const Color(0xFFF8FAFC),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const _SkeletonCard(height: 124),
+        const SizedBox(height: 16),
+        const _SkeletonLine(width: 190, height: 10),
         const SizedBox(height: 8),
+        for (var index = 0; index < 3; index++) ...[
+          const _SkeletonCard(height: 66),
+          const SizedBox(height: 8),
+        ],
+        const SizedBox(height: 8),
+        const _SkeletonLine(width: 128, height: 10),
+        const SizedBox(height: 8),
+        const _SkeletonCard(height: 64),
+        const SizedBox(height: 8),
+        const _SkeletonCard(height: 64),
       ],
-    ],
+    ),
   );
 }
 
@@ -1142,18 +1231,48 @@ class _HistorySkeleton extends StatelessWidget {
   const _HistorySkeleton();
 
   @override
-  Widget build(BuildContext context) => Column(
-    children: List.generate(
-      2,
-      (_) => Container(
-        height: 65,
-        margin: const EdgeInsets.only(bottom: 8),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(13),
-          border: Border.all(color: const Color(0xFFF1F5F9)),
-        ),
-      ),
+  Widget build(BuildContext context) => Shimmer.fromColors(
+    baseColor: const Color(0xFFE2E8F0),
+    highlightColor: const Color(0xFFF8FAFC),
+    child: const Column(
+      children: [
+        _SkeletonCard(height: 64),
+        SizedBox(height: 8),
+        _SkeletonCard(height: 64),
+      ],
+    ),
+  );
+}
+
+class _SkeletonCard extends StatelessWidget {
+  const _SkeletonCard({required this.height});
+
+  final double height;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: double.infinity,
+    height: height,
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(16),
+    ),
+  );
+}
+
+class _SkeletonLine extends StatelessWidget {
+  const _SkeletonLine({required this.width, required this.height});
+
+  final double width;
+  final double height;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: width,
+    height: height,
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(20),
     ),
   );
 }
