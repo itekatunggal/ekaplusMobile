@@ -725,6 +725,9 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:shimmer/shimmer.dart';
+import 'package:ekaplus_ekatunggal/constant.dart';
+import 'package:ekaplus_ekatunggal/core/shared_widgets/custom_header.dart';
 import 'package:ekaplus_ekatunggal/features/member/presentation/cubit/active_company_cubit.dart';
 import 'package:ekaplus_ekatunggal/features/salesOrder/data/services/sales_order_detail_service.dart';
 import 'package:ekaplus_ekatunggal/features/salesOrder/data/models/sales_order_model.dart';
@@ -742,6 +745,7 @@ class SalesOrderPage extends StatefulWidget {
 
 class _SalesOrderPageState extends State<SalesOrderPage> {
   String _searchQuery = '';
+  final TextEditingController _searchController = TextEditingController();
 
   // ── Pagination ────────────────────────────────────────────
   int _currentPage = 1;
@@ -752,8 +756,8 @@ class _SalesOrderPageState extends State<SalesOrderPage> {
   DateTime? _filterEndDate;
   String? _filterStatus;
 
-  static const Color kRed = Color(0xFFC0392B);
-  static const Color kGreen = Color(0xFF27AE60);
+  static const Color kRed = AppColors.primaryColor;
+  static const Color kGreen = Color(0xFF059669);
 
   static const List<String> _statusOptions = ['Semua', 'Completed', 'Closed'];
 
@@ -783,6 +787,12 @@ class _SalesOrderPageState extends State<SalesOrderPage> {
         debugPrint("branchCode kosong, API tidak dipanggil");
       }
     });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   // ── Filter list ───────────────────────────────────────────
@@ -879,7 +889,7 @@ class _SalesOrderPageState extends State<SalesOrderPage> {
       isScrollControlled: true,
       backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (ctx) {
         return StatefulBuilder(
@@ -897,7 +907,9 @@ class _SalesOrderPageState extends State<SalesOrderPage> {
                 lastDate: DateTime(now.year + 2),
                 builder: (c, child) => Theme(
                   data: Theme.of(c).copyWith(
-                    colorScheme: const ColorScheme.light(primary: kRed),
+                    colorScheme: const ColorScheme.light(
+                      primary: AppColors.primaryColor,
+                    ),
                   ),
                   child: child!,
                 ),
@@ -930,7 +942,7 @@ class _SalesOrderPageState extends State<SalesOrderPage> {
                       width: 40,
                       height: 4,
                       decoration: BoxDecoration(
-                        color: Colors.black12,
+                        color: const Color(0xFFCBD5E1),
                         borderRadius: BorderRadius.circular(2),
                       ),
                     ),
@@ -944,8 +956,10 @@ class _SalesOrderPageState extends State<SalesOrderPage> {
                       const Text(
                         'Filter Sales Order',
                         style: TextStyle(
+                          fontFamily: AppFonts.primaryFont,
                           fontSize: 16,
-                          fontWeight: FontWeight.bold,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF1E293B),
                         ),
                       ),
                       if (_hasActiveFilter)
@@ -961,7 +975,12 @@ class _SalesOrderPageState extends State<SalesOrderPage> {
                           },
                           child: const Text(
                             'Reset',
-                            style: TextStyle(color: kRed, fontSize: 13),
+                            style: TextStyle(
+                              fontFamily: AppFonts.primaryFont,
+                              color: kRed,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ),
                     ],
@@ -972,9 +991,10 @@ class _SalesOrderPageState extends State<SalesOrderPage> {
                   const Text(
                     'Rentang Tanggal',
                     style: TextStyle(
-                      fontSize: 13,
+                      fontFamily: AppFonts.primaryFont,
+                      fontSize: 11.5,
                       fontWeight: FontWeight.w600,
-                      color: Colors.black54,
+                      color: Color(0xFF475569),
                     ),
                   ),
                   const SizedBox(height: 10),
@@ -1003,9 +1023,10 @@ class _SalesOrderPageState extends State<SalesOrderPage> {
                   const Text(
                     'Status',
                     style: TextStyle(
-                      fontSize: 13,
+                      fontFamily: AppFonts.primaryFont,
+                      fontSize: 11.5,
                       fontWeight: FontWeight.w600,
-                      color: Colors.black54,
+                      color: Color(0xFF475569),
                     ),
                   ),
                   const SizedBox(height: 10),
@@ -1022,18 +1043,21 @@ class _SalesOrderPageState extends State<SalesOrderPage> {
                             vertical: 8,
                           ),
                           decoration: BoxDecoration(
-                            color: selected ? kRed : const Color(0xFFF5F5F5),
+                            color: selected ? kRed : Colors.white,
                             borderRadius: BorderRadius.circular(20),
                             border: Border.all(
-                              color: selected ? kRed : Colors.black12,
+                              color: selected ? kRed : const Color(0xFFE2E8F0),
                             ),
                           ),
                           child: Text(
                             s,
                             style: TextStyle(
                               fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                              color: selected ? Colors.white : Colors.black54,
+                              fontFamily: AppFonts.primaryFont,
+                              fontWeight: FontWeight.w600,
+                              color: selected
+                                  ? Colors.white
+                                  : const Color(0xFF334155),
                             ),
                           ),
                         ),
@@ -1058,16 +1082,18 @@ class _SalesOrderPageState extends State<SalesOrderPage> {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: kRed,
                         foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        elevation: 0,
+                        minimumSize: const Size.fromHeight(48),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
+                          borderRadius: BorderRadius.circular(12),
                         ),
                       ),
                       child: const Text(
                         'Terapkan Filter',
                         style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
+                          fontFamily: AppFonts.primaryFont,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
                     ),
@@ -1109,100 +1135,64 @@ class _SalesOrderPageState extends State<SalesOrderPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF2F2F7),
+      backgroundColor: AppColors.background,
       body: Column(
         children: [
-          _buildHeader(),
-          _buildSearchBar(),
+          _buildHeader(context),
           if (_hasActiveFilter) _buildActiveFilterChips(),
           Expanded(
-            child: BlocConsumer<SalesOrderCubit, SalesOrderState>(
-              listener: (context, state) {
-                if (state is SalesOrderError) {
-                  debugPrint("ERROR: ${state.message}");
-                }
-              },
-              builder: (context, state) {
-                if (state is SalesOrderLoading) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                if (state is SalesOrderUnauthorized) {
-                  return _buildAnnouncement(state.message);
-                }
-                if (state is SalesOrderError) {
-                  return Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(
-                          Icons.error_outline,
-                          size: 48,
-                          color: Colors.red,
-                        ),
-                        const SizedBox(height: 12),
-                        Text(state.message),
-                        const SizedBox(height: 12),
-                        ElevatedButton(
-                          onPressed: () {
-                            final s = context.read<ActiveCompanyCubit>().state;
-                            context.read<SalesOrderCubit>().loadSalesOrder(
-                              branchCode:
-                                  (s as ActiveCompanyReady?)
-                                      ?.activeCompany
-                                      ?.branchName ??
-                                  '',
-                              bcid:
-                                  (s as ActiveCompanyReady?)
-                                      ?.activeCompany
-                                      ?.branchCustomerCode ??
-                                  '',
-                            );
-                          },
-                          child: const Text('Coba Lagi'),
-                        ),
-                      ],
-                    ),
-                  );
-                }
-                if (state is SalesOrderLoaded) {
-                  final filtered = _filteredList(state.items);
-                  final totalPages = _totalPages(filtered.length);
-                  final paged = _pagedList(filtered);
-
-                  if (filtered.isEmpty) {
-                    return Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(
-                            Icons.search_off,
-                            size: 48,
-                            color: Colors.black26,
-                          ),
-                          const SizedBox(height: 12),
-                          const Text(
-                            'Tidak ada sales order ditemukan',
-                            style: TextStyle(color: Colors.black45),
-                          ),
-                        ],
-                      ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: BlocConsumer<SalesOrderCubit, SalesOrderState>(
+                listener: (context, state) {
+                  if (state is SalesOrderError) {
+                    debugPrint("ERROR: ${state.message}");
+                  }
+                },
+                builder: (context, state) {
+                  if (state is SalesOrderLoading) {
+                    return _buildLoadingState();
+                  }
+                  if (state is SalesOrderUnauthorized) {
+                    return _buildErrorState(
+                      title: 'Akses tidak tersedia',
+                      message: state.message,
                     );
                   }
+                  if (state is SalesOrderError) {
+                    return _buildErrorState(
+                      title: 'Sales order gagal dimuat',
+                      message: state.message,
+                      onRetry: _retryLoad,
+                    );
+                  }
+                  if (state is SalesOrderLoaded) {
+                    final filtered = _filteredList(state.items);
+                    final totalPages = _totalPages(filtered.length);
+                    final paged = _pagedList(filtered);
 
-                  return ListView.separated(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: paged.length + 1, // +1 untuk pagination
-                    separatorBuilder: (_, __) => const SizedBox(height: 10),
-                    itemBuilder: (_, i) {
-                      if (i == paged.length) {
-                        return _buildPagination(totalPages, filtered.length);
-                      }
-                      return _buildSalesOrderCard(paged[i]);
-                    },
-                  );
-                }
-                return const Center(child: CircularProgressIndicator());
-              },
+                    if (filtered.isEmpty) {
+                      return _buildEmptyState(
+                        isSearchResult:
+                            _searchQuery.trim().isNotEmpty || _hasActiveFilter,
+                      );
+                    }
+
+                    return ListView.separated(
+                      padding: const EdgeInsets.fromLTRB(0, 8, 0, 24),
+                      itemCount: paged.length + 1, // +1 untuk pagination
+                      separatorBuilder: (_, __) => const SizedBox(height: 10),
+                      itemBuilder: (_, i) {
+                        if (i == paged.length) {
+                          return _buildPagination(totalPages, filtered.length);
+                        }
+                        return _buildSalesOrderCard(paged[i]);
+                      },
+                    );
+                  }
+                  return _buildLoadingState();
+                },
+              ),
             ),
           ),
         ],
@@ -1210,84 +1200,80 @@ class _SalesOrderPageState extends State<SalesOrderPage> {
     );
   }
 
-  Widget _buildHeader() {
-    return Container(
-      color: kRed,
-      child: SafeArea(
-        bottom: false,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          child: Row(
-            children: [
-              GestureDetector(
-                onTap: () => Navigator.pop(context),
-                child: const Icon(
-                  Icons.arrow_back,
-                  color: Colors.white,
-                  size: 20,
-                ),
-              ),
-              const SizedBox(width: 8),
-              const Expanded(
-                child: Text(
-                  'Laporan Pelanggan',
-                  style: TextStyle(color: Colors.white, fontSize: 15),
-                ),
-              ),
-              GestureDetector(
-                onTap: _showFilterSheet,
-                child: Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    const Icon(Icons.tune, color: Colors.white, size: 22),
-                    if (_hasActiveFilter)
-                      Positioned(
-                        top: -3,
-                        right: -3,
-                        child: Container(
-                          width: 8,
-                          height: 8,
-                          decoration: const BoxDecoration(
-                            color: Colors.yellow,
-                            shape: BoxShape.circle,
+  Widget _buildHeader(BuildContext context) {
+    return SizedBox(
+      height: 178,
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: CustomHeaderAppBar(
+              title: 'Sales Order',
+              brandStyle: true,
+              showBackButton: true,
+              onBackPressed: () => Navigator.pop(context),
+              height: 178,
+              actions: [
+                CustomHeaderActionButton(
+                  tooltip: 'Filter sales order',
+                  onPressed: _showFilterSheet,
+                  icon: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      const Icon(
+                        Icons.tune_rounded,
+                        color: Colors.white,
+                        size: 19,
+                      ),
+                      if (_hasActiveFilter)
+                        const Positioned(
+                          right: -1,
+                          top: -1,
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              color: AppColors.secondaryColor,
+                              shape: BoxShape.circle,
+                            ),
+                            child: SizedBox(width: 7, height: 7),
                           ),
                         ),
-                      ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
+          Positioned(left: 16, right: 16, bottom: 18, child: _buildSearchBar()),
+        ],
       ),
     );
   }
 
+  void _retryLoad() {
+    final state = context.read<ActiveCompanyCubit>().state;
+    context.read<SalesOrderCubit>().loadSalesOrder(
+      branchCode:
+          (state as ActiveCompanyReady?)?.activeCompany?.branchName ?? '',
+      bcid:
+          (state as ActiveCompanyReady?)?.activeCompany?.branchCustomerCode ??
+          '',
+    );
+  }
+
   Widget _buildSearchBar() {
-    return Container(
-      color: kRed,
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
-      child: Container(
-        height: 40,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: TextField(
-          onChanged: (v) => setState(() {
-            _searchQuery = v;
-            _currentPage = 1; // reset ke halaman 1 saat search
-          }),
-          style: const TextStyle(fontSize: 13),
-          decoration: const InputDecoration(
-            hintText: 'Cari nama, perusahaan...',
-            hintStyle: TextStyle(color: Colors.black38, fontSize: 13),
-            prefixIcon: Icon(Icons.search, color: Colors.black38, size: 20),
-            border: InputBorder.none,
-            contentPadding: EdgeInsets.symmetric(vertical: 10),
-          ),
-        ),
-      ),
+    return CustomHeaderSearchField(
+      controller: _searchController,
+      hintText: 'Cari nomor, perusahaan, atau customer...',
+      onChanged: (value) => setState(() {
+        _searchQuery = value;
+        _currentPage = 1;
+      }),
+      onClear: () {
+        _searchController.clear();
+        setState(() {
+          _searchQuery = '';
+          _currentPage = 1;
+        });
+      },
     );
   }
 
@@ -1296,8 +1282,21 @@ class _SalesOrderPageState extends State<SalesOrderPage> {
         '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
 
     return Container(
-      color: Colors.white,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      width: double.infinity,
+      margin: const EdgeInsets.fromLTRB(12, 10, 12, 0),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.all(Radius.circular(16)),
+        border: Border.fromBorderSide(BorderSide(color: Color(0xFFF1F5F9))),
+        boxShadow: [
+          BoxShadow(
+            color: Color(0x0D0F172A),
+            blurRadius: 10,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
       child: Row(
         children: [
           const Icon(Icons.filter_list, size: 14, color: kRed),
@@ -1305,6 +1304,7 @@ class _SalesOrderPageState extends State<SalesOrderPage> {
           Expanded(
             child: Wrap(
               spacing: 6,
+              runSpacing: 6,
               children: [
                 if (_filterStatus != null)
                   _buildChip(
@@ -1335,14 +1335,23 @@ class _SalesOrderPageState extends State<SalesOrderPage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: const Color(0xFFFDEDED),
+        color: const Color(0xFFFFF1F2),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: kRed.withOpacity(0.3)),
+        border: Border.all(color: const Color(0xFFFECACA)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(label, style: const TextStyle(fontSize: 11, color: kRed)),
+          Text(
+            label,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontFamily: AppFonts.primaryFont,
+              fontSize: 9.5,
+              fontWeight: FontWeight.w600,
+              color: kRed,
+            ),
+          ),
           const SizedBox(width: 4),
           GestureDetector(
             onTap: onDelete,
@@ -1360,108 +1369,157 @@ class _SalesOrderPageState extends State<SalesOrderPage> {
         so.status == 'Draft' ||
         so.status == 'Belum Bayar';
 
-    return GestureDetector(
-      onTap: () => _openDetail(so),
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.04),
-              blurRadius: 6,
-              offset: const Offset(0, 2),
+    final statusColor = isBelumBayar ? kRed : kGreen;
+    final statusBackground = isBelumBayar
+        ? const Color(0xFFFFF1F2)
+        : const Color(0xFFECFDF5);
+    final statusBorder = isBelumBayar
+        ? const Color(0xFFFECACA)
+        : const Color(0xFFA7F3D0);
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isSmallScreen = constraints.maxWidth < 336;
+        final identity = Row(
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: statusBackground,
+                borderRadius: BorderRadius.circular(9),
+              ),
+              child: Icon(
+                Icons.receipt_long_outlined,
+                size: 18,
+                color: statusColor,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                so.name,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontFamily: AppFonts.primaryFont,
+                  fontSize: 12,
+                  height: 1.32,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF0F172A),
+                ),
+              ),
             ),
           ],
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        width: 36,
-                        height: 36,
-                        decoration: BoxDecoration(
-                          color: isBelumBayar
-                              ? const Color(0xFFFDEDED)
-                              : const Color(0xFFE8F5E9),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Icon(
-                          Icons.receipt_outlined,
-                          size: 18,
-                          color: isBelumBayar ? kRed : kGreen,
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Text(
-                        so.name,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black87,
-                        ),
-                      ),
-                    ],
-                  ),
-                  // Badge status
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: (isBelumBayar ? kRed : kGreen).withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      so.status,
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                        color: isBelumBayar ? kRed : kGreen,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              const Divider(height: 1, color: Color(0xFFF0F0F0)),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildField(
-                      icon: Icons.business_outlined,
-                      label: 'Perusahaan',
-                      value: so.customer,
-                    ),
-                  ),
-                  Expanded(
-                    child: _buildField(
-                      icon: Icons.calendar_today_outlined,
-                      label: 'Tanggal',
-                      value: so.dueDate,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              _buildField(
-                icon: Icons.person_outline,
-                label: 'Customer',
-                value: so.customerName,
+        );
+
+        final statusBadge = Container(
+          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+          decoration: BoxDecoration(
+            color: statusBackground,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: statusBorder),
+          ),
+          child: Text(
+            so.status,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontFamily: AppFonts.primaryFont,
+              fontSize: 8.5,
+              fontWeight: FontWeight.w700,
+              color: statusColor,
+            ),
+          ),
+        );
+
+        return DecoratedBox(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.all(Radius.circular(16)),
+            border: Border.fromBorderSide(BorderSide(color: Color(0xFFF1F5F9))),
+            boxShadow: [
+              BoxShadow(
+                color: Color(0x0D0F172A),
+                blurRadius: 14,
+                offset: Offset(0, 4),
               ),
             ],
           ),
-        ),
-      ),
+          child: Material(
+            color: Colors.transparent,
+            borderRadius: BorderRadius.circular(16),
+            clipBehavior: Clip.antiAlias,
+            child: InkWell(
+              onTap: () => _openDetail(so),
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (isSmallScreen) ...[
+                      identity,
+                      const SizedBox(height: 8),
+                      Padding(
+                        padding: const EdgeInsets.only(left: 46),
+                        child: statusBadge,
+                      ),
+                    ] else
+                      Row(
+                        children: [
+                          Expanded(child: identity),
+                          const SizedBox(width: 10),
+                          Flexible(child: statusBadge),
+                        ],
+                      ),
+                    const SizedBox(height: 12),
+                    const Divider(height: 1, color: Color(0xFFF1F5F9)),
+                    const SizedBox(height: 12),
+                    if (isSmallScreen) ...[
+                      _buildField(
+                        icon: Icons.business_outlined,
+                        label: 'Perusahaan',
+                        value: so.customer,
+                      ),
+                      const SizedBox(height: 10),
+                      _buildField(
+                        icon: Icons.calendar_today_outlined,
+                        label: 'Tanggal',
+                        value: so.dueDate,
+                      ),
+                    ] else
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildField(
+                              icon: Icons.business_outlined,
+                              label: 'Perusahaan',
+                              value: so.customer,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _buildField(
+                              icon: Icons.calendar_today_outlined,
+                              label: 'Tanggal',
+                              value: so.dueDate,
+                            ),
+                          ),
+                        ],
+                      ),
+                    const SizedBox(height: 10),
+                    _buildField(
+                      icon: Icons.person_outline_rounded,
+                      label: 'Customer',
+                      value: so.customerName,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -1469,13 +1527,13 @@ class _SalesOrderPageState extends State<SalesOrderPage> {
     required IconData icon,
     required String label,
     required String value,
-    Color valueColor = Colors.black87,
+    Color valueColor = const Color(0xFF475569),
     bool valueBold = false,
   }) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, size: 15, color: Colors.black38),
+        Icon(icon, size: 15, color: const Color(0xFF94A3B8)),
         const SizedBox(width: 6),
         Expanded(
           child: Column(
@@ -1484,9 +1542,10 @@ class _SalesOrderPageState extends State<SalesOrderPage> {
               Text(
                 label,
                 style: const TextStyle(
+                  fontFamily: AppFonts.primaryFont,
                   fontSize: 10,
-                  color: Colors.black38,
-                  letterSpacing: 0.3,
+                  fontWeight: FontWeight.w500,
+                  color: Color(0xFF94A3B8),
                 ),
               ),
               const SizedBox(height: 2),
@@ -1494,8 +1553,9 @@ class _SalesOrderPageState extends State<SalesOrderPage> {
                 value,
                 style: TextStyle(
                   fontSize: 12,
+                  fontFamily: AppFonts.primaryFont,
                   color: valueColor,
-                  fontWeight: valueBold ? FontWeight.w600 : FontWeight.normal,
+                  fontWeight: valueBold ? FontWeight.w600 : FontWeight.w500,
                 ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
@@ -1519,78 +1579,87 @@ class _SalesOrderPageState extends State<SalesOrderPage> {
           Text(
             '$startItem–$endItem dari $totalItems data',
             style: const TextStyle(
+              fontFamily: AppFonts.primaryFont,
               fontSize: 11,
-              color: Colors.black38,
+              fontWeight: FontWeight.w500,
+              color: Color(0xFF64748B),
               letterSpacing: 0.2,
             ),
           ),
           const SizedBox(height: 10),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              // Prev
-              GestureDetector(
-                onTap: _currentPage > 1
-                    ? () => _goToPage(_currentPage - 1, totalPages)
-                    : null,
-                child: Icon(
-                  Icons.chevron_left_rounded,
-                  size: 22,
-                  color: _currentPage > 1 ? kRed : Colors.black12,
-                ),
-              ),
-              const SizedBox(width: 8),
-
-              // Halaman pertama + ellipsis kiri
-              if (pageNumbers.first > 1) ...[
-                _paginationItem(1, totalPages),
-                if (pageNumbers.first > 2)
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 6),
-                    child: Text(
-                      '·····',
-                      style: TextStyle(
-                        color: Colors.black26,
-                        fontSize: 10,
-                        letterSpacing: 1,
-                      ),
+          Center(
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // Prev
+                  GestureDetector(
+                    onTap: _currentPage > 1
+                        ? () => _goToPage(_currentPage - 1, totalPages)
+                        : null,
+                    child: Icon(
+                      Icons.chevron_left_rounded,
+                      size: 22,
+                      color: _currentPage > 1 ? kRed : const Color(0xFFCBD5E1),
                     ),
                   ),
-              ],
+                  const SizedBox(width: 8),
 
-              // Nomor tengah
-              ...pageNumbers.map((p) => _paginationItem(p, totalPages)),
-
-              // Ellipsis kanan + halaman terakhir
-              if (pageNumbers.last < totalPages) ...[
-                if (pageNumbers.last < totalPages - 1)
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 6),
-                    child: Text(
-                      '·····',
-                      style: TextStyle(
-                        color: Colors.black26,
-                        fontSize: 10,
-                        letterSpacing: 1,
+                  // Halaman pertama + ellipsis kiri
+                  if (pageNumbers.first > 1) ...[
+                    _paginationItem(1, totalPages),
+                    if (pageNumbers.first > 2)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 6),
+                        child: Text(
+                          '·····',
+                          style: TextStyle(
+                            color: Color(0xFF94A3B8),
+                            fontSize: 10,
+                            letterSpacing: 1,
+                          ),
+                        ),
                       ),
+                  ],
+
+                  // Nomor tengah
+                  ...pageNumbers.map((p) => _paginationItem(p, totalPages)),
+
+                  // Ellipsis kanan + halaman terakhir
+                  if (pageNumbers.last < totalPages) ...[
+                    if (pageNumbers.last < totalPages - 1)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 6),
+                        child: Text(
+                          '·····',
+                          style: TextStyle(
+                            color: Color(0xFF94A3B8),
+                            fontSize: 10,
+                            letterSpacing: 1,
+                          ),
+                        ),
+                      ),
+                    _paginationItem(totalPages, totalPages),
+                  ],
+
+                  const SizedBox(width: 8),
+                  // Next
+                  GestureDetector(
+                    onTap: _currentPage < totalPages
+                        ? () => _goToPage(_currentPage + 1, totalPages)
+                        : null,
+                    child: Icon(
+                      Icons.chevron_right_rounded,
+                      size: 22,
+                      color: _currentPage < totalPages
+                          ? kRed
+                          : const Color(0xFFCBD5E1),
                     ),
                   ),
-                _paginationItem(totalPages, totalPages),
-              ],
-
-              const SizedBox(width: 8),
-              // Next
-              GestureDetector(
-                onTap: _currentPage < totalPages
-                    ? () => _goToPage(_currentPage + 1, totalPages)
-                    : null,
-                child: Icon(
-                  Icons.chevron_right_rounded,
-                  size: 22,
-                  color: _currentPage < totalPages ? kRed : Colors.black12,
-                ),
+                ],
               ),
-            ],
+            ),
           ),
         ],
       ),
@@ -1607,23 +1676,174 @@ class _SalesOrderPageState extends State<SalesOrderPage> {
         width: isActive ? 32 : 28,
         height: isActive ? 32 : 28,
         decoration: BoxDecoration(
-          color: isActive ? kRed : Colors.transparent,
-          shape: BoxShape.circle,
+          color: isActive ? kRed : Colors.white,
+          borderRadius: BorderRadius.circular(9),
+          border: Border.all(color: isActive ? kRed : const Color(0xFFE2E8F0)),
         ),
         alignment: Alignment.center,
         child: Text(
           '$page',
           style: TextStyle(
+            fontFamily: AppFonts.primaryFont,
             fontSize: isActive ? 13 : 12,
-            fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
-            color: isActive ? Colors.white : Colors.black38,
+            fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
+            color: isActive ? Colors.white : const Color(0xFF64748B),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildAnnouncement(String message) => Center(child: Text(message));
+  Widget _buildLoadingState() {
+    return Shimmer.fromColors(
+      baseColor: const Color(0xFFE2E8F0),
+      highlightColor: const Color(0xFFF8FAFC),
+      child: ListView.separated(
+        physics: const NeverScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(0, 8, 0, 24),
+        itemCount: 3,
+        separatorBuilder: (_, __) => const SizedBox(height: 10),
+        itemBuilder: (_, __) => Container(
+          height: 142,
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.all(Radius.circular(16)),
+            border: Border.fromBorderSide(BorderSide(color: Color(0xFFF1F5F9))),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState({required bool isSearchResult}) {
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 58,
+              height: 58,
+              decoration: const BoxDecoration(
+                color: Color(0xFFF1F5F9),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                isSearchResult
+                    ? Icons.search_off_rounded
+                    : Icons.receipt_long_outlined,
+                size: 28,
+                color: const Color(0xFF94A3B8),
+              ),
+            ),
+            const SizedBox(height: 14),
+            Text(
+              isSearchResult
+                  ? 'Sales order tidak ditemukan'
+                  : 'Belum ada sales order',
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontFamily: AppFonts.primaryFont,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF1E293B),
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              isSearchResult
+                  ? 'Coba ubah kata pencarian atau filter yang digunakan.'
+                  : 'Data sales order akan tampil di halaman ini.',
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontFamily: AppFonts.primaryFont,
+                fontSize: 11,
+                height: 1.4,
+                color: Color(0xFF94A3B8),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildErrorState({
+    required String title,
+    required String message,
+    VoidCallback? onRetry,
+  }) {
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 58,
+              height: 58,
+              decoration: const BoxDecoration(
+                color: Color(0xFFFFF1F2),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.error_outline_rounded,
+                size: 28,
+                color: kRed,
+              ),
+            ),
+            const SizedBox(height: 14),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontFamily: AppFonts.primaryFont,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF1E293B),
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontFamily: AppFonts.primaryFont,
+                fontSize: 11,
+                height: 1.4,
+                color: Color(0xFF64748B),
+              ),
+            ),
+            if (onRetry != null) ...[
+              const SizedBox(height: 14),
+              OutlinedButton.icon(
+                onPressed: onRetry,
+                icon: const Icon(Icons.refresh_rounded, size: 16),
+                label: const Text('Coba Lagi'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: kRed,
+                  side: const BorderSide(color: kRed),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 10,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(9),
+                  ),
+                  textStyle: const TextStyle(
+                    fontFamily: AppFonts.primaryFont,
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 // ── Helper widget tombol date picker ──────────────────────────
@@ -1642,16 +1862,17 @@ class _DatePickerButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const kRed = Color(0xFFC0392B);
+    const kRed = AppColors.primaryColor;
     return GestureDetector(
       onTap: onTap,
       child: Container(
+        constraints: const BoxConstraints(minHeight: 48),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
-          color: hasValue ? const Color(0xFFFDEDED) : const Color(0xFFF5F5F5),
-          borderRadius: BorderRadius.circular(10),
+          color: hasValue ? const Color(0xFFFFF1F2) : const Color(0xFFF8FAFC),
+          borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: hasValue ? kRed.withOpacity(0.4) : Colors.black12,
+            color: hasValue ? const Color(0xFFFECACA) : const Color(0xFFE2E8F0),
           ),
         ),
         child: Row(
@@ -1659,7 +1880,7 @@ class _DatePickerButton extends StatelessWidget {
             Icon(
               Icons.calendar_month_outlined,
               size: 16,
-              color: hasValue ? kRed : Colors.black38,
+              color: hasValue ? kRed : const Color(0xFF94A3B8),
             ),
             const SizedBox(width: 8),
             Expanded(
@@ -1669,16 +1890,18 @@ class _DatePickerButton extends StatelessWidget {
                   Text(
                     label,
                     style: TextStyle(
+                      fontFamily: AppFonts.primaryFont,
                       fontSize: 10,
-                      color: hasValue ? kRed : Colors.black38,
+                      color: hasValue ? kRed : const Color(0xFF94A3B8),
                     ),
                   ),
                   Text(
                     value,
                     style: TextStyle(
+                      fontFamily: AppFonts.primaryFont,
                       fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                      color: hasValue ? kRed : Colors.black45,
+                      fontWeight: FontWeight.w600,
+                      color: hasValue ? kRed : const Color(0xFF475569),
                     ),
                   ),
                 ],

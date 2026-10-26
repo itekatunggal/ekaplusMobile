@@ -1,12 +1,11 @@
 // lib/features/category/presentation/widgets/category_widget.dart
-import 'package:ekaplus_ekatunggal/core/config/api_config.dart';
 import 'package:ekaplus_ekatunggal/features/category/domain/entities/category_group.dart';
+import 'package:ekaplus_ekatunggal/features/category/presentation/widgets/category_icon_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:ekaplus_ekatunggal/constant.dart';
 import 'package:ekaplus_ekatunggal/features/category/presentation/bloc/category_bloc.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:shimmer/shimmer.dart';
 
 class CategoryModalWidget extends StatefulWidget {
@@ -333,7 +332,7 @@ class _CategoryModalWidgetState extends State<CategoryModalWidget> {
                 color: Colors.grey.shade100,
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Center(child: _buildCategoryImage(category)),
+              child: Center(child: CategoryIconImage(icon: category.icon)),
             ),
             const SizedBox(width: 12),
 
@@ -369,31 +368,6 @@ class _CategoryModalWidgetState extends State<CategoryModalWidget> {
         ),
       ),
     );
-  }
-
-  Widget _buildCategoryImage(CategorySimpleEntity category) {
-    final String iconPath = ApiConfig.getImageUrl(
-      category.icon,
-      format: 'rs:fill:200:200/q:80/ext:webp',
-    );
-
-    if (iconPath.startsWith('http')) {
-      return CachedNetworkImage(
-        imageUrl: iconPath,
-        fit: BoxFit.contain,
-        width: 32,
-        height: 32,
-        placeholder: (context, url) => Shimmer.fromColors(
-          baseColor: Colors.grey[300]!,
-          highlightColor: Colors.grey[100]!,
-          child: Container(width: 32, height: 32, color: Colors.white),
-        ),
-        errorWidget: (context, url, error) =>
-            const Icon(Icons.broken_image, size: 28),
-      );
-    }
-
-    return const Icon(Icons.image, size: 28);
   }
 }
 

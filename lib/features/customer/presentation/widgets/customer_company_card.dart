@@ -85,13 +85,13 @@ class _CustomerCompanyCardState extends State<CustomerCompanyCard> {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFFF1F5F9)),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x120F172A),
-            blurRadius: 18,
-            offset: Offset(0, 5),
+            color: Color(0x0D0F172A),
+            blurRadius: 10,
+            offset: Offset(0, 2),
           ),
         ],
       ),
@@ -128,7 +128,7 @@ class _CustomerCompanyCardState extends State<CustomerCompanyCard> {
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         color: Color(0xFF0F172A),
-                        fontSize: 11,
+                        fontSize: 14,
                         height: 1.25,
                         fontWeight: FontWeight.w700,
                       ),
@@ -168,8 +168,7 @@ class _CustomerCompanyCardState extends State<CustomerCompanyCard> {
                     horizontal: 10,
                     vertical: 7,
                   ),
-                  minimumSize: Size.zero,
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  minimumSize: const Size(0, 40),
                   textStyle: const TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.w600,
@@ -223,170 +222,249 @@ class _CreditPolicyView extends StatelessWidget {
 
   String _money(double value) => _rupiah.format(value);
 
+  /// Warna progress mengikuti tingkat pemakaian plafon.
+  Color _usageColor(double ratio) {
+    if (ratio >= 0.9) return const Color(0xFFDC2626);
+    if (ratio >= 0.7) return const Color(0xFFF59E0B);
+    return const Color(0xFF10B981);
+  }
+
   @override
   Widget build(BuildContext context) {
     if (!policy.hasCreditLimit) {
       return const _NoCreditLimitView();
     }
 
+    final ratio = policy.usedRatio.clamp(0.0, 1.0).toDouble();
     final percentage = (policy.usedRatio * 100).toStringAsFixed(1);
     final paymentTerm = policy.paymentTermDays;
+    final usageColor = _usageColor(ratio);
+    final ownerName = (policy.limitOwnerName ?? '').trim().isEmpty
+        ? policy.limitOwnerFallback
+        : policy.limitOwnerName!.trim();
 
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-          decoration: BoxDecoration(
-            color: const Color(0xFFF8FAFC),
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: const Color(0xFFE2E8F0)),
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: _CreditMetadata(
-                  label: 'Level Credit Limit',
-                  value: policy.creditLimitSourceLabel,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Container(width: 1, height: 30, color: const Color(0xFFE2E8F0)),
-              const SizedBox(width: 10),
-              _CreditMetadata(
-                label: 'Credit Limit',
-                value: _money(policy.finalCreditLimit),
-              ),
-              const SizedBox(width: 10),
-              Container(width: 1, height: 30, color: const Color(0xFFE2E8F0)),
-              const SizedBox(width: 10),
-              _CreditMetadata(
-                label: 'TOP',
-                value: paymentTerm == null
-                    ? 'Belum ditetapkan'
-                    : '$paymentTerm Hari',
-                textAlign: TextAlign.right,
-                crossAxisAlignment: CrossAxisAlignment.end,
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 12),
-        Align(
-          alignment: Alignment.centerLeft,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
+        // Label + chip TOP
+        Row(
+          children: [
+            const Expanded(
+              child: Text(
                 'Sisa Plafon Kredit',
                 style: TextStyle(
                   color: Color(0xFF64748B),
-                  fontSize: 10,
+                  fontSize: 11,
                   fontWeight: FontWeight.w500,
                 ),
               ),
-              const SizedBox(height: 4),
-              Text(
-                _money(policy.remainingCredit),
-                style: const TextStyle(
-                  color: Color(0xFF0F172A),
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ],
+            ),
+            _TermChip(
+              label: paymentTerm == null
+                  ? 'TOP belum ditetapkan'
+                  : 'TOP $paymentTerm Hari',
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Text(
+          _money(policy.remainingCredit),
+          style: const TextStyle(
+            color: Color(0xFF0F172A),
+            fontSize: 22,
+            height: 1.2,
+            fontWeight: FontWeight.w800,
           ),
         ),
-
-        const SizedBox(height: 10),
+        const SizedBox(height: 12),
         ClipRRect(
           borderRadius: BorderRadius.circular(10),
           child: LinearProgressIndicator(
-            value: policy.usedRatio,
-            minHeight: 5,
+            value: ratio,
+            minHeight: 6,
             backgroundColor: const Color(0xFFF1F5F9),
-            valueColor: const AlwaysStoppedAnimation(AppColors.primaryColor),
+            valueColor: AlwaysStoppedAnimation(usageColor),
           ),
         ),
-        // Row(
-        //   crossAxisAlignment: CrossAxisAlignment.end,
-        //   children: [
-        //     Expanded(
-        //       child: _CreditMetadata(
-        //         label: 'Total Outstanding',
-        //         value: _money(policy.totalLimitOutstanding),
-        //         textAlign: TextAlign.right,
-        //         crossAxisAlignment: CrossAxisAlignment.end,
-        //       ),
-        //     ),
-        //     const SizedBox(width: 12),
-        //     Expanded(
-        //       child: _CreditMetadata(
-        //         label: 'Final Credit Limit',
-        //         value: _money(policy.finalCreditLimit),
-        //       ),
-        //     ),
-        //   ],
-        // ),
+        const SizedBox(height: 10),
 
-        // const SizedBox(height: 10),
-        const SizedBox(height: 6),
+        // Terpakai & Credit Limit
         Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              '$percentage% plafon terpakai',
-              style: const TextStyle(color: Color(0xFF64748B), fontSize: 8),
+            Expanded(
+              child: _AmountStat(
+                label: 'Terpakai ($percentage%)',
+                value: _money(policy.totalLimitOutstanding),
+                valueColor: usageColor,
+              ),
             ),
-            Text(
-              '${_money(policy.totalLimitOutstanding)} dari '
-              '${_money(policy.finalCreditLimit)}',
-              style: const TextStyle(color: Color(0xFF64748B), fontSize: 8),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _AmountStat(
+                label: 'Credit Limit',
+                value: _money(policy.finalCreditLimit),
+                alignEnd: true,
+              ),
             ),
           ],
+        ),
+        const SizedBox(height: 12),
+
+        // Level + pemilik limit
+        _LimitOwnerRow(
+          level: policy.creditLimitLevelLabel,
+          ownerName: ownerName,
         ),
       ],
     );
   }
 }
 
-class _CreditMetadata extends StatelessWidget {
-  const _CreditMetadata({
+class _TermChip extends StatelessWidget {
+  const _TermChip({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF1F5F9),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(
+            Icons.schedule_rounded,
+            size: 12,
+            color: Color(0xFF475569),
+          ),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: const TextStyle(
+              color: Color(0xFF334155),
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AmountStat extends StatelessWidget {
+  const _AmountStat({
     required this.label,
     required this.value,
-    this.textAlign = TextAlign.left,
-    this.crossAxisAlignment = CrossAxisAlignment.start,
+    this.valueColor = const Color(0xFF334155),
+    this.alignEnd = false,
   });
 
   final String label;
   final String value;
-  final TextAlign textAlign;
-  final CrossAxisAlignment crossAxisAlignment;
+  final Color valueColor;
+  final bool alignEnd;
 
   @override
   Widget build(BuildContext context) {
     return Column(
-      crossAxisAlignment: crossAxisAlignment,
+      crossAxisAlignment: alignEnd
+          ? CrossAxisAlignment.end
+          : CrossAxisAlignment.start,
       children: [
         Text(
           label,
-          textAlign: textAlign,
-          style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 8),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 10),
         ),
         const SizedBox(height: 2),
-        Text(
-          value,
-          textAlign: textAlign,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
-            color: Color(0xFF334155),
-            fontSize: 9,
-            fontWeight: FontWeight.w600,
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: alignEnd ? Alignment.centerRight : Alignment.centerLeft,
+          child: Text(
+            value,
+            maxLines: 1,
+            style: TextStyle(
+              color: valueColor,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ),
       ],
+    );
+  }
+}
+
+class _LimitOwnerRow extends StatelessWidget {
+  const _LimitOwnerRow({required this.level, required this.ownerName});
+
+  final String level;
+  final String ownerName;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 28,
+            height: 28,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: const Color(0xFFFEF2F2),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Icon(
+              Icons.workspace_premium_outlined,
+              size: 16,
+              color: AppColors.primaryColor,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Limit level $level',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Color(0xFF94A3B8),
+                    fontSize: 10,
+                  ),
+                ),
+                const SizedBox(height: 1),
+                Text(
+                  ownerName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Color(0xFF334155),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -491,7 +569,22 @@ class _CreditErrorView extends StatelessWidget {
             ],
           ),
         ),
-        TextButton(onPressed: onRetry, child: const Text('Coba lagi')),
+        OutlinedButton.icon(
+          onPressed: onRetry,
+          icon: const Icon(Icons.refresh_rounded, size: 15),
+          label: const Text('Coba Lagi'),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: AppColors.primaryColor,
+            side: const BorderSide(color: AppColors.primaryColor),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(9),
+            ),
+            textStyle: const TextStyle(
+              fontSize: 9.5,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
       ],
     );
   }

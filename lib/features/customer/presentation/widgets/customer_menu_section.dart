@@ -9,6 +9,7 @@ class CustomerMenuItem {
     required this.subtitle,
     required this.onTap,
     this.badge,
+    this.enabled = true,
   });
 
   final IconData icon;
@@ -18,6 +19,7 @@ class CustomerMenuItem {
   final String subtitle;
   final VoidCallback onTap;
   final String? badge;
+  final bool enabled;
 }
 
 class CustomerMenuSection extends StatelessWidget {
@@ -35,18 +37,8 @@ class CustomerMenuSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
-          padding: const EdgeInsets.only(left: 2, bottom: 8),
-          child: Text(
-            title.toUpperCase(),
-            style: const TextStyle(
-              color: Color(0xFF94A3B8),
-              fontSize: 10,
-              fontWeight: FontWeight.w600,
-              letterSpacing: .45,
-            ),
-          ),
-        ),
+        CustomerSectionTitle(title: title),
+        const SizedBox(height: 8),
         Container(
           decoration: BoxDecoration(
             color: Colors.white,
@@ -55,8 +47,8 @@ class CustomerMenuSection extends StatelessWidget {
             boxShadow: const [
               BoxShadow(
                 color: Color(0x0D0F172A),
-                blurRadius: 12,
-                offset: Offset(0, 4),
+                blurRadius: 10,
+                offset: Offset(0, 2),
               ),
             ],
           ),
@@ -83,6 +75,36 @@ class CustomerMenuSection extends StatelessWidget {
   }
 }
 
+class CustomerSectionTitle extends StatelessWidget {
+  const CustomerSectionTitle({super.key, required this.title, this.trailing});
+
+  final String title;
+  final Widget? trailing;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 2),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              title.toUpperCase(),
+              style: const TextStyle(
+                color: Color(0xFF94A3B8),
+                fontSize: 9.5,
+                fontWeight: FontWeight.w700,
+                letterSpacing: .45,
+              ),
+            ),
+          ),
+          if (trailing != null) trailing!,
+        ],
+      ),
+    );
+  }
+}
+
 class _CustomerMenuTile extends StatelessWidget {
   const _CustomerMenuTile({required this.item});
 
@@ -93,71 +115,77 @@ class _CustomerMenuTile extends StatelessWidget {
     return InkWell(
       onTap: item.onTap,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-        child: Row(
-          children: [
-            Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: item.iconBackground,
-                borderRadius: BorderRadius.circular(11),
-              ),
-              child: Icon(item.icon, color: item.iconColor, size: 17),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    item.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Color(0xFF1E293B),
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    item.subtitle,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Color(0xFF94A3B8),
-                      fontSize: 9,
-                      fontWeight: FontWeight.w400,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            if (item.badge != null) ...[
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        child: Opacity(
+          opacity: item.enabled ? 1 : .55,
+          child: Row(
+            children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                width: 32,
+                height: 32,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF1F5F9),
-                  borderRadius: BorderRadius.circular(20),
+                  color: item.iconBackground,
+                  borderRadius: BorderRadius.circular(9),
                 ),
-                child: Text(
-                  item.badge!,
-                  style: const TextStyle(
-                    color: Color(0xFF64748B),
-                    fontSize: 8,
-                    fontWeight: FontWeight.w600,
-                  ),
+                child: Icon(item.icon, color: item.iconColor, size: 18),
+              ),
+              const SizedBox(width: 11),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      item.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Color(0xFF1E293B),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      item.subtitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Color(0xFF94A3B8),
+                        fontSize: 9.5,
+                        fontWeight: FontWeight.w400,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(width: 6),
+              if (item.badge != null) ...[
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 7,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF1F5F9),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    item.badge!,
+                    style: const TextStyle(
+                      color: Color(0xFF64748B),
+                      fontSize: 8,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 6),
+              ],
+              const Icon(
+                Icons.chevron_right_rounded,
+                color: Color(0xFFCBD5E1),
+                size: 18,
+              ),
             ],
-            const Icon(
-              Icons.chevron_right_rounded,
-              color: Color(0xFF94A3B8),
-              size: 19,
-            ),
-          ],
+          ),
         ),
       ),
     );

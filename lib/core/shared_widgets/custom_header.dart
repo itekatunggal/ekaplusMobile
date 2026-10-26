@@ -379,46 +379,54 @@ class CustomHeaderSearchField extends StatelessWidget {
       height: 42,
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(30),
+        borderRadius: BorderRadius.circular(11),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x100F172A),
+            blurRadius: 8,
+            offset: Offset(0, 2),
+          ),
+        ],
       ),
       child: TextField(
         controller: controller,
         focusNode: focusNode,
-        textAlignVertical: TextAlignVertical.center,
+        textInputAction: TextInputAction.search,
         onChanged: onChanged,
-        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+        style: const TextStyle(
+          fontFamily: AppFonts.primaryFont,
+          color: Color(0xFF1E293B),
+          fontSize: 11.5,
+          fontWeight: FontWeight.w500,
+        ),
         decoration: InputDecoration(
           hintText: hintText,
           hintStyle: const TextStyle(
-            color: Color(0xFF9CA3AF),
-            fontSize: 14,
+            fontFamily: AppFonts.primaryFont,
+            color: Color(0xFF94A3B8),
+            fontSize: 11,
             fontWeight: FontWeight.w400,
           ),
-          prefixIconConstraints: const BoxConstraints.tightFor(
-            width: 44,
-            height: 42,
-          ),
-          prefixIcon: const Center(
-            child: FaIcon(
-              FontAwesomeIcons.magnifyingGlass,
-              color: Color(0xFF4B5563),
-              size: 16,
-            ),
+          prefixIcon: const Icon(
+            Icons.search_rounded,
+            color: Color(0xFF94A3B8),
+            size: 18,
           ),
           suffixIcon: controller.text.isNotEmpty
               ? IconButton(
                   tooltip: 'Hapus pencarian',
                   onPressed: onClear,
                   icon: const Icon(
-                    Icons.clear_rounded,
-                    color: Color(0xFF4B5563),
-                    size: 20,
+                    Icons.close_rounded,
+                    color: Color(0xFF94A3B8),
+                    size: 17,
                   ),
                 )
               : null,
           border: InputBorder.none,
-          isDense: true,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+          enabledBorder: InputBorder.none,
+          focusedBorder: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(vertical: 12),
         ),
       ),
     );

@@ -410,13 +410,18 @@ Gunakan indent jika divider hanya memisahkan content setelah icon.
 
 ## 10.1 Default Page Header
 
-Untuk halaman utama/subpage EKAPLUS gunakan:
+Untuk halaman tanpa search di dalam header gunakan:
 
 ```dart
 CustomHeaderScaffold(...)
 ```
 
 Bukan AppBar custom baru.
+
+Untuk halaman dengan search utama di dalam header, gunakan pola canonical
+Wishlist pada bagian **11. Header + Search Pattern**. Jangan meletakkan search
+sebagai child pertama `CustomHeaderScaffold.body`, karena posisi judul dan
+search akan berbeda dari header Wishlist.
 
 ### Default geometry
 
@@ -508,6 +513,8 @@ showBackButton: true
 # 11. Header + Search Pattern
 
 Wishlist memiliki header tinggi `178dp` dengan search overlay di bawah header.
+Pola ini menjadi implementasi canonical untuk semua halaman baru yang memiliki
+search utama, termasuk halaman list dengan tombol back atau header action.
 
 Untuk halaman yang membutuhkan search utama di header:
 
@@ -539,9 +546,114 @@ Search icon:
 18px / #94A3B8
 ```
 
+Close icon ketika query tidak kosong:
+
+```text
+17px / #94A3B8
+```
+
+Font seluruh field wajib memakai `AppFonts.primaryFont` (`Poppins`).
+
+## 11.1 Canonical Widget Structure
+
+Gunakan struktur yang sama dengan halaman Wishlist:
+
+```dart
+Widget _buildHeader(BuildContext context) {
+  return SizedBox(
+    height: 178,
+    child: Stack(
+      children: [
+        Positioned.fill(
+          child: CustomHeaderAppBar(
+            title: 'Judul Halaman',
+            brandStyle: true,
+            showBackButton: false, // true untuk subpage
+            height: 178,
+            actions: [
+              CustomHeaderActionButton(
+                tooltip: 'Nama action',
+                onPressed: _onAction,
+                icon: const Icon(
+                  Icons.tune_rounded,
+                  color: Colors.white,
+                  size: 19,
+                ),
+              ),
+            ],
+          ),
+        ),
+        Positioned(
+          left: 16,
+          right: 16,
+          bottom: 18,
+          child: CustomHeaderSearchField(
+            controller: _searchController,
+            hintText: 'Cari...',
+            onChanged: _onSearchChanged,
+            onClear: _clearSearch,
+          ),
+        ),
+      ],
+    ),
+  );
+}
+```
+
+Page shell:
+
+```dart
+Scaffold(
+  backgroundColor: AppColors.background,
+  body: Column(
+    children: [
+      _buildHeader(context),
+      Expanded(child: pageContent),
+    ],
+  ),
+)
+```
+
+### Aturan posisi
+
+- `CustomHeaderAppBar` harus berada di dalam `Positioned.fill`.
+- Search harus berada di dalam `Positioned(left: 16, right: 16, bottom: 18)`.
+- Jangan menambahkan padding horizontal lagi di dalam posisi search.
+- Jangan menggunakan `CustomHeaderScaffold` lalu menaruh search sebagai child
+  pertama body untuk pattern ini.
+- Root page memakai `showBackButton: false`; subpage memakai
+  `showBackButton: true` dan callback navigasi existing.
+- Header action wajib memakai `CustomHeaderActionButton`, berukuran visual
+  `19px`, dengan tooltip.
+- Subtitle hanya ditambahkan bila requirement halaman memang membutuhkannya;
+  default pola Wishlist tidak menggunakan subtitle.
+
+## 11.2 Canonical Search Field
+
+Selalu gunakan `CustomHeaderSearchField` dari
+`lib/core/shared_widgets/custom_header.dart`. Jangan membuat `TextField` search
+baru di masing-masing halaman.
+
+Contract visual `CustomHeaderSearchField`:
+
+```text
+height              42
+background          #FFFFFF
+radius              11
+shadow              #100F172A / blur 8 / offset (0,2)
+font family         Poppins
+input text          11.5 / 500 / #1E293B
+hint text           11 / 400 / #94A3B8
+search icon         18 / #94A3B8
+close icon          17 / #94A3B8
+content padding     vertical 12
+text input action   search
+```
+
 ### Canonical rule
 
-Jika search pattern ini dibutuhkan di halaman lain, **refactor menjadi shared widget**, jangan copy-paste `TextField` baru.
+Jika dibutuhkan variasi behavior, perluas parameter
+`CustomHeaderSearchField`; jangan copy-paste dekorasi atau `TextField` baru.
 
 ---
 
@@ -1776,6 +1888,10 @@ Sebelum dianggap selesai, cek semua poin berikut.
 - [ ] Memakai `CustomHeaderScaffold` / `CustomHeaderAppBar` bila sesuai.
 - [ ] Gradient, radius, title, action icon sesuai standard.
 - [ ] Back button benar untuk root/subpage.
+- [ ] Header dengan search memakai struktur Wishlist: tinggi `178`, search
+      `left/right 16`, `bottom 18`.
+- [ ] Search header memakai `CustomHeaderSearchField`, bukan style lokal.
+- [ ] Search memakai Poppins `11.5/500`; hint memakai Poppins `11/400`.
 - [ ] Tidak membuat AppBar style baru tanpa alasan.
 
 ## Layout
@@ -1878,7 +1994,9 @@ maka Codex harus melakukan urutan berikut:
 4. Tentukan page blueprint: detail/form/list.
 5. Implementasikan dengan token di dokumen ini.
 6. Untuk card gunakan canonical card border + shadow.
-7. Untuk header gunakan shared custom header.
+7. Untuk header gunakan shared custom header; jika memiliki search, ikuti
+   struktur canonical Wishlist pada bagian 11 dan gunakan
+   `CustomHeaderSearchField`.
 8. Untuk list besar gunakan pagination contract di dokumen ini.
 9. Tambahkan loading/empty/error/retry state.
 10. Pastikan responsive `<360dp`.

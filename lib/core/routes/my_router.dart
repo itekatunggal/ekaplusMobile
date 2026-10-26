@@ -45,6 +45,17 @@ import 'package:ekaplus_ekatunggal/features/wishlist/presentation/pages/wishlist
 import 'package:ekaplus_ekatunggal/features/report/presentation/pages/penjualan_page.dart';
 import 'package:ekaplus_ekatunggal/features/transaksi/transaksi.dart';
 import 'package:ekaplus_ekatunggal/features/customer/presentation/pages/customer_page.dart';
+import 'package:ekaplus_ekatunggal/features/loyalty/data/services/loyalty_service.dart';
+import 'package:ekaplus_ekatunggal/features/loyalty/domain/entities/loyalty_models.dart';
+import 'package:ekaplus_ekatunggal/features/loyalty/presentation/cubit/loyalty_point_cubit.dart';
+import 'package:ekaplus_ekatunggal/features/loyalty/presentation/cubit/loyalty_calculation_cubit.dart';
+import 'package:ekaplus_ekatunggal/features/loyalty/presentation/pages/loyalty_calculation_detail_page.dart';
+import 'package:ekaplus_ekatunggal/features/loyalty/presentation/pages/loyalty_earning_detail_page.dart';
+import 'package:ekaplus_ekatunggal/features/loyalty/presentation/pages/loyalty_history_page.dart';
+import 'package:ekaplus_ekatunggal/features/loyalty/presentation/pages/loyalty_point_page.dart';
+import 'package:ekaplus_ekatunggal/features/loyalty/presentation/pages/loyalty_redemption_detail_page.dart';
+import 'package:ekaplus_ekatunggal/features/loyalty/presentation/pages/loyalty_reward_detail_page.dart';
+import 'package:ekaplus_ekatunggal/features/loyalty/presentation/pages/loyalty_reward_list_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
@@ -168,6 +179,118 @@ class MyRouter {
       ),
 
       // ********** Routes tanpa bottom nav *********
+      GoRoute(
+        path: '/customer/points',
+        name: 'loyalty-points',
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>?;
+          final bcid = extra?['bcid']?.toString() ?? '';
+          return BlocProvider(
+            create: (_) => LoyaltyPointCubit(LoyaltyService(), bcid)..loadAll(),
+            child: const LoyaltyPointPage(),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/customer/points/calculation',
+        name: 'loyalty-calculation-detail',
+        builder: (context, state) {
+          final rawGpid = (state.extra as Map<String, dynamic>?)?['gpid'];
+          final bcid = (state.extra as Map<String, dynamic>?)?['bcid']
+              ?.toString();
+          final groupParentName =
+              (state.extra as Map<String, dynamic>?)?['groupParentName']
+                  ?.toString();
+          final groupParentCode =
+              (state.extra as Map<String, dynamic>?)?['groupParentCode']
+                  ?.toString();
+          final gpid = rawGpid is int
+              ? rawGpid
+              : int.tryParse(rawGpid?.toString() ?? '') ?? 0;
+          return BlocProvider(
+            create: (_) =>
+                LoyaltyCalculationCubit(LoyaltyService(), gpid, bcid: bcid)
+                  ..load(),
+            child: LoyaltyCalculationDetailPage(
+              groupParentCode: groupParentCode,
+              groupParentName: groupParentName,
+            ),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/customer/points/earnings',
+        name: 'loyalty-earnings',
+        builder: (context, state) {
+          final bcid =
+              (state.extra as Map<String, dynamic>?)?['bcid']?.toString() ?? '';
+          return BlocProvider(
+            create: (_) =>
+                LoyaltyPointCubit(LoyaltyService(), bcid)..loadEarnings(),
+            child: const LoyaltyEarningDetailPage(),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/customer/points/rewards',
+        name: 'loyalty-rewards',
+        builder: (context, state) {
+          final bcid =
+              (state.extra as Map<String, dynamic>?)?['bcid']?.toString() ?? '';
+          return BlocProvider(
+            create: (_) => LoyaltyPointCubit(LoyaltyService(), bcid)
+              ..loadBalance()
+              ..loadRewards(),
+            child: const LoyaltyRewardListPage(),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/customer/points/rewards/:rewardId',
+        name: 'loyalty-reward-detail',
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>?;
+          final reward = extra?['reward'] as LoyaltyReward?;
+          final bcid = extra?['bcid']?.toString() ?? '';
+          if (reward == null) {
+            return const Scaffold(
+              body: Center(child: Text('Reward tidak tersedia')),
+            );
+          }
+          return BlocProvider(
+            create: (_) =>
+                LoyaltyPointCubit(LoyaltyService(), bcid)..loadBalance(),
+            child: LoyaltyRewardDetailPage(reward: reward),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/customer/points/history',
+        name: 'loyalty-history',
+        builder: (context, state) {
+          final bcid =
+              (state.extra as Map<String, dynamic>?)?['bcid']?.toString() ?? '';
+          return BlocProvider(
+            create: (_) =>
+                LoyaltyPointCubit(LoyaltyService(), bcid)..loadHistory(),
+            child: const LoyaltyHistoryPage(),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/customer/points/history/:redemptionId',
+        name: 'loyalty-redemption-detail',
+        builder: (context, state) {
+          final item =
+              (state.extra as Map<String, dynamic>?)?['redemption']
+                  as LoyaltyRedemption?;
+          return item == null
+              ? const Scaffold(
+                  body: Center(child: Text('Aktivitas tidak tersedia')),
+                )
+              : LoyaltyRedemptionDetailPage(item: item);
+        },
+      ),
 
       // ============================================
       // AUTH ROUTES
