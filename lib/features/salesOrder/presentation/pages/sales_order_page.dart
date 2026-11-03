@@ -1,1915 +1,965 @@
-// import 'package:flutter/material.dart';
-// import 'package:flutter_bloc/flutter_bloc.dart';
-// import 'package:ekaplus_ekatunggal/features/member/presentation/cubit/active_company_cubit.dart';
-// import 'package:ekaplus_ekatunggal/features/salesOrder/data/services/sales_order_service.dart';
-// import 'package:ekaplus_ekatunggal/features/salesOrder/data/services/sales_order_detail_service.dart';
-// import 'package:ekaplus_ekatunggal/features/salesOrder/data/models/sales_order_model.dart';
-// import 'package:ekaplus_ekatunggal/features/salesOrder/data/models/sales_order_detail_model.dart';
-// import 'package:ekaplus_ekatunggal/features/salesOrder/presentation/cubit/sales_order_cubit.dart';
-// import 'package:ekaplus_ekatunggal/features/salesOrder/data/services/branch_credential_service.dart';
-// import 'salesOrder_detail_page.dart';
-
-// class SalesOrderPage extends StatefulWidget {
-//   const SalesOrderPage({super.key});
-
-//   @override
-//   State<SalesOrderPage> createState() => _SalesOrderPageState();
-// }
-
-// class _SalesOrderPageState extends State<SalesOrderPage> {
-//   String _searchQuery = '';
-
-//   // ── Filter state ──────────────────────────────────────────
-//   DateTime? _filterStartDate;
-//   DateTime? _filterEndDate;
-//   String? _filterStatus;
-
-//   static const Color kRed   = Color(0xFFC0392B);
-//   static const Color kGreen = Color(0xFF27AE60);
-
-//   static const List<String> _statusOptions = [
-//     'Semua',
-//     'Completed',
-//     'Closed',
-//   ];
-
-//   bool get _hasActiveFilter =>
-//       _filterStartDate != null ||
-//       _filterEndDate   != null ||
-//       (_filterStatus != null && _filterStatus != 'Semua');
-
-//   @override
-//   void initState() {
-//     super.initState();
-//     Future.microtask(() {
-//       final activeState = context.read<ActiveCompanyCubit>().state;
-//       final branchCode  = (activeState as ActiveCompanyReady?)?.activeCompany?.branchName         ?? '';
-//       final bcid        = (activeState as ActiveCompanyReady?)?.activeCompany?.branchCustomerCode ?? '';
-//       print("INIT - branchCode: $branchCode");
-//       if (branchCode.isNotEmpty || bcid.isNotEmpty) {
-//         context.read<SalesOrderCubit>().loadSalesOrder(branchCode: branchCode, bcid: bcid);
-//       } else {
-//         print("branchCode kosong, API tidak dipanggil");
-//       }
-//     });
-//   }
-
-//   // ── Filter list ───────────────────────────────────────────
-//   List<SalesOrder> _filteredList(List<SalesOrder> all) {
-//     List<SalesOrder> filtered = all;
-
-//     // Filter status
-//     if (_filterStatus != null && _filterStatus != 'Semua') {
-//       filtered = filtered.where((i) => i.status == _filterStatus).toList();
-//     }
-
-//     // Filter date range
-//     if (_filterStartDate != null || _filterEndDate != null) {
-//       filtered = filtered.where((i) {
-//         DateTime? orderDate;
-//         try {
-//           orderDate = DateTime.parse(i.dueDate);
-//         } catch (_) {
-//           return true;
-//         }
-//         if (_filterStartDate != null && orderDate.isBefore(
-//             DateTime(_filterStartDate!.year, _filterStartDate!.month, _filterStartDate!.day))) {
-//           return false;
-//         }
-//         if (_filterEndDate != null && orderDate.isAfter(
-//             DateTime(_filterEndDate!.year, _filterEndDate!.month, _filterEndDate!.day, 23, 59, 59))) {
-//           return false;
-//         }
-//         return true;
-//       }).toList();
-//     }
-
-//     // Filter pencarian teks
-//     if (_searchQuery.isNotEmpty) {
-//       filtered = filtered.where((i) =>
-//           i.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-//           i.customer.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-//           i.customerName.toLowerCase().contains(_searchQuery.toLowerCase())).toList();
-//     }
-
-//     return filtered;
-//   }
-
-//   // ── Filter sheet ──────────────────────────────────────────
-//   void _showFilterSheet() {
-//     DateTime? tempStart  = _filterStartDate;
-//     DateTime? tempEnd    = _filterEndDate;
-//     String    tempStatus = _filterStatus ?? 'Semua';
-
-//     showModalBottomSheet(
-//       context: context,
-//       isScrollControlled: true,
-//       backgroundColor: Colors.white,
-//       shape: const RoundedRectangleBorder(
-//         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-//       ),
-//       builder: (ctx) {
-//         return StatefulBuilder(
-//           builder: (ctx, setSheetState) {
-//             String _fmt(DateTime? d) =>
-//                 d == null ? '—' : '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
-
-//             Future<void> pickDate({required bool isStart}) async {
-//               final now    = DateTime.now();
-//               final first  = DateTime(2020);
-//               final picked = await showDatePicker(
-//                 context: ctx,
-//                 initialDate: (isStart ? tempStart : tempEnd) ?? now,
-//                 firstDate: first,
-//                 lastDate: DateTime(now.year + 2),
-//                 builder: (c, child) => Theme(
-//                   data: Theme.of(c).copyWith(
-//                     colorScheme: const ColorScheme.light(primary: kRed),
-//                   ),
-//                   child: child!,
-//                 ),
-//               );
-//               if (picked != null) {
-//                 setSheetState(() {
-//                   if (isStart) tempStart = picked;
-//                   else         tempEnd   = picked;
-//                 });
-//               }
-//             }
-
-//             return Padding(
-//               padding: EdgeInsets.only(
-//                 left: 20, right: 20, top: 20,
-//                 bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
-//               ),
-//               child: Column(
-//                 mainAxisSize: MainAxisSize.min,
-//                 crossAxisAlignment: CrossAxisAlignment.start,
-//                 children: [
-//                   // Handle
-//                   Center(
-//                     child: Container(
-//                       width: 40, height: 4,
-//                       decoration: BoxDecoration(
-//                         color: Colors.black12,
-//                         borderRadius: BorderRadius.circular(2),
-//                       ),
-//                     ),
-//                   ),
-//                   const SizedBox(height: 16),
-
-//                   // Judul
-//                   Row(
-//                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
-//                     children: [
-//                       const Text('Filter Sales Order',
-//                           style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-//                       if (_hasActiveFilter)
-//                         TextButton(
-//                           onPressed: () {
-//                             setState(() {
-//                               _filterStartDate = null;
-//                               _filterEndDate   = null;
-//                               _filterStatus    = null;
-//                             });
-//                             Navigator.pop(ctx);
-//                           },
-//                           child: const Text('Reset',
-//                               style: TextStyle(color: kRed, fontSize: 13)),
-//                         ),
-//                     ],
-//                   ),
-//                   const SizedBox(height: 20),
-
-//                   // Rentang Tanggal
-//                   const Text('Rentang Tanggal',
-//                       style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.black54)),
-//                   const SizedBox(height: 10),
-//                   Row(
-//                     children: [
-//                       Expanded(
-//                         child: _DatePickerButton(
-//                           label: 'Dari',
-//                           value: _fmt(tempStart),
-//                           onTap: () => pickDate(isStart: true),
-//                           hasValue: tempStart != null,
-//                         ),
-//                       ),
-//                       const SizedBox(width: 12),
-//                       Expanded(
-//                         child: _DatePickerButton(
-//                           label: 'Sampai',
-//                           value: _fmt(tempEnd),
-//                           onTap: () => pickDate(isStart: false),
-//                           hasValue: tempEnd != null,
-//                         ),
-//                       ),
-//                     ],
-//                   ),
-//                   const SizedBox(height: 24),
-
-//                   // Status
-//                   const Text('Status',
-//                       style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.black54)),
-//                   const SizedBox(height: 10),
-//                   Wrap(
-//                     spacing: 8,
-//                     runSpacing: 8,
-//                     children: _statusOptions.map((s) {
-//                       final selected = tempStatus == s;
-//                       return GestureDetector(
-//                         onTap: () => setSheetState(() => tempStatus = s),
-//                         child: Container(
-//                           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-//                           decoration: BoxDecoration(
-//                             color: selected ? kRed : const Color(0xFFF5F5F5),
-//                             borderRadius: BorderRadius.circular(20),
-//                             border: Border.all(
-//                               color: selected ? kRed : Colors.black12,
-//                             ),
-//                           ),
-//                           child: Text(
-//                             s,
-//                             style: TextStyle(
-//                               fontSize: 12,
-//                               fontWeight: FontWeight.w500,
-//                               color: selected ? Colors.white : Colors.black54,
-//                             ),
-//                           ),
-//                         ),
-//                       );
-//                     }).toList(),
-//                   ),
-//                   const SizedBox(height: 28),
-
-//                   // Tombol Terapkan
-//                   SizedBox(
-//                     width: double.infinity,
-//                     child: ElevatedButton(
-//                       onPressed: () {
-//                         setState(() {
-//                           _filterStartDate = tempStart;
-//                           _filterEndDate   = tempEnd;
-//                           _filterStatus    = tempStatus == 'Semua' ? null : tempStatus;
-//                         });
-//                         Navigator.pop(ctx);
-//                       },
-//                       style: ElevatedButton.styleFrom(
-//                         backgroundColor: kRed,
-//                         foregroundColor: Colors.white,
-//                         padding: const EdgeInsets.symmetric(vertical: 14),
-//                         shape: RoundedRectangleBorder(
-//                             borderRadius: BorderRadius.circular(10)),
-//                       ),
-//                       child: const Text('Terapkan Filter',
-//                           style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-//                     ),
-//                   ),
-//                 ],
-//               ),
-//             );
-//           },
-//         );
-//       },
-//     );
-//   }
-
-//   // ── Detail ────────────────────────────────────────────────
-//   void _openDetail(SalesOrder salesOrder) async {
-//     final activeState = context.read<ActiveCompanyCubit>().state as ActiveCompanyReady?;
-//     final branchName  = activeState?.activeCompany?.branchName ?? '';
-
-//     final credential = await BranchCredentialService().fetchCredential(branchName);
-//     if (credential == null || !mounted) return;
-
-//     final detail = await SalesOrderDetailService().fetchDetail(
-//       baseUrl: credential.url,
-//       token: credential.token,
-//       salesOrderName: salesOrder.name,
-//     );
-//     if (detail == null || !mounted) return;
-
-//     Navigator.push(
-//       context,
-//       MaterialPageRoute(
-//         builder: (_) => SalesOrderDetailPage(salesOrder: detail.toDetailMap()),
-//       ),
-//     );
-//   }
-
-//   // ── Build ─────────────────────────────────────────────────
-//   @override
-//   Widget build(BuildContext context) {
-//     return Scaffold(
-//       backgroundColor: const Color(0xFFF2F2F7),
-//       body: Column(
-//         children: [
-//           _buildHeader(),
-//           _buildSearchBar(),
-//           if (_hasActiveFilter) _buildActiveFilterChips(),
-//           Expanded(
-//             child: BlocConsumer<SalesOrderCubit, SalesOrderState>(
-//               listener: (context, state) {
-//                 if (state is SalesOrderError) {
-//                   print("ERROR: ${state.message}");
-//                 }
-//               },
-//               builder: (context, state) {
-//                 if (state is SalesOrderLoading) {
-//                   return const Center(child: CircularProgressIndicator());
-//                 }
-//                 if (state is SalesOrderUnauthorized) {
-//                   return _buildAnnouncement(state.message);
-//                 }
-//                 if (state is SalesOrderError) {
-//                   return Center(
-//                     child: Column(
-//                       mainAxisSize: MainAxisSize.min,
-//                       children: [
-//                         const Icon(Icons.error_outline, size: 48, color: Colors.red),
-//                         const SizedBox(height: 12),
-//                         Text(state.message),
-//                         const SizedBox(height: 12),
-//                         ElevatedButton(
-//                           onPressed: () {
-//                             final s = context.read<ActiveCompanyCubit>().state;
-//                             context.read<SalesOrderCubit>().loadSalesOrder(
-//                               branchCode: (s as ActiveCompanyReady?)?.activeCompany?.branchName ?? '',
-//                               bcid: (s as ActiveCompanyReady?)?.activeCompany?.branchCustomerCode ?? '',
-//                             );
-//                           },
-//                           child: const Text('Coba Lagi'),
-//                         ),
-//                       ],
-//                     ),
-//                   );
-//                 }
-//                 if (state is SalesOrderLoaded) {
-//                   final list = _filteredList(state.items);
-//                   if (list.isEmpty) {
-//                     return Center(
-//                       child: Column(
-//                         mainAxisSize: MainAxisSize.min,
-//                         children: [
-//                           const Icon(Icons.search_off, size: 48, color: Colors.black26),
-//                           const SizedBox(height: 12),
-//                           const Text('Tidak ada sales order ditemukan',
-//                               style: TextStyle(color: Colors.black45)),
-//                         ],
-//                       ),
-//                     );
-//                   }
-
-//                   final ScrollController scrollController = ScrollController();
-//                   return Scrollbar(
-//                     controller: scrollController,
-//                     thumbVisibility: true,
-//                     thickness: 4,
-//                     radius: const Radius.circular(8),
-//                     child: ScrollConfiguration(
-//                       behavior: ScrollConfiguration.of(context).copyWith(overscroll: false),
-//                       child: CustomScrollView(
-//                         controller: scrollController,
-//                         physics: const ClampingScrollPhysics(),
-//                         slivers: [
-//                           SliverPadding(
-//                             padding: const EdgeInsets.all(16),
-//                             sliver: SliverList(
-//                               delegate: SliverChildBuilderDelegate(
-//                                 (context, index) => Padding(
-//                                   padding: const EdgeInsets.only(bottom: 10),
-//                                   child: _buildSalesOrderCard(list[index]),
-//                                 ),
-//                                 childCount: list.length,
-//                               ),
-//                             ),
-//                           ),
-//                         ],
-//                       ),
-//                     ),
-//                   );
-//                 }
-//                 return const Center(child: CircularProgressIndicator());
-//               },
-//             ),
-//           ),
-//         ],
-//       ),
-//     );
-//   }
-
-//   // ── Header ────────────────────────────────────────────────
-//   Widget _buildHeader() {
-//     return Container(
-//       color: kRed,
-//       child: SafeArea(
-//         bottom: false,
-//         child: Padding(
-//           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-//           child: Row(
-//             children: [
-//               GestureDetector(
-//                 onTap: () => Navigator.pop(context),
-//                 child: const Icon(Icons.arrow_back, color: Colors.white, size: 20),
-//               ),
-//               const SizedBox(width: 8),
-//               const Expanded(
-//                 child: Text('Laporan Pelanggan',
-//                     style: TextStyle(color: Colors.white, fontSize: 15)),
-//               ),
-//               // Tombol filter
-//               GestureDetector(
-//                 onTap: _showFilterSheet,
-//                 child: Stack(
-//                   clipBehavior: Clip.none,
-//                   children: [
-//                     const Icon(Icons.tune, color: Colors.white, size: 22),
-//                     if (_hasActiveFilter)
-//                       Positioned(
-//                         top: -3, right: -3,
-//                         child: Container(
-//                           width: 8, height: 8,
-//                           decoration: const BoxDecoration(
-//                             color: Colors.yellow,
-//                             shape: BoxShape.circle,
-//                           ),
-//                         ),
-//                       ),
-//                   ],
-//                 ),
-//               ),
-//             ],
-//           ),
-//         ),
-//       ),
-//     );
-//   }
-
-//   // ── Search bar ────────────────────────────────────────────
-//   Widget _buildSearchBar() {
-//     return Container(
-//       color: kRed,
-//       padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
-//       child: Container(
-//         height: 40,
-//         decoration: BoxDecoration(
-//           color: Colors.white,
-//           borderRadius: BorderRadius.circular(10),
-//         ),
-//         child: TextField(
-//           onChanged: (v) => setState(() => _searchQuery = v),
-//           style: const TextStyle(fontSize: 13),
-//           decoration: const InputDecoration(
-//             hintText: 'Cari nama, perusahaan...',
-//             hintStyle: TextStyle(color: Colors.black38, fontSize: 13),
-//             prefixIcon: Icon(Icons.search, color: Colors.black38, size: 20),
-//             border: InputBorder.none,
-//             contentPadding: EdgeInsets.symmetric(vertical: 10),
-//           ),
-//         ),
-//       ),
-//     );
-//   }
-
-//   // ── Chip aktif filter ─────────────────────────────────────
-//   Widget _buildActiveFilterChips() {
-//     String fmt(DateTime d) =>
-//         '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
-
-//     return Container(
-//       color: Colors.white,
-//       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-//       child: Row(
-//         children: [
-//           const Icon(Icons.filter_list, size: 14, color: kRed),
-//           const SizedBox(width: 6),
-//           Expanded(
-//             child: Wrap(
-//               spacing: 6,
-//               children: [
-//                 if (_filterStatus != null)
-//                   _buildChip(_filterStatus!, onDelete: () => setState(() => _filterStatus = null)),
-//                 if (_filterStartDate != null || _filterEndDate != null)
-//                   _buildChip(
-//                     '${fmt(_filterStartDate ?? _filterEndDate!)} → ${fmt(_filterEndDate ?? _filterStartDate!)}',
-//                     onDelete: () => setState(() {
-//                       _filterStartDate = null;
-//                       _filterEndDate   = null;
-//                     }),
-//                   ),
-//               ],
-//             ),
-//           ),
-//         ],
-//       ),
-//     );
-//   }
-
-//   Widget _buildChip(String label, {required VoidCallback onDelete}) {
-//     return Container(
-//       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-//       decoration: BoxDecoration(
-//         color: const Color(0xFFFDEDED),
-//         borderRadius: BorderRadius.circular(20),
-//         border: Border.all(color: kRed.withOpacity(0.3)),
-//       ),
-//       child: Row(
-//         mainAxisSize: MainAxisSize.min,
-//         children: [
-//           Text(label, style: const TextStyle(fontSize: 11, color: kRed)),
-//           const SizedBox(width: 4),
-//           GestureDetector(
-//             onTap: onDelete,
-//             child: const Icon(Icons.close, size: 13, color: kRed),
-//           ),
-//         ],
-//       ),
-//     );
-//   }
-
-//   // ── Sales order card ──────────────────────────────────────
-//   Widget _buildSalesOrderCard(SalesOrder so) {
-//     final bool isBelumBayar = so.status == 'To Deliver and Bill' ||
-//         so.status == 'To Bill' ||
-//         so.status == 'Draft' ||
-//         so.status == 'Belum Bayar';
-
-//     return GestureDetector(
-//       onTap: () => _openDetail(so),
-//       child: Container(
-//         decoration: BoxDecoration(
-//           color: Colors.white,
-//           borderRadius: BorderRadius.circular(14),
-//           boxShadow: [
-//             BoxShadow(
-//               color: Colors.black.withOpacity(0.04),
-//               blurRadius: 6,
-//               offset: const Offset(0, 2),
-//             ),
-//           ],
-//         ),
-//         child: Padding(
-//           padding: const EdgeInsets.all(14),
-//           child: Column(
-//             crossAxisAlignment: CrossAxisAlignment.start,
-//             children: [
-//               Row(
-//                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
-//                 children: [
-//                   Row(
-//                     children: [
-//                       Container(
-//                         width: 36, height: 36,
-//                         decoration: BoxDecoration(
-//                           color: isBelumBayar
-//                               ? const Color(0xFFFDEDED)
-//                               : const Color(0xFFE8F5E9),
-//                           borderRadius: BorderRadius.circular(8),
-//                         ),
-//                         child: Icon(Icons.receipt_outlined, size: 18,
-//                             color: isBelumBayar ? kRed : kGreen),
-//                       ),
-//                       const SizedBox(width: 10),
-//                       Text(so.name,
-//                           style: const TextStyle(
-//                               fontSize: 14,
-//                               fontWeight: FontWeight.bold,
-//                               color: Colors.black87)),
-//                     ],
-//                   ),
-//                   // Badge status
-//                   Container(
-//                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-//                     decoration: BoxDecoration(
-//                       color: (isBelumBayar ? kRed : kGreen).withOpacity(0.1),
-//                       borderRadius: BorderRadius.circular(20),
-//                     ),
-//                     child: Text(
-//                       so.status,
-//                       style: TextStyle(
-//                         fontSize: 10,
-//                         fontWeight: FontWeight.w600,
-//                         color: isBelumBayar ? kRed : kGreen,
-//                       ),
-//                     ),
-//                   ),
-//                 ],
-//               ),
-//               const SizedBox(height: 12),
-//               const Divider(height: 1, color: Color(0xFFF0F0F0)),
-//               const SizedBox(height: 12),
-//               Row(
-//                 children: [
-//                   Expanded(
-//                     child: _buildField(
-//                       icon: Icons.business_outlined,
-//                       label: 'Perusahaan',
-//                       value: so.customer,
-//                     ),
-//                   ),
-//                   Expanded(
-//                     child: _buildField(
-//                       icon: Icons.calendar_today_outlined,
-//                       label: 'Tanggal',
-//                       value: so.dueDate,
-//                     ),
-//                   ),
-//                 ],
-//               ),
-//               const SizedBox(height: 10),
-//               _buildField(
-//                 icon: Icons.person_outline,
-//                 label: 'Customer',
-//                 value: so.customerName,
-//               ),
-//             ],
-//           ),
-//         ),
-//       ),
-//     );
-//   }
-
-//   Widget _buildField({
-//     required IconData icon,
-//     required String label,
-//     required String value,
-//     Color valueColor = Colors.black87,
-//     bool valueBold = false,
-//   }) {
-//     return Row(
-//       crossAxisAlignment: CrossAxisAlignment.start,
-//       children: [
-//         Icon(icon, size: 15, color: Colors.black38),
-//         const SizedBox(width: 6),
-//         Expanded(
-//           child: Column(
-//             crossAxisAlignment: CrossAxisAlignment.start,
-//             children: [
-//               Text(label,
-//                   style: const TextStyle(
-//                       fontSize: 10, color: Colors.black38, letterSpacing: 0.3)),
-//               const SizedBox(height: 2),
-//               Text(value,
-//                   style: TextStyle(
-//                     fontSize: 12,
-//                     color: valueColor,
-//                     fontWeight: valueBold ? FontWeight.w600 : FontWeight.normal,
-//                   ),
-//                   maxLines: 1,
-//                   overflow: TextOverflow.ellipsis),
-//             ],
-//           ),
-//         ),
-//       ],
-//     );
-//   }
-
-//   Widget _buildAnnouncement(String message) => Center(child: Text(message));
-// }
-
-// // ── Helper widget tombol date picker ──────────────────────────
-// class _DatePickerButton extends StatelessWidget {
-//   final String label;
-//   final String value;
-//   final VoidCallback onTap;
-//   final bool hasValue;
-
-//   const _DatePickerButton({
-//     required this.label,
-//     required this.value,
-//     required this.onTap,
-//     required this.hasValue,
-//   });
-
-//   @override
-//   Widget build(BuildContext context) {
-//     const kRed = Color(0xFFC0392B);
-//     return GestureDetector(
-//       onTap: onTap,
-//       child: Container(
-//         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-//         decoration: BoxDecoration(
-//           color: hasValue ? const Color(0xFFFDEDED) : const Color(0xFFF5F5F5),
-//           borderRadius: BorderRadius.circular(10),
-//           border: Border.all(
-//             color: hasValue ? kRed.withOpacity(0.4) : Colors.black12,
-//           ),
-//         ),
-//         child: Row(
-//           children: [
-//             Icon(Icons.calendar_month_outlined, size: 16,
-//                 color: hasValue ? kRed : Colors.black38),
-//             const SizedBox(width: 8),
-//             Expanded(
-//               child: Column(
-//                 crossAxisAlignment: CrossAxisAlignment.start,
-//                 children: [
-//                   Text(label,
-//                       style: TextStyle(
-//                           fontSize: 10,
-//                           color: hasValue ? kRed : Colors.black38)),
-//                   Text(value,
-//                       style: TextStyle(
-//                           fontSize: 12,
-//                           fontWeight: FontWeight.w500,
-//                           color: hasValue ? kRed : Colors.black45)),
-//                 ],
-//               ),
-//             ),
-//           ],
-//         ),
-//       ),
-//     );
-//   }
-// }
-
-import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:shimmer/shimmer.dart';
+import 'dart:async';
 import 'package:ekaplus_ekatunggal/constant.dart';
 import 'package:ekaplus_ekatunggal/core/shared_widgets/custom_header.dart';
 import 'package:ekaplus_ekatunggal/features/member/presentation/cubit/active_company_cubit.dart';
-import 'package:ekaplus_ekatunggal/features/salesOrder/data/services/sales_order_detail_service.dart';
 import 'package:ekaplus_ekatunggal/features/salesOrder/data/models/sales_order_model.dart';
-import 'package:ekaplus_ekatunggal/features/salesOrder/presentation/cubit/sales_order_cubit.dart';
 import 'package:ekaplus_ekatunggal/features/salesOrder/data/services/branch_credential_service.dart';
+import 'package:ekaplus_ekatunggal/features/salesOrder/data/services/sales_order_detail_service.dart';
+import 'package:ekaplus_ekatunggal/features/salesOrder/data/services/sales_order_service.dart';
+import 'package:ekaplus_ekatunggal/features/salesOrder/presentation/cubit/sales_order_cubit.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:intl/intl.dart';
+import 'package:shimmer/shimmer.dart';
 import 'sales_order_detail_page.dart';
 
-/// Displays the sales order list.
 class SalesOrderPage extends StatefulWidget {
   const SalesOrderPage({super.key});
-
   @override
   State<SalesOrderPage> createState() => _SalesOrderPageState();
 }
 
 class _SalesOrderPageState extends State<SalesOrderPage> {
-  String _searchQuery = '';
-  final TextEditingController _searchController = TextEditingController();
+  final _searchController = TextEditingController();
+  final _scrollController = ScrollController();
+  final _service = SalesOrderService();
+  Timer? _debounce;
+  int _section = 0;
+  String? _status;
+  bool _onlyOverdue = false,
+      _pendingLoading = false,
+      _pendingLoadingMore = false,
+      _pendingHasMore = false;
+  int _pendingPage = 1;
+  String? _pendingError;
+  List<PendingSalesOrderItem> _pendingItems = const [];
+  PendingItemsSummary _pendingSummary = const PendingItemsSummary();
+  BranchCredential? _credential;
+  String _branchCode = '', _bcid = '';
+  String? _openingOrderName;
 
-  // ── Pagination ────────────────────────────────────────────
-  int _currentPage = 1;
-  static const int _itemsPerPage = 2;
-
-  // ── Filter state ──────────────────────────────────────────
-  DateTime? _filterStartDate;
-  DateTime? _filterEndDate;
-  String? _filterStatus;
-
-  static const Color kRed = AppColors.primaryColor;
-  static const Color kGreen = Color(0xFF059669);
-
-  static const List<String> _statusOptions = ['Semua', 'Completed', 'Closed'];
-
-  bool get _hasActiveFilter =>
-      _filterStartDate != null ||
-      _filterEndDate != null ||
-      (_filterStatus != null && _filterStatus != 'Semua');
+  static const _statuses = <String, String?>{
+    'Semua': null,
+    'Menunggu Pengiriman': 'To Deliver',
+    'Menunggu Tagihan': 'To Bill',
+    'Pengiriman & Tagihan': 'To Deliver and Bill',
+    'Selesai': 'Completed',
+  };
 
   @override
   void initState() {
     super.initState();
-    final activeCompanyCubit = context.read<ActiveCompanyCubit>();
-    final salesOrderCubit = context.read<SalesOrderCubit>();
-    Future.microtask(() {
-      final activeState = activeCompanyCubit.state;
-      final branchCode =
-          (activeState as ActiveCompanyReady?)?.activeCompany?.branchName ?? '';
-      final bcid =
-          (activeState as ActiveCompanyReady?)
-              ?.activeCompany
-              ?.branchCustomerCode ??
-          '';
-      debugPrint("INIT - branchCode: $branchCode");
-      if (branchCode.isNotEmpty || bcid.isNotEmpty) {
-        salesOrderCubit.loadSalesOrder(branchCode: branchCode, bcid: bcid);
-      } else {
-        debugPrint("branchCode kosong, API tidak dipanggil");
-      }
-    });
+    _scrollController.addListener(_onScroll);
+    Future.microtask(_initialize);
   }
 
   @override
   void dispose() {
+    _debounce?.cancel();
     _searchController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
-  // ── Filter list ───────────────────────────────────────────
-  List<SalesOrder> _filteredList(List<SalesOrder> all) {
-    List<SalesOrder> filtered = all;
-
-    if (_filterStatus != null && _filterStatus != 'Semua') {
-      filtered = filtered.where((i) => i.status == _filterStatus).toList();
+  Future<void> _initialize() async {
+    final active = context.read<ActiveCompanyCubit>().state;
+    if (active is ActiveCompanyReady) {
+      _branchCode = active.activeCompany?.branchName ?? '';
+      _bcid = active.activeCompany?.branchCustomerCode ?? '';
     }
-
-    if (_filterStartDate != null || _filterEndDate != null) {
-      filtered = filtered.where((i) {
-        DateTime? orderDate;
-        try {
-          orderDate = DateTime.parse(i.dueDate);
-        } catch (_) {
-          return true;
-        }
-
-        if (_filterStartDate != null &&
-            orderDate.isBefore(
-              DateTime(
-                _filterStartDate!.year,
-                _filterStartDate!.month,
-                _filterStartDate!.day,
-              ),
-            )) {
-          return false;
-        }
-        if (_filterEndDate != null &&
-            orderDate.isAfter(
-              DateTime(
-                _filterEndDate!.year,
-                _filterEndDate!.month,
-                _filterEndDate!.day,
-                23,
-                59,
-                59,
-              ),
-            )) {
-          return false;
-        }
-        return true;
-      }).toList();
-    }
-
-    if (_searchQuery.isNotEmpty) {
-      filtered = filtered
-          .where(
-            (i) =>
-                i.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-                i.customer.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-                i.customerName.toLowerCase().contains(
-                  _searchQuery.toLowerCase(),
-                ),
-          )
-          .toList();
-    }
-
-    return filtered;
-  }
-
-  List<SalesOrder> _pagedList(List<SalesOrder> filtered) {
-    final start = (_currentPage - 1) * _itemsPerPage;
-    final end = (start + _itemsPerPage).clamp(0, filtered.length);
-    if (start >= filtered.length) return [];
-    return filtered.sublist(start, end);
-  }
-
-  int _totalPages(int totalItems) =>
-      (totalItems / _itemsPerPage).ceil().clamp(1, 999);
-
-  void _goToPage(int page, int total) {
-    if (page < 1 || page > total) return;
-    setState(() => _currentPage = page);
-  }
-
-  List<int> _visiblePages(int totalPages) {
-    if (totalPages <= 5) return List.generate(totalPages, (i) => i + 1);
-    int start = (_currentPage - 2).clamp(1, totalPages - 4);
-    int end = (start + 4).clamp(5, totalPages);
-    start = (end - 4).clamp(1, totalPages);
-    return List.generate(end - start + 1, (i) => start + i);
-  }
-
-  // ── Filter sheet ──────────────────────────────────────────
-  void _showFilterSheet() {
-    DateTime? tempStart = _filterStartDate;
-    DateTime? tempEnd = _filterEndDate;
-    String tempStatus = _filterStatus ?? 'Semua';
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (ctx) {
-        return StatefulBuilder(
-          builder: (ctx, setSheetState) {
-            String fmt(DateTime? d) => d == null
-                ? '—'
-                : '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
-
-            Future<void> pickDate({required bool isStart}) async {
-              final now = DateTime.now();
-              final picked = await showDatePicker(
-                context: ctx,
-                initialDate: (isStart ? tempStart : tempEnd) ?? now,
-                firstDate: DateTime(2020),
-                lastDate: DateTime(now.year + 2),
-                builder: (c, child) => Theme(
-                  data: Theme.of(c).copyWith(
-                    colorScheme: const ColorScheme.light(
-                      primary: AppColors.primaryColor,
-                    ),
-                  ),
-                  child: child!,
-                ),
-              );
-              if (picked != null) {
-                setSheetState(() {
-                  if (isStart) {
-                    tempStart = picked;
-                  } else {
-                    tempEnd = picked;
-                  }
-                });
-              }
-            }
-
-            return Padding(
-              padding: EdgeInsets.only(
-                left: 20,
-                right: 20,
-                top: 20,
-                bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Handle
-                  Center(
-                    child: Container(
-                      width: 40,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFCBD5E1),
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Judul
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Filter Sales Order',
-                        style: TextStyle(
-                          fontFamily: AppFonts.primaryFont,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFF1E293B),
-                        ),
-                      ),
-                      if (_hasActiveFilter)
-                        TextButton(
-                          onPressed: () {
-                            setState(() {
-                              _filterStartDate = null;
-                              _filterEndDate = null;
-                              _filterStatus = null;
-                              _currentPage = 1;
-                            });
-                            Navigator.pop(ctx);
-                          },
-                          child: const Text(
-                            'Reset',
-                            style: TextStyle(
-                              fontFamily: AppFonts.primaryFont,
-                              color: kRed,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-
-                  // Rentang Tanggal
-                  const Text(
-                    'Rentang Tanggal',
-                    style: TextStyle(
-                      fontFamily: AppFonts.primaryFont,
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF475569),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _DatePickerButton(
-                          label: 'Dari',
-                          value: fmt(tempStart),
-                          onTap: () => pickDate(isStart: true),
-                          hasValue: tempStart != null,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _DatePickerButton(
-                          label: 'Sampai',
-                          value: fmt(tempEnd),
-                          onTap: () => pickDate(isStart: false),
-                          hasValue: tempEnd != null,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-                  const Text(
-                    'Status',
-                    style: TextStyle(
-                      fontFamily: AppFonts.primaryFont,
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF475569),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: _statusOptions.map((s) {
-                      final selected = tempStatus == s;
-                      return GestureDetector(
-                        onTap: () => setSheetState(() => tempStatus = s),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 14,
-                            vertical: 8,
-                          ),
-                          decoration: BoxDecoration(
-                            color: selected ? kRed : Colors.white,
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(
-                              color: selected ? kRed : const Color(0xFFE2E8F0),
-                            ),
-                          ),
-                          child: Text(
-                            s,
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontFamily: AppFonts.primaryFont,
-                              fontWeight: FontWeight.w600,
-                              color: selected
-                                  ? Colors.white
-                                  : const Color(0xFF334155),
-                            ),
-                          ),
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                  const SizedBox(height: 28),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        setState(() {
-                          _filterStartDate = tempStart;
-                          _filterEndDate = tempEnd;
-                          _filterStatus = tempStatus == 'Semua'
-                              ? null
-                              : tempStatus;
-                          _currentPage = 1;
-                        });
-                        Navigator.pop(ctx);
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: kRed,
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        minimumSize: const Size.fromHeight(48),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: const Text(
-                        'Terapkan Filter',
-                        style: TextStyle(
-                          fontFamily: AppFonts.primaryFont,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
+    if (_branchCode.isEmpty || _bcid.isEmpty) {
+      if (mounted) {
+        setState(
+          () => _pendingError =
+              'Pilih perusahaan aktif agar pesanan dapat dimuat.',
         );
-      },
+      }
+      return;
+    }
+    _credential = await BranchCredentialService().fetchCredential(_branchCode);
+    if (!mounted) return;
+    context.read<SalesOrderCubit>().loadSalesOrder(
+      branchCode: _branchCode,
+      bcid: _bcid,
     );
   }
 
-  void _openDetail(SalesOrder salesOrder) async {
-    final activeState =
-        context.read<ActiveCompanyCubit>().state as ActiveCompanyReady?;
-    final branchName = activeState?.activeCompany?.branchName ?? '';
+  void _onScroll() {
+    if (!_scrollController.hasClients ||
+        _scrollController.position.extentAfter > 260) {
+      return;
+    }
+    if (_section == 0) {
+      context.read<SalesOrderCubit>().loadMore();
+    } else {
+      _loadMorePending();
+    }
+  }
 
-    final credential = await BranchCredentialService().fetchCredential(
-      branchName,
-    );
-    if (credential == null || !mounted) return;
+  void _onSearch(String value) {
+    setState(() {});
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 450), () {
+      if (!mounted) return;
+      if (_section == 0) {
+        _loadOrders();
+      } else {
+        _loadPending();
+      }
+    });
+  }
 
-    final detail = await SalesOrderDetailService().fetchDetail(
-      baseUrl: credential.url,
-      token: credential.token,
-      salesOrderName: salesOrder.name,
-    );
-    if (detail == null || !mounted) return;
+  void _loadOrders() => context.read<SalesOrderCubit>().loadSalesOrder(
+    branchCode: _branchCode,
+    bcid: _bcid,
+    status: _status,
+    search: _searchController.text,
+  );
 
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => SalesOrderDetailPage(salesOrder: detail.toDetailMap()),
-      ),
-    );
+  Future<void> _loadPending({bool refresh = false}) async {
+    if (_pendingLoading || _credential == null) return;
+    setState(() {
+      _pendingLoading = true;
+      _pendingError = null;
+    });
+    try {
+      final data = await _service.fetchPendingItems(
+        baseUrl: _credential!.url,
+        token: _credential!.token,
+        bcid: _bcid,
+        onlyOverdue: _onlyOverdue,
+        search: _searchController.text,
+      );
+      if (!mounted) return;
+      setState(() {
+        _pendingItems = data.items;
+        _pendingPage = data.page;
+        _pendingHasMore = data.hasNext;
+        _pendingSummary = data.summary;
+      });
+    } on SalesOrderApiException catch (e) {
+      if (mounted) setState(() => _pendingError = e.message);
+    } finally {
+      if (mounted) setState(() => _pendingLoading = false);
+    }
+  }
+
+  Future<void> _loadMorePending() async {
+    if (_pendingLoadingMore || !_pendingHasMore || _credential == null) return;
+    setState(() => _pendingLoadingMore = true);
+    try {
+      final data = await _service.fetchPendingItems(
+        baseUrl: _credential!.url,
+        token: _credential!.token,
+        bcid: _bcid,
+        page: _pendingPage + 1,
+        onlyOverdue: _onlyOverdue,
+        search: _searchController.text,
+      );
+      if (!mounted) return;
+      setState(() {
+        _pendingItems = [..._pendingItems, ...data.items];
+        _pendingPage = data.page;
+        _pendingHasMore = data.hasNext;
+        _pendingSummary = data.summary;
+      });
+    } on SalesOrderApiException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.message)));
+      }
+    } finally {
+      if (mounted) setState(() => _pendingLoadingMore = false);
+    }
+  }
+
+  Future<void> _switchSection(int value) async {
+    if (_section == value) return;
+    setState(() {
+      _section = value;
+      _searchController.clear();
+    });
+    if (value == 0) {
+      _loadOrders();
+    } else if (_pendingItems.isEmpty) {
+      await _loadPending();
+    }
   }
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: Column(
-        children: [
-          _buildHeader(context),
-          if (_hasActiveFilter) _buildActiveFilterChips(),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: BlocConsumer<SalesOrderCubit, SalesOrderState>(
-                listener: (context, state) {
-                  if (state is SalesOrderError) {
-                    debugPrint("ERROR: ${state.message}");
-                  }
-                },
-                builder: (context, state) {
-                  if (state is SalesOrderLoading) {
-                    return _buildLoadingState();
-                  }
-                  if (state is SalesOrderUnauthorized) {
-                    return _buildErrorState(
-                      title: 'Akses tidak tersedia',
-                      message: state.message,
-                    );
-                  }
-                  if (state is SalesOrderError) {
-                    return _buildErrorState(
-                      title: 'Sales order gagal dimuat',
-                      message: state.message,
-                      onRetry: _retryLoad,
-                    );
-                  }
-                  if (state is SalesOrderLoaded) {
-                    final filtered = _filteredList(state.items);
-                    final totalPages = _totalPages(filtered.length);
-                    final paged = _pagedList(filtered);
-
-                    if (filtered.isEmpty) {
-                      return _buildEmptyState(
-                        isSearchResult:
-                            _searchQuery.trim().isNotEmpty || _hasActiveFilter,
-                      );
-                    }
-
-                    return ListView.separated(
-                      padding: const EdgeInsets.fromLTRB(0, 8, 0, 24),
-                      itemCount: paged.length + 1, // +1 untuk pagination
-                      separatorBuilder: (_, __) => const SizedBox(height: 10),
-                      itemBuilder: (_, i) {
-                        if (i == paged.length) {
-                          return _buildPagination(totalPages, filtered.length);
-                        }
-                        return _buildSalesOrderCard(paged[i]);
-                      },
-                    );
-                  }
-                  return _buildLoadingState();
-                },
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildHeader(BuildContext context) {
-    return SizedBox(
-      height: 178,
-      child: Stack(
-        children: [
-          Positioned.fill(
-            child: CustomHeaderAppBar(
-              title: 'Sales Order',
-              brandStyle: true,
-              showBackButton: true,
-              onBackPressed: () => Navigator.pop(context),
-              height: 178,
-              actions: [
-                CustomHeaderActionButton(
-                  tooltip: 'Filter sales order',
-                  onPressed: _showFilterSheet,
-                  icon: Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      const Icon(
-                        Icons.tune_rounded,
-                        color: Colors.white,
-                        size: 19,
-                      ),
-                      if (_hasActiveFilter)
-                        const Positioned(
-                          right: -1,
-                          top: -1,
-                          child: DecoratedBox(
-                            decoration: BoxDecoration(
-                              color: AppColors.secondaryColor,
-                              shape: BoxShape.circle,
-                            ),
-                            child: SizedBox(width: 7, height: 7),
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Positioned(left: 16, right: 16, bottom: 18, child: _buildSearchBar()),
-        ],
-      ),
-    );
-  }
-
-  void _retryLoad() {
-    final state = context.read<ActiveCompanyCubit>().state;
-    context.read<SalesOrderCubit>().loadSalesOrder(
-      branchCode:
-          (state as ActiveCompanyReady?)?.activeCompany?.branchName ?? '',
-      bcid:
-          (state as ActiveCompanyReady?)?.activeCompany?.branchCustomerCode ??
-          '',
-    );
-  }
-
-  Widget _buildSearchBar() {
-    return CustomHeaderSearchField(
-      controller: _searchController,
-      hintText: 'Cari nomor, perusahaan, atau customer...',
-      onChanged: (value) => setState(() {
-        _searchQuery = value;
-        _currentPage = 1;
-      }),
-      onClear: () {
-        _searchController.clear();
-        setState(() {
-          _searchQuery = '';
-          _currentPage = 1;
-        });
-      },
-    );
-  }
-
-  Widget _buildActiveFilterChips() {
-    String fmt(DateTime d) =>
-        '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
-
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.fromLTRB(12, 10, 12, 0),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.all(Radius.circular(16)),
-        border: Border.fromBorderSide(BorderSide(color: Color(0xFFF1F5F9))),
-        boxShadow: [
-          BoxShadow(
-            color: Color(0x0D0F172A),
-            blurRadius: 10,
-            offset: Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.filter_list, size: 14, color: kRed),
-          const SizedBox(width: 6),
-          Expanded(
-            child: Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: [
-                if (_filterStatus != null)
-                  _buildChip(
-                    _filterStatus!,
-                    onDelete: () => setState(() {
-                      _filterStatus = null;
-                      _currentPage = 1;
-                    }),
-                  ),
-                if (_filterStartDate != null || _filterEndDate != null)
-                  _buildChip(
-                    '${fmt(_filterStartDate ?? _filterEndDate!)} → ${fmt(_filterEndDate ?? _filterStartDate!)}',
-                    onDelete: () => setState(() {
-                      _filterStartDate = null;
-                      _filterEndDate = null;
-                      _currentPage = 1;
-                    }),
-                  ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildChip(String label, {required VoidCallback onDelete}) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFF1F2),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFFECACA)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            label,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              fontFamily: AppFonts.primaryFont,
-              fontSize: 9.5,
-              fontWeight: FontWeight.w600,
-              color: kRed,
-            ),
-          ),
-          const SizedBox(width: 4),
-          GestureDetector(
-            onTap: onDelete,
-            child: const Icon(Icons.close, size: 13, color: kRed),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSalesOrderCard(SalesOrder so) {
-    final bool isBelumBayar =
-        so.status == 'To Deliver and Bill' ||
-        so.status == 'To Bill' ||
-        so.status == 'Draft' ||
-        so.status == 'Belum Bayar';
-
-    final statusColor = isBelumBayar ? kRed : kGreen;
-    final statusBackground = isBelumBayar
-        ? const Color(0xFFFFF1F2)
-        : const Color(0xFFECFDF5);
-    final statusBorder = isBelumBayar
-        ? const Color(0xFFFECACA)
-        : const Color(0xFFA7F3D0);
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final isSmallScreen = constraints.maxWidth < 336;
-        final identity = Row(
-          children: [
-            Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: statusBackground,
-                borderRadius: BorderRadius.circular(9),
-              ),
-              child: Icon(
-                Icons.receipt_long_outlined,
-                size: 18,
-                color: statusColor,
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                so.name,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontFamily: AppFonts.primaryFont,
-                  fontSize: 12,
-                  height: 1.32,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF0F172A),
-                ),
-              ),
-            ),
-          ],
-        );
-
-        final statusBadge = Container(
-          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-          decoration: BoxDecoration(
-            color: statusBackground,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: statusBorder),
-          ),
-          child: Text(
-            so.status,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontFamily: AppFonts.primaryFont,
-              fontSize: 8.5,
-              fontWeight: FontWeight.w700,
-              color: statusColor,
-            ),
-          ),
-        );
-
-        return DecoratedBox(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.all(Radius.circular(16)),
-            border: Border.fromBorderSide(BorderSide(color: Color(0xFFF1F5F9))),
-            boxShadow: [
-              BoxShadow(
-                color: Color(0x0D0F172A),
-                blurRadius: 14,
-                offset: Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Material(
-            color: Colors.transparent,
-            borderRadius: BorderRadius.circular(16),
-            clipBehavior: Clip.antiAlias,
-            child: InkWell(
-              onTap: () => _openDetail(so),
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (isSmallScreen) ...[
-                      identity,
-                      const SizedBox(height: 8),
-                      Padding(
-                        padding: const EdgeInsets.only(left: 46),
-                        child: statusBadge,
-                      ),
-                    ] else
-                      Row(
-                        children: [
-                          Expanded(child: identity),
-                          const SizedBox(width: 10),
-                          Flexible(child: statusBadge),
-                        ],
-                      ),
-                    const SizedBox(height: 12),
-                    const Divider(height: 1, color: Color(0xFFF1F5F9)),
-                    const SizedBox(height: 12),
-                    if (isSmallScreen) ...[
-                      _buildField(
-                        icon: Icons.business_outlined,
-                        label: 'Perusahaan',
-                        value: so.customer,
-                      ),
-                      const SizedBox(height: 10),
-                      _buildField(
-                        icon: Icons.calendar_today_outlined,
-                        label: 'Tanggal',
-                        value: so.dueDate,
-                      ),
-                    ] else
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _buildField(
-                              icon: Icons.business_outlined,
-                              label: 'Perusahaan',
-                              value: so.customer,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: _buildField(
-                              icon: Icons.calendar_today_outlined,
-                              label: 'Tanggal',
-                              value: so.dueDate,
-                            ),
-                          ),
-                        ],
-                      ),
-                    const SizedBox(height: 10),
-                    _buildField(
-                      icon: Icons.person_outline_rounded,
-                      label: 'Customer',
-                      value: so.customerName,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildField({
-    required IconData icon,
-    required String label,
-    required String value,
-    Color valueColor = const Color(0xFF475569),
-    bool valueBold = false,
-  }) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+  Widget build(BuildContext context) => Scaffold(
+    backgroundColor: AppColors.background,
+    body: Column(
       children: [
-        Icon(icon, size: 15, color: const Color(0xFF94A3B8)),
-        const SizedBox(width: 6),
-        Expanded(
+        _buildHeader(),
+        Container(
+          color: Colors.white,
+          padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                label,
-                style: const TextStyle(
-                  fontFamily: AppFonts.primaryFont,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w500,
-                  color: Color(0xFF94A3B8),
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                value,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontFamily: AppFonts.primaryFont,
-                  color: valueColor,
-                  fontWeight: valueBold ? FontWeight.w600 : FontWeight.w500,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+              _Segmented(value: _section, onChanged: _switchSection),
+              const SizedBox(height: 10),
+              SizedBox(
+                height: 34,
+                child: _section == 0 ? _statusChips() : _pendingChips(),
               ),
             ],
+          ),
+        ),
+        Expanded(child: _section == 0 ? _ordersBody() : _pendingBody()),
+      ],
+    ),
+  );
+
+  Widget _buildHeader() => SizedBox(
+    height: 178,
+    child: Stack(
+      children: [
+        Positioned.fill(
+          child: CustomHeaderAppBar(
+            title: _section == 0 ? 'Sales Order' : 'Menunggu Pengiriman',
+            subtitle: _section == 0
+                ? 'Pantau pesanan Anda'
+                : 'Produk yang masih menunggu pengiriman',
+            brandStyle: true,
+            height: 178,
+          ),
+        ),
+        Positioned(
+          left: 16,
+          right: 16,
+          bottom: 18,
+          child: CustomHeaderSearchField(
+            controller: _searchController,
+            hintText: _section == 0 ? 'Cari Sales Order...' : 'Cari produk...',
+            onChanged: _onSearch,
+            onClear: () {
+              _searchController.clear();
+              _onSearch('');
+            },
           ),
         ),
       ],
+    ),
+  );
+
+  Widget _statusChips() => ListView.separated(
+    scrollDirection: Axis.horizontal,
+    itemCount: _statuses.length,
+    separatorBuilder: (_, _) => const SizedBox(width: 7),
+    itemBuilder: (_, i) {
+      final e = _statuses.entries.elementAt(i);
+      return _Chip(
+        label: e.key,
+        selected: _status == e.value,
+        onTap: () {
+          setState(() => _status = e.value);
+          _loadOrders();
+        },
+      );
+    },
+  );
+  Widget _pendingChips() => ListView(
+    scrollDirection: Axis.horizontal,
+    children: [
+      _Chip(
+        label: 'Semua',
+        selected: !_onlyOverdue,
+        onTap: () {
+          setState(() => _onlyOverdue = false);
+          _loadPending();
+        },
+      ),
+      const SizedBox(width: 7),
+      _Chip(
+        label: 'Terlambat',
+        selected: _onlyOverdue,
+        onTap: () {
+          setState(() => _onlyOverdue = true);
+          _loadPending();
+        },
+      ),
+    ],
+  );
+
+  Widget _ordersBody() => BlocConsumer<SalesOrderCubit, SalesOrderState>(
+    listener: (_, state) {
+      if (state is SalesOrderLoaded && state.loadMoreError != null) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(state.loadMoreError!)));
+      }
+    },
+    builder: (_, state) {
+      if (state is SalesOrderLoading || state is SalesOrderInitial) {
+        return _skeleton();
+      }
+      if (state is SalesOrderUnauthorized) {
+        return _error(state.message, _loadOrders);
+      }
+      if (state is SalesOrderError) return _error(state.message, _loadOrders);
+      final loaded = state as SalesOrderLoaded;
+      if (loaded.items.isEmpty) {
+        final searching = _searchController.text.trim().isNotEmpty;
+        return _empty(
+          searching ? 'Sales Order tidak ditemukan.' : 'Belum ada Sales Order.',
+          searching
+              ? 'Coba gunakan nomor atau nama customer yang berbeda.'
+              : 'Pesanan Anda akan tampil di halaman ini.',
+          searchEmpty: searching,
+        );
+      }
+      return RefreshIndicator(
+        color: AppColors.primaryColor,
+        onRefresh: context.read<SalesOrderCubit>().refresh,
+        child: ListView.builder(
+          controller: _scrollController,
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
+          itemCount: loaded.items.length + (loaded.isLoadingMore ? 1 : 0),
+          itemBuilder: (_, i) => i == loaded.items.length
+              ? _bottomLoader()
+              : _orderCard(loaded.items[i]),
+        ),
+      );
+    },
+  );
+
+  Widget _pendingBody() {
+    if (_pendingLoading && _pendingItems.isEmpty) return _skeleton();
+    if (_pendingError != null && _pendingItems.isEmpty) {
+      return _error(_pendingError!, _loadPending);
+    }
+    if (_pendingItems.isEmpty) {
+      final searching = _searchController.text.trim().isNotEmpty;
+      return _empty(
+        searching
+            ? 'Produk tidak ditemukan.'
+            : _onlyOverdue
+            ? 'Tidak ada pengiriman yang terlambat.'
+            : 'Semua pesanan sudah terkirim.',
+        searching
+            ? 'Coba gunakan kode atau nama produk yang berbeda.'
+            : _onlyOverdue
+            ? 'Produk terlambat akan tampil di sini.'
+            : 'Saat ada produk yang masih menunggu pengiriman, produk akan muncul di sini.',
+        searchEmpty: searching,
+        positive: !searching && !_onlyOverdue,
+      );
+    }
+    return RefreshIndicator(
+      color: AppColors.primaryColor,
+      onRefresh: () => _loadPending(refresh: true),
+      child: ListView.builder(
+        controller: _scrollController,
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
+        itemCount: _pendingItems.length + 1 + (_pendingLoadingMore ? 1 : 0),
+        itemBuilder: (_, i) {
+          if (i == 0) return _summary();
+          if (i > _pendingItems.length) return _bottomLoader();
+          return _pendingCard(_pendingItems[i - 1]);
+        },
+      ),
     );
   }
 
-  Widget _buildPagination(int totalPages, int totalItems) {
-    final startItem = ((_currentPage - 1) * _itemsPerPage) + 1;
-    final endItem = (_currentPage * _itemsPerPage).clamp(0, totalItems);
-    final pageNumbers = _visiblePages(totalPages);
+  Widget _summary() => Padding(
+    padding: const EdgeInsets.only(bottom: 10),
+    child: Text(
+      '${_pendingSummary.totalItemRows} Item menunggu pengiriman',
+      style: _textStyle(11.5, FontWeight.w600, const Color(0xFF475569)),
+    ),
+  );
 
-    return Padding(
-      padding: const EdgeInsets.only(top: 8, bottom: 8),
+  Widget _orderCard(SalesOrder order) => _Card(
+    onTap: () => _openOrder(order),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                order.name,
+                style: _textStyle(13, FontWeight.w700, const Color(0xFF1E293B)),
+              ),
+            ),
+            if (_openingOrderName == order.name)
+              const SizedBox.square(
+                dimension: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.2,
+                  color: AppColors.primaryColor,
+                ),
+              )
+            else
+              _Badge(
+                label: _statusLabel(order.status),
+                danger: false,
+                success: order.status == 'Completed',
+              ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Text(
+          _date(order.transactionDate),
+          style: _textStyle(10.5, FontWeight.w400, const Color(0xFF64748B)),
+        ),
+        const SizedBox(height: 10),
+        Text(
+          _money(order.grandTotal, order.currency),
+          style: _textStyle(15, FontWeight.w700, const Color(0xFF0F172A)),
+        ),
+        const SizedBox(height: 12),
+        _Progress(label: 'Pengiriman', value: order.perDelivered),
+        const SizedBox(height: 9),
+        _Progress(label: 'Penagihan', value: order.perBilled),
+      ],
+    ),
+  );
+
+  Widget _pendingCard(PendingSalesOrderItem item) => _Card(
+    onTap: () => _openPendingOrder(item),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Text(
+                item.itemName,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: _textStyle(
+                  12.5,
+                  FontWeight.w700,
+                  const Color(0xFF1E293B),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            if (_openingOrderName == item.salesOrder)
+              const SizedBox.square(
+                dimension: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.2,
+                  color: AppColors.primaryColor,
+                ),
+              )
+            else
+              _Badge(
+                label: item.isOverdue
+                    ? 'Terlambat${item.overdueDays > 0 ? ' ${item.overdueDays} hari' : ''}'
+                    : item.deliveredQty > 0
+                    ? 'Sebagian Terkirim'
+                    : 'Menunggu Pengiriman',
+                danger: item.isOverdue,
+              ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Text(
+          '${item.salesOrder}  •  ${item.itemCode}',
+          style: _textStyle(10.5, FontWeight.w500, const Color(0xFF64748B)),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Target ${_date(item.deliveryDate)}',
+          style: _textStyle(10.5, FontWeight.w400, const Color(0xFF64748B)),
+        ),
+        const Divider(height: 20, color: Color(0xFFF1F5F9)),
+        Row(
+          children: [
+            _Qty(label: 'Dipesan', value: item.qty, uom: item.uom),
+            _Qty(label: 'Terkirim', value: item.deliveredQty, uom: item.uom),
+            _Qty(
+              label: 'Sisa',
+              value: item.remainingQty,
+              uom: item.uom,
+              strong: true,
+            ),
+          ],
+        ),
+      ],
+    ),
+  );
+
+  Future<void> _openOrder(SalesOrder order) async {
+    await _openOrderDetail(
+      salesOrderName: order.name,
+      customer: order.customer,
+    );
+  }
+
+  Future<void> _openPendingOrder(PendingSalesOrderItem item) async {
+    await _openOrderDetail(
+      salesOrderName: item.salesOrder,
+      customer: item.customer,
+    );
+  }
+
+  Future<void> _openOrderDetail({
+    required String salesOrderName,
+    required String customer,
+  }) async {
+    if (_openingOrderName != null) return;
+    setState(() => _openingOrderName = salesOrderName);
+    final credential =
+        _credential ??
+        await BranchCredentialService().fetchCredential(_branchCode);
+    if (credential == null || !mounted) {
+      if (mounted) setState(() => _openingOrderName = null);
+      return;
+    }
+
+    try {
+      final detail = await SalesOrderDetailService().fetchDetail(
+        baseUrl: credential.url,
+        token: credential.token,
+        salesOrderName: salesOrderName,
+        expectedCustomer: customer,
+      );
+      if (!mounted) return;
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => SalesOrderDetailPage(
+            salesOrder: detail.toDetailMap(),
+            baseUrl: credential.url,
+            token: credential.token,
+          ),
+        ),
+      );
+    } on SalesOrderApiException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.message)));
+    } finally {
+      if (mounted) setState(() => _openingOrderName = null);
+    }
+  }
+
+  Widget _skeleton() => Shimmer.fromColors(
+    baseColor: Colors.grey.shade300,
+    highlightColor: Colors.grey.shade100,
+    child: ListView.separated(
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 20),
+      itemCount: 5,
+      separatorBuilder: (_, _) => const SizedBox(height: 10),
+      itemBuilder: (_, _) => Container(
+        height: 142,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFFF1F5F9)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 124,
+                  height: 12,
+                  decoration: _skeletonDecoration(5),
+                ),
+                const Spacer(),
+                Container(
+                  width: 82,
+                  height: 20,
+                  decoration: _skeletonDecoration(10),
+                ),
+              ],
+            ),
+            const SizedBox(height: 9),
+            Container(width: 86, height: 9, decoration: _skeletonDecoration(4)),
+            const SizedBox(height: 13),
+            Container(
+              width: 148,
+              height: 15,
+              decoration: _skeletonDecoration(5),
+            ),
+            const Spacer(),
+            Container(
+              width: double.infinity,
+              height: 6,
+              decoration: _skeletonDecoration(4),
+            ),
+            const SizedBox(height: 10),
+            Container(
+              width: double.infinity,
+              height: 6,
+              decoration: _skeletonDecoration(4),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+
+  BoxDecoration _skeletonDecoration(double radius) => BoxDecoration(
+    color: Colors.white,
+    borderRadius: BorderRadius.circular(radius),
+  );
+
+  Widget _error(String message, VoidCallback retry) => Center(
+    child: Padding(
+      padding: const EdgeInsets.all(24),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Text(
-            '$startItem–$endItem dari $totalItems data',
-            style: const TextStyle(
-              fontFamily: AppFonts.primaryFont,
-              fontSize: 11,
-              fontWeight: FontWeight.w500,
-              color: Color(0xFF64748B),
-              letterSpacing: 0.2,
+          Container(
+            width: 58,
+            height: 58,
+            decoration: const BoxDecoration(
+              color: Color(0xFFFFF1F2),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.cloud_off_rounded,
+              size: 28,
+              color: AppColors.primaryColor,
             ),
           ),
-          const SizedBox(height: 10),
-          Center(
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  // Prev
-                  GestureDetector(
-                    onTap: _currentPage > 1
-                        ? () => _goToPage(_currentPage - 1, totalPages)
-                        : null,
-                    child: Icon(
-                      Icons.chevron_left_rounded,
-                      size: 22,
-                      color: _currentPage > 1 ? kRed : const Color(0xFFCBD5E1),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-
-                  // Halaman pertama + ellipsis kiri
-                  if (pageNumbers.first > 1) ...[
-                    _paginationItem(1, totalPages),
-                    if (pageNumbers.first > 2)
-                      const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 6),
-                        child: Text(
-                          '·····',
-                          style: TextStyle(
-                            color: Color(0xFF94A3B8),
-                            fontSize: 10,
-                            letterSpacing: 1,
-                          ),
-                        ),
-                      ),
-                  ],
-
-                  // Nomor tengah
-                  ...pageNumbers.map((p) => _paginationItem(p, totalPages)),
-
-                  // Ellipsis kanan + halaman terakhir
-                  if (pageNumbers.last < totalPages) ...[
-                    if (pageNumbers.last < totalPages - 1)
-                      const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 6),
-                        child: Text(
-                          '·····',
-                          style: TextStyle(
-                            color: Color(0xFF94A3B8),
-                            fontSize: 10,
-                            letterSpacing: 1,
-                          ),
-                        ),
-                      ),
-                    _paginationItem(totalPages, totalPages),
-                  ],
-
-                  const SizedBox(width: 8),
-                  // Next
-                  GestureDetector(
-                    onTap: _currentPage < totalPages
-                        ? () => _goToPage(_currentPage + 1, totalPages)
-                        : null,
-                    child: Icon(
-                      Icons.chevron_right_rounded,
-                      size: 22,
-                      color: _currentPage < totalPages
-                          ? kRed
-                          : const Color(0xFFCBD5E1),
-                    ),
-                  ),
-                ],
+          const SizedBox(height: 12),
+          Text(
+            'Pesanan belum dapat dimuat',
+            textAlign: TextAlign.center,
+            style: _textStyle(13, FontWeight.w700, const Color(0xFF1E293B)),
+          ),
+          const SizedBox(height: 5),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: _textStyle(
+              11,
+              FontWeight.w400,
+              const Color(0xFF64748B),
+            ).copyWith(height: 1.4),
+          ),
+          const SizedBox(height: 16),
+          OutlinedButton.icon(
+            onPressed: retry,
+            icon: const Icon(Icons.refresh_rounded, size: 17),
+            label: const Text('Coba Lagi'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.primaryColor,
+              side: const BorderSide(color: AppColors.primaryColor),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(9),
               ),
             ),
           ),
         ],
       ),
-    );
-  }
-
-  Widget _paginationItem(int page, int totalPages) {
-    final isActive = page == _currentPage;
-    return GestureDetector(
-      onTap: () => _goToPage(page, totalPages),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        margin: const EdgeInsets.symmetric(horizontal: 3),
-        width: isActive ? 32 : 28,
-        height: isActive ? 32 : 28,
-        decoration: BoxDecoration(
-          color: isActive ? kRed : Colors.white,
-          borderRadius: BorderRadius.circular(9),
-          border: Border.all(color: isActive ? kRed : const Color(0xFFE2E8F0)),
-        ),
-        alignment: Alignment.center,
-        child: Text(
-          '$page',
-          style: TextStyle(
-            fontFamily: AppFonts.primaryFont,
-            fontSize: isActive ? 13 : 12,
-            fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
-            color: isActive ? Colors.white : const Color(0xFF64748B),
+    ),
+  );
+  Widget _empty(
+    String title,
+    String subtitle, {
+    bool searchEmpty = false,
+    bool positive = false,
+  }) => Center(
+    child: Padding(
+      padding: const EdgeInsets.all(28),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 58,
+            height: 58,
+            decoration: BoxDecoration(
+              color: positive
+                  ? const Color(0xFFECFDF5)
+                  : const Color(0xFFF1F5F9),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              searchEmpty
+                  ? Icons.search_off_rounded
+                  : positive
+                  ? Icons.check_circle_outline_rounded
+                  : Icons.inventory_2_outlined,
+              size: 28,
+              color: positive
+                  ? const Color(0xFF059669)
+                  : const Color(0xFF94A3B8),
+            ),
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildLoadingState() {
-    return Shimmer.fromColors(
-      baseColor: const Color(0xFFE2E8F0),
-      highlightColor: const Color(0xFFF8FAFC),
-      child: ListView.separated(
-        physics: const NeverScrollableScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(0, 8, 0, 24),
-        itemCount: 3,
-        separatorBuilder: (_, __) => const SizedBox(height: 10),
-        itemBuilder: (_, __) => Container(
-          height: 142,
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.all(Radius.circular(16)),
-            border: Border.fromBorderSide(BorderSide(color: Color(0xFFF1F5F9))),
+          const SizedBox(height: 12),
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            style: _textStyle(13, FontWeight.w700, const Color(0xFF1E293B)),
           ),
+          const SizedBox(height: 5),
+          Text(
+            subtitle,
+            textAlign: TextAlign.center,
+            style: _textStyle(
+              11,
+              FontWeight.w400,
+              searchEmpty ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+            ).copyWith(height: 1.4),
+          ),
+        ],
+      ),
+    ),
+  );
+  Widget _bottomLoader() => const Padding(
+    padding: EdgeInsets.symmetric(vertical: 16),
+    child: Center(
+      child: SizedBox.square(
+        dimension: 22,
+        child: CircularProgressIndicator(
+          strokeWidth: 2.2,
+          color: AppColors.primaryColor,
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
-  Widget _buildEmptyState({required bool isSearchResult}) {
-    return Center(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 58,
-              height: 58,
-              decoration: const BoxDecoration(
-                color: Color(0xFFF1F5F9),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                isSearchResult
-                    ? Icons.search_off_rounded
-                    : Icons.receipt_long_outlined,
-                size: 28,
-                color: const Color(0xFF94A3B8),
-              ),
-            ),
-            const SizedBox(height: 14),
-            Text(
-              isSearchResult
-                  ? 'Sales order tidak ditemukan'
-                  : 'Belum ada sales order',
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontFamily: AppFonts.primaryFont,
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF1E293B),
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              isSearchResult
-                  ? 'Coba ubah kata pencarian atau filter yang digunakan.'
-                  : 'Data sales order akan tampil di halaman ini.',
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontFamily: AppFonts.primaryFont,
-                fontSize: 11,
-                height: 1.4,
-                color: Color(0xFF94A3B8),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildErrorState({
-    required String title,
-    required String message,
-    VoidCallback? onRetry,
-  }) {
-    return Center(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 58,
-              height: 58,
-              decoration: const BoxDecoration(
-                color: Color(0xFFFFF1F2),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.error_outline_rounded,
-                size: 28,
-                color: kRed,
-              ),
-            ),
-            const SizedBox(height: 14),
-            Text(
-              title,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontFamily: AppFonts.primaryFont,
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF1E293B),
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              message,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontFamily: AppFonts.primaryFont,
-                fontSize: 11,
-                height: 1.4,
-                color: Color(0xFF64748B),
-              ),
-            ),
-            if (onRetry != null) ...[
-              const SizedBox(height: 14),
-              OutlinedButton.icon(
-                onPressed: onRetry,
-                icon: const Icon(Icons.refresh_rounded, size: 16),
-                label: const Text('Coba Lagi'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: kRed,
-                  side: const BorderSide(color: kRed),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 10,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(9),
-                  ),
-                  textStyle: const TextStyle(
-                    fontFamily: AppFonts.primaryFont,
-                    fontSize: 10.5,
-                    fontWeight: FontWeight.w700,
+class _Segmented extends StatelessWidget {
+  const _Segmented({required this.value, required this.onChanged});
+  final int value;
+  final ValueChanged<int> onChanged;
+  @override
+  Widget build(BuildContext context) => Container(
+    height: 40,
+    padding: const EdgeInsets.all(3),
+    decoration: BoxDecoration(
+      color: const Color(0xFFF1F5F9),
+      borderRadius: BorderRadius.circular(11),
+    ),
+    child: Row(
+      children: [
+        for (final e in const [(0, 'Sales Order'), (1, 'Item Diproses')])
+          Expanded(
+            child: InkWell(
+              borderRadius: BorderRadius.circular(9),
+              onTap: () => onChanged(e.$1),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 160),
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: value == e.$1 ? Colors.white : Colors.transparent,
+                  borderRadius: BorderRadius.circular(9),
+                  boxShadow: value == e.$1
+                      ? const [
+                          BoxShadow(color: Color(0x100F172A), blurRadius: 4),
+                        ]
+                      : null,
+                ),
+                child: Text(
+                  e.$2,
+                  style: _textStyle(
+                    10.5,
+                    FontWeight.w600,
+                    value == e.$1
+                        ? AppColors.primaryColor
+                        : const Color(0xFF64748B),
                   ),
                 ),
               ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
+            ),
+          ),
+      ],
+    ),
+  );
 }
 
-// ── Helper widget tombol date picker ──────────────────────────
-class _DatePickerButton extends StatelessWidget {
-  final String label;
-  final String value;
-  final VoidCallback onTap;
-  final bool hasValue;
-
-  const _DatePickerButton({
+class _Chip extends StatelessWidget {
+  const _Chip({
     required this.label,
-    required this.value,
+    required this.selected,
     required this.onTap,
-    required this.hasValue,
   });
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+  @override
+  Widget build(BuildContext context) => InkWell(
+    borderRadius: BorderRadius.circular(20),
+    onTap: onTap,
+    child: Container(
+      alignment: Alignment.center,
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
+      decoration: BoxDecoration(
+        color: selected ? AppColors.primaryColor : Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: selected ? AppColors.primaryColor : const Color(0xFFE2E8F0),
+        ),
+      ),
+      child: Text(
+        label,
+        style: _textStyle(
+          10.5,
+          FontWeight.w700,
+          selected ? Colors.white : const Color(0xFF334155),
+        ),
+      ),
+    ),
+  );
+}
 
+class _Card extends StatelessWidget {
+  const _Card({required this.child, required this.onTap});
+  final Widget child;
+  final VoidCallback onTap;
+  @override
+  Widget build(BuildContext context) => Container(
+    margin: const EdgeInsets.only(bottom: 10),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(16),
+      border: Border.all(color: const Color(0xFFF1F5F9)),
+      boxShadow: const [
+        BoxShadow(
+          color: Color(0x0D0F172A),
+          blurRadius: 9,
+          offset: Offset(0, 3),
+        ),
+      ],
+    ),
+    child: InkWell(
+      borderRadius: BorderRadius.circular(16),
+      onTap: onTap,
+      child: Padding(padding: const EdgeInsets.all(14), child: child),
+    ),
+  );
+}
+
+class _Badge extends StatelessWidget {
+  const _Badge({
+    required this.label,
+    this.danger = false,
+    this.success = false,
+  });
+  final String label;
+  final bool danger, success;
   @override
   Widget build(BuildContext context) {
-    const kRed = AppColors.primaryColor;
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        constraints: const BoxConstraints(minHeight: 48),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color: hasValue ? const Color(0xFFFFF1F2) : const Color(0xFFF8FAFC),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: hasValue ? const Color(0xFFFECACA) : const Color(0xFFE2E8F0),
-          ),
-        ),
-        child: Row(
-          children: [
-            Icon(
-              Icons.calendar_month_outlined,
-              size: 16,
-              color: hasValue ? kRed : const Color(0xFF94A3B8),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    label,
-                    style: TextStyle(
-                      fontFamily: AppFonts.primaryFont,
-                      fontSize: 10,
-                      color: hasValue ? kRed : const Color(0xFF94A3B8),
-                    ),
-                  ),
-                  Text(
-                    value,
-                    style: TextStyle(
-                      fontFamily: AppFonts.primaryFont,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: hasValue ? kRed : const Color(0xFF475569),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
+    final color = danger
+        ? const Color(0xFFDC2626)
+        : success
+        ? const Color(0xFF059669)
+        : const Color(0xFFD97706);
+    return Container(
+      constraints: const BoxConstraints(maxWidth: 145),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withOpacity(.09),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        label,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: _textStyle(8.5, FontWeight.w700, color),
       ),
     );
   }
 }
+
+class _Progress extends StatelessWidget {
+  const _Progress({required this.label, required this.value});
+  final String label;
+  final double value;
+  @override
+  Widget build(BuildContext context) => Column(
+    children: [
+      Row(
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              style: _textStyle(10, FontWeight.w500, const Color(0xFF475569)),
+            ),
+          ),
+          Text(
+            '${value.toStringAsFixed(0)}%',
+            style: _textStyle(10, FontWeight.w700, const Color(0xFF1E293B)),
+          ),
+        ],
+      ),
+      const SizedBox(height: 5),
+      ClipRRect(
+        borderRadius: BorderRadius.circular(4),
+        child: LinearProgressIndicator(
+          value: value / 100,
+          minHeight: 6,
+          backgroundColor: const Color(0xFFF1F5F9),
+          color: AppColors.primaryColor,
+        ),
+      ),
+    ],
+  );
+}
+
+class _Qty extends StatelessWidget {
+  const _Qty({
+    required this.label,
+    required this.value,
+    required this.uom,
+    this.strong = false,
+  });
+  final String label, uom;
+  final double value;
+  final bool strong;
+  @override
+  Widget build(BuildContext context) => Expanded(
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: _textStyle(9.5, FontWeight.w400, const Color(0xFF64748B)),
+        ),
+        const SizedBox(height: 3),
+        Text(
+          '${_qty(value)} $uom',
+          overflow: TextOverflow.ellipsis,
+          style: _textStyle(
+            11,
+            strong ? FontWeight.w700 : FontWeight.w600,
+            strong ? AppColors.primaryColor : const Color(0xFF1E293B),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+TextStyle _textStyle(double size, FontWeight weight, Color color) => TextStyle(
+  fontFamily: AppFonts.primaryFont,
+  fontSize: size,
+  fontWeight: weight,
+  color: color,
+);
+String _statusLabel(String status) => switch (status) {
+  'To Deliver' => 'Menunggu Pengiriman',
+  'To Bill' => 'Menunggu Tagihan',
+  'To Deliver and Bill' => 'Pengiriman & Tagihan',
+  'Completed' => 'Selesai',
+  _ => status,
+};
+String _date(String value) {
+  final parsed = DateTime.tryParse(value);
+  return parsed == null
+      ? value
+      : DateFormat('d MMM yyyy', 'id_ID').format(parsed);
+}
+
+String _money(double value, String currency) => NumberFormat.currency(
+  locale: 'id_ID',
+  symbol: currency == 'IDR' ? 'Rp' : '$currency ',
+  decimalDigits: currency == 'IDR' ? 0 : 2,
+).format(value);
+String _qty(double value) => NumberFormat('#,##0.###', 'id_ID').format(value);
