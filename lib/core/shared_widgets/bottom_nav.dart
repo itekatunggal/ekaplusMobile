@@ -42,7 +42,6 @@ class BottomNavBar extends StatelessWidget {
     return MediaQuery(
       data: MediaQuery.of(context).copyWith(textScaleFactor: scale),
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
         decoration: BoxDecoration(
           color: AppColors.whiteColor,
           boxShadow: [
@@ -53,19 +52,27 @@ class BottomNavBar extends StatelessWidget {
             topRight: Radius.circular(16),
           ),
         ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: List.generate(items.length, (index) {
-            final item = items[index];
+        // Ikuti system navigation inset masing-masing perangkat. Dengan begitu
+        // tombol tidak tertutup navigation bar Android tanpa offset tetap.
+        child: SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: List.generate(items.length, (index) {
+                final item = items[index];
 
-            return _NavItem(
-              icon: item.icon,
-              selectedIcon: item.selectedIcon,
-              label: item.label,
-              selected: currentIndex == index,
-              onTap: () => onTap(index),
-            );
-          }),
+                return _NavItem(
+                  icon: item.icon,
+                  selectedIcon: item.selectedIcon,
+                  label: item.label,
+                  selected: currentIndex == index,
+                  onTap: () => onTap(index),
+                );
+              }),
+            ),
+          ),
         ),
       ),
     );
