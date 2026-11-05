@@ -40,7 +40,8 @@ class ApiConfig {
 
   // API Endpoints - Transaksi
   static String get transaksi => '$baseTransaksiUrl/transaksi/get_all.php';
-  static String get transaksiById => '$baseTransaksiUrl/transaksi/get_by_id.php';
+  static String get transaksiById =>
+      '$baseTransaksiUrl/transaksi/get_by_id.php';
 
   // Get full URL for any endpoint
   static String getUrl(String endpoint) {

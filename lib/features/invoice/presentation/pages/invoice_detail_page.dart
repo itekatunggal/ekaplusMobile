@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ekaplus_ekatunggal/constant.dart';
 import 'package:ekaplus_ekatunggal/features/invoice/data/services/payment_entry_service.dart';
 import 'package:ekaplus_ekatunggal/features/member/presentation/cubit/active_company_cubit.dart';
 import 'package:ekaplus_ekatunggal/features/salesOrder/data/services/branch_credential_service.dart';
@@ -20,8 +21,8 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage>
 
   // null = tampil list, isi = tampil detail
   Map<String, dynamic>? _selectedPayment;
-  Map<String, dynamic>? _selectedDelivery; 
-  Map<String, dynamic>? _selectedSales; 
+  Map<String, dynamic>? _selectedDelivery;
+  Map<String, dynamic>? _selectedSales;
 
   bool _isLoadingPayment = false;
   List<Map<String, dynamic>> _paymentList = [];
@@ -35,17 +36,23 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage>
   List<Map<String, dynamic>> _deliveryNoteList = [];
   bool _deliveryLoaded = false;
 
+  static const Color kRed = AppColors.primaryColor;
+  static const Color kGreen = Color(0xFF059669);
+  static const Color kBg = AppColors.background;
 
-  static const Color kRed   = Color(0xFFC0392B);
-  static const Color kGreen = Color(0xFF27AE60);
-  static const Color kBg    = Color(0xFFF2F2F7);
+  static const Color kInk = Color(0xFF0F172A);
+  static const Color kMuted = Color(0xFF64748B);
+  static const Color kFaint = Color(0xFF94A3B8);
+  static const Color kLine = Color(0xFFF1F5F9);
 
   // ── Null-safe helpers ─────────────────────────────────────────────────────
   String _s(String key, [String fallback = '-']) =>
       widget.invoice[key]?.toString() ?? fallback;
 
-  int _i(String key, [int fallback = 0]) =>
-      widget.invoice[key] is int ? widget.invoice[key] as int : fallback;
+  int _i(String key, [int fallback = 0]) {
+    final v = widget.invoice[key];
+    return v is num ? v.toInt() : fallback;
+  }
 
   List<Map<String, dynamic>> _list(String key) {
     final raw = widget.invoice[key];
@@ -60,11 +67,11 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage>
     if (raw is Map) return Map<String, dynamic>.from(raw);
     return {};
   }
-  // ─────────────────────────────────────────────────────────────────────────
 
   String _rupiah(int v) {
     if (v == 0) return 'Rp 0';
-    final s = v.toString();
+    final neg = v < 0;
+    final s = v.abs().toString();
     String r = '';
     int c = 0;
     for (int i = s.length - 1; i >= 0; i--) {
@@ -72,30 +79,57 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage>
       r = s[i] + r;
       c++;
     }
-    return 'Rp $r';
+    return '${neg ? '-' : ''}Rp $r';
   }
+
+  /// Format rupiah dari nilai dinamis (num / String / null).
+  String _money(dynamic v) {
+    if (v is num) return _rupiah(v.toInt());
+    final n = num.tryParse(v?.toString() ?? '');
+    return n == null ? '-' : _rupiah(n.toInt());
+  }
+
+  bool _isPaidLike(String status) {
+    final l = status.toLowerCase();
+    if (l.contains('unpaid') || l.contains('belum') || l.contains('overdue')) {
+      return false;
+    }
+    return l.contains('paid') ||
+        l.contains('lunas') ||
+        l.contains('completed') ||
+        l.contains('closed');
+  }
+
+  bool _isUnpaidLike(String status) {
+    final l = status.toLowerCase();
+    return l.contains('unpaid') || l.contains('belum') || l.contains('overdue');
+  }
+
+  String _stripHtml(String? html, [String fallback = '-']) {
+    if (html == null || html.isEmpty) return fallback;
+    final out = html
+        .replaceAll(RegExp(r'<br\s*/?>', caseSensitive: false), '\n')
+        .replaceAll(RegExp(r'<[^>]*>'), '')
+        .trim();
+    return out.isEmpty ? fallback : out;
+  }
+  // ─────────────────────────────────────────────────────────────────────────
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 5, vsync: this);
-    // Reset payment detail saat pindah tab
+    // Reset detail saat pindah tab
     _tabController.addListener(() {
       if (_tabController.indexIsChanging) {
         setState(() {
           _selectedPayment = null;
-          _selectedDelivery = null; 
+          _selectedDelivery = null;
           _selectedSales = null;
         });
-        if (_tabController.index == 2) {
-          _loadPaymentEntry();
-        }
-        if (_tabController.index == 3) {
-          _loadDeliveryNotes();
-        }
-        if (_tabController.index == 4) {
-          _loadSales();
-        }
+        if (_tabController.index == 2) _loadPaymentEntry();
+        if (_tabController.index == 3) _loadDeliveryNotes();
+        if (_tabController.index == 4) _loadSales();
       }
     });
   }
@@ -108,40 +142,65 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage>
 
   @override
   Widget build(BuildContext context) {
-    final bool isBelumBayar = _s('status') == 'Belum Bayar';
+    final status = _s('status').toLowerCase();
+    final bool isBelumBayar =
+        status == 'belum bayar' || status == 'unpaid' || status == 'overdue';
 
-    return Scaffold(
-      backgroundColor: kBg,
-      body: Column(
-        children: [
-          _buildHeader(context, isBelumBayar),
-          Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              // Matikan swipe saat di payment detail agar back di header bisa berfungsi
-              physics: (_selectedPayment != null || _selectedDelivery != null || _selectedSales != null)
-                  ? const NeverScrollableScrollPhysics()
-                  : null,
-              children: [
-                _tabDetail(),
-                _tabItem(),
-                _tabPembayaran(),
-                _tabDelivery(),
-                _tabSales(),
-              ],
+    return Theme(
+      data: Theme.of(context).copyWith(
+        textTheme: Theme.of(
+          context,
+        ).textTheme.apply(fontFamily: AppFonts.primaryFont),
+      ),
+      child: Scaffold(
+        backgroundColor: kBg,
+        body: Column(
+          children: [
+            _buildHeader(context, isBelumBayar),
+            _buildTabs(),
+            Expanded(
+              child: TabBarView(
+                controller: _tabController,
+                physics:
+                    (_selectedPayment != null ||
+                        _selectedDelivery != null ||
+                        _selectedSales != null)
+                    ? const NeverScrollableScrollPhysics()
+                    : null,
+                children: [
+                  _tabDetail(),
+                  _tabItem(),
+                  _tabPembayaran(),
+                  _tabDelivery(),
+                  _tabSales(),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
+  void _handleBack() {
+    if (_selectedPayment != null) {
+      setState(() => _selectedPayment = null);
+    } else if (_selectedDelivery != null) {
+      setState(() => _selectedDelivery = null);
+    } else if (_selectedSales != null) {
+      setState(() => _selectedSales = null);
+    } else {
+      Navigator.pop(context);
+    }
+  }
+
+  // ─── DATA LOADERS ─────────────────────────────────────────────────────────
   Future<void> _loadPaymentEntry() async {
     if (_paymentLoaded) return;
 
     setState(() => _isLoadingPayment = true);
 
-    final soName      = _s('series');
+    final soName = _s('series');
     final invoiceName = _s('name');
 
     if (soName.isEmpty || soName == '-') {
@@ -152,10 +211,13 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage>
       return;
     }
 
-    final activeState = context.read<ActiveCompanyCubit>().state as ActiveCompanyReady?;
-    final branchName  = activeState?.activeCompany?.branchName ?? '';
-    final bcid        = activeState?.activeCompany?.branchCustomerCode ?? '';
-    final credential  = await BranchCredentialService().fetchCredential(branchName);
+    final activeState =
+        context.read<ActiveCompanyCubit>().state as ActiveCompanyReady?;
+    final branchName = activeState?.activeCompany?.branchName ?? '';
+    final bcid = activeState?.activeCompany?.branchCustomerCode ?? '';
+    final credential = await BranchCredentialService().fetchCredential(
+      branchName,
+    );
 
     if (credential == null || !mounted) {
       setState(() => _isLoadingPayment = false);
@@ -163,10 +225,10 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage>
     }
 
     final results = await PaymentEntryService().fetchBySOName(
-      baseUrl:     credential.url,
-      token:       credential.token,
-      bcid:        bcid,
-      soName:      soName,
+      baseUrl: credential.url,
+      token: credential.token,
+      bcid: bcid,
+      soName: soName,
       invoiceName: invoiceName,
     );
 
@@ -184,8 +246,8 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage>
 
     setState(() => _isLoadingDelivery = true);
 
-    final soName      = _s('series');  
-    final invoiceName = _s('name');  
+    final soName = _s('series');
+    final invoiceName = _s('name');
 
     if (soName.isEmpty || soName == '-') {
       setState(() {
@@ -195,10 +257,13 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage>
       return;
     }
 
-    final activeState = context.read<ActiveCompanyCubit>().state as ActiveCompanyReady?;
-    final branchName  = activeState?.activeCompany?.branchName ?? '';
-    final bcid        = activeState?.activeCompany?.branchCustomerCode ?? '';
-    final credential  = await BranchCredentialService().fetchCredential(branchName);
+    final activeState =
+        context.read<ActiveCompanyCubit>().state as ActiveCompanyReady?;
+    final branchName = activeState?.activeCompany?.branchName ?? '';
+    final bcid = activeState?.activeCompany?.branchCustomerCode ?? '';
+    final credential = await BranchCredentialService().fetchCredential(
+      branchName,
+    );
 
     if (credential == null || !mounted) {
       setState(() => _isLoadingDelivery = false);
@@ -206,12 +271,12 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage>
     }
 
     final results = await DeliveryNoteService().fetchBySOName(
-      baseUrl:     credential.url,
-      token:       credential.token,
-      bcid:        bcid,
+      baseUrl: credential.url,
+      token: credential.token,
+      bcid: bcid,
       invoiceName: invoiceName,
-      soName:      soName,       // SO-... → body
-      refName: invoiceName,  // SJ-... → URL
+      soName: soName, // SO-... → body
+      refName: invoiceName, // SJ-... → URL
     );
 
     if (!mounted) return;
@@ -228,7 +293,7 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage>
 
     setState(() => _isLoadingSales = true);
 
-    final soName      = _s('series');
+    final soName = _s('series');
     final invoiceName = _s('name');
 
     if (soName.isEmpty || soName == '-') {
@@ -239,10 +304,13 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage>
       return;
     }
 
-    final activeState = context.read<ActiveCompanyCubit>().state as ActiveCompanyReady?;
-    final branchName  = activeState?.activeCompany?.branchName ?? '';
-    final bcid        = activeState?.activeCompany?.branchCustomerCode ?? '';
-    final credential  = await BranchCredentialService().fetchCredential(branchName);
+    final activeState =
+        context.read<ActiveCompanyCubit>().state as ActiveCompanyReady?;
+    final branchName = activeState?.activeCompany?.branchName ?? '';
+    final bcid = activeState?.activeCompany?.branchCustomerCode ?? '';
+    final credential = await BranchCredentialService().fetchCredential(
+      branchName,
+    );
 
     if (credential == null || !mounted) {
       setState(() => _isLoadingSales = false);
@@ -250,10 +318,10 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage>
     }
 
     final results = await SalesOrderService().fetchBySOName(
-      baseUrl:     credential.url,
-      token:       credential.token,
-      bcid:        bcid,
-      soName:      soName,
+      baseUrl: credential.url,
+      token: credential.token,
+      bcid: bcid,
+      soName: soName,
       invoiceName: invoiceName,
     );
 
@@ -268,1306 +336,1285 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage>
 
   // ─── HEADER ───────────────────────────────────────────────────────────────
   Widget _buildHeader(BuildContext context, bool isBelumBayar) {
+    final Widget summary;
+    final String title;
+
+    if (_selectedPayment != null) {
+      final p = _selectedPayment!;
+      title = 'Detail Pembayaran';
+      summary = _detailSummary(
+        title: p['name']?.toString() ?? '-',
+        status: p['status']?.toString() ?? '-',
+        metas: [
+          (Icons.calendar_today_outlined, p['posting_date']?.toString() ?? '-'),
+          (Icons.person_outline, p['party_name']?.toString() ?? '-'),
+          (
+            Icons.account_balance_wallet_outlined,
+            'Sisa ${_money(p['outstanding_amount'])}',
+          ),
+        ],
+      );
+    } else if (_selectedDelivery != null) {
+      final p = _selectedDelivery!;
+      title = 'Detail Delivery';
+      summary = _detailSummary(
+        title: p['name']?.toString() ?? '-',
+        status: p['status']?.toString() ?? '-',
+        metas: [
+          (
+            Icons.calendar_today_outlined,
+            (p['posting_date'] ?? p['date'])?.toString() ?? '-',
+          ),
+          (
+            Icons.person_outline,
+            (p['customer_name'] ?? p['customer'])?.toString() ?? '-',
+          ),
+        ],
+      );
+    } else if (_selectedSales != null) {
+      final p = _selectedSales!;
+      title = 'Detail Sales Order';
+      summary = _detailSummary(
+        title: p['name']?.toString() ?? '-',
+        status: p['status']?.toString() ?? '-',
+        metas: [
+          (Icons.calendar_today_outlined, p['posting_date']?.toString() ?? '-'),
+          (Icons.person_outline, p['customer_name']?.toString() ?? '-'),
+          (Icons.receipt_long_outlined, _money(p['grand_total'])),
+        ],
+      );
+    } else {
+      title = 'Detail Sales Invoice';
+      summary = _invoiceSummary(isBelumBayar);
+    }
+
     return Container(
-      color: kRed,
-      child: SafeArea(
-        bottom: false,
-        child: Column(
-          children: [
-            // Back + title
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0xFFD52A2F), AppColors.primaryColor],
+        ),
+        borderRadius: BorderRadius.vertical(bottom: Radius.circular(28)),
+        boxShadow: [
+          BoxShadow(
+            color: Color(0x1F0F172A),
+            blurRadius: 12,
+            offset: Offset(0, 4),
+          ),
+        ],
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        children: [
+          SafeArea(
+            bottom: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 8, 16, 10),
               child: Row(
                 children: [
-                  GestureDetector(
-                    onTap: () {
-                      if (_selectedPayment != null) {
-                        setState(() => _selectedPayment = null);
-                      } else if (_selectedDelivery != null) {
-                        setState(() => _selectedDelivery = null);
-                      } else if (_selectedSales != null){
-                        setState(() => _selectedSales = null);
-                      } else {
-                        Navigator.pop(context);
-                      }
-                    },
-                    child: const Icon(Icons.arrow_back,
-                        color: Colors.white, size: 22),
+                  IconButton(
+                    tooltip: 'Kembali',
+                    onPressed: _handleBack,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints.tightFor(
+                      width: 40,
+                      height: 40,
+                    ),
+                    style: IconButton.styleFrom(
+                      backgroundColor: Colors.white.withOpacity(0.16),
+                      foregroundColor: Colors.white,
+                      shape: const CircleBorder(),
+                    ),
+                    icon: const Icon(Icons.arrow_back_rounded, size: 20),
                   ),
                   const SizedBox(width: 10),
                   Expanded(
-                    child: Text(
-                      _selectedPayment != null
-                          ? 'Detail Pembayaran'
-                          : _selectedDelivery != null 
-                          ? 'Detail Delivery' : 'Detail Invoice',
-                      style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600),
-                    ),
-                  ),
-                  const Icon(Icons.more_vert, color: Colors.white, size: 22),
-                ],
-              ),
-            ),
-
-            // Series / status / total — disembunyikan saat payment detail
-            if (_selectedPayment != null) ...[
-              // ── Info ringkas payment di header ──
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          _selectedPayment!['name']?.toString() ?? '-',
-                          style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: Colors.white38),
-                          ),
-                          child: Text(
-                            _selectedPayment!['status']?.toString() ?? '-',
-                            style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(children: [
-                          const Icon(Icons.calendar_today_outlined,
-                              size: 12, color: Colors.white60),
-                          const SizedBox(width: 4),
-                          Text(
-                            _selectedPayment!['posting_date']?.toString() ?? '-',
-                            style: const TextStyle(color: Colors.white60, fontSize: 12),
-                          ),
-                        ]),
-                        const SizedBox(height: 4),
-                        Row(children: [
-                          const Icon(Icons.person_outline,
-                              size: 12, color: Colors.white60),
-                          const SizedBox(width: 4),
-                          Flexible(
-                            child: Text(
-                              _selectedPayment!['party_name']?.toString() ?? '-',
-                              style: const TextStyle(color: Colors.white60, fontSize: 12),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ]),
-                        const SizedBox(height: 4),
-                        Row(children: [
-                          const Icon(Icons.payments_outlined,
-                              size: 12, color: Colors.white60),
-                          const SizedBox(width: 4),
-                          Flexible(
-                            child: Text(
-                              _selectedPayment!['outstanding_amount']?.toString() ?? '-',
-                              style: const TextStyle(color: Colors.white60, fontSize: 12),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ]),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ] else if (_selectedDelivery != null) ...[
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          _selectedDelivery!['name']?.toString() ?? '-',
-                          style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: Colors.white38),
-                          ),
-                          child: Text(
-                            _selectedDelivery!['status']?.toString() ?? '-',
-                            style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(children: [
-                          const Icon(Icons.calendar_today_outlined, size: 12, color: Colors.white60),
-                          const SizedBox(width: 4),
-                          Text(
-                            _selectedDelivery!['date']?.toString() ?? '-',
-                            style: const TextStyle(color: Colors.white60, fontSize: 12),
-                          ),
-                        ]),
-                        const SizedBox(height: 4),
-                        Row(children: [
-                          const Icon(Icons.person_outline, size: 12, color: Colors.white60),
-                          const SizedBox(width: 4),
-                          Flexible(
-                            child: Text(
-                              _selectedDelivery!['customer']?.toString() ?? '-',
-                              style: const TextStyle(color: Colors.white60, fontSize: 12),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ]),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 20),
-            ] else ...[
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(_s('series'),
-                              style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold)),
-                          const SizedBox(height: 4),
-                          Text(_s('date'),
-                              style: const TextStyle(
-                                  color: Colors.white60, fontSize: 12)),
-                        ],
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: isBelumBayar ? Colors.white24 : kGreen,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                            color: isBelumBayar
-                                ? Colors.white38
-                                : Colors.transparent),
-                      ),
-                      child: Text(_s('status'),
-                          style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600)),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 12),
-              Container(
-                width: double.infinity,
-                margin: const EdgeInsets.symmetric(horizontal: 16),
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text('Total Tagihan',
-                        style: TextStyle(color: Colors.white70, fontSize: 13)),
-                    Text(_rupiah(_i('nilai')),
-                        style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold)),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 8),
-            ],
-          
-            TabBar(
-              controller: _tabController,
-              indicatorColor: Colors.white,
-              indicatorWeight: 3,
-              labelColor: Colors.white,
-              unselectedLabelColor: Colors.white54,
-              labelStyle:
-                  const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
-              unselectedLabelStyle: const TextStyle(fontSize: 12),
-              tabs: const [
-                Tab(text: 'Detail'),
-                Tab(text: 'Item'),
-                Tab(text: 'Payment'),
-                Tab(text: 'Delivery Note'),
-                Tab(text: 'Sales Order'),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _tabDetail() {
-    final addr     = _map('address');
-    final taxes    = _list('taxes');
-    final int taxTotal = _i('taxTotal');
-    final discount = _map('discount');
-
-    String stripHtml(String? html, [String fallback = '-']) {
-      if (html == null || html.isEmpty) return fallback;
-      return html
-          .replaceAll(RegExp(r'<br\s*/?>', caseSensitive: false), '\n')
-          .replaceAll(RegExp(r'<[^>]*>'), '')
-          .trim();
-    }
-
-    final ScrollController scrollController = ScrollController(); 
-
-    return Scrollbar(                                             
-      controller: scrollController,
-      thumbVisibility: true,
-      thickness: 4,
-      radius: const Radius.circular(8),
-      child: ScrollConfiguration(
-        behavior: ScrollConfiguration.of(context).copyWith(overscroll: false),
-        child: CustomScrollView(
-          controller: scrollController,
-          physics: const ClampingScrollPhysics(),
-          slivers: [
-            SliverPadding(
-              padding: const EdgeInsets.all(16),
-              sliver: SliverList(
-                delegate: SliverChildListDelegate([
-                  _card(
-                    title: 'INFORMASI INVOICE',
-                    child: Column(children: [
-                      _row(Icons.tag,                     'Name',             _s('series')),
-                      _row(Icons.calendar_today_outlined, 'Date',             _s('date')),
-                      _row(Icons.person_outline,          'Customer',         _s('customer')),
-                      _row(Icons.event_outlined,          'Payment Due Date', _s('dueDate')),
-                    ]),
-                  ),
-                  // _card(
-                  //   title: 'CUSTOMER PO DETAILS',
-                  //   child: Column(children: [
-                  //     _row(Icons.receipt_long_outlined,   "Customer's Purchase Order",
-                  //         po['number']?.toString() ?? '-'),
-                  //     _row(Icons.calendar_today_outlined, "Customer's PO Date",
-                  //         po['date']?.toString() ?? '-'),
-                  //   ]),
-                  // ),
-                  _card(
-                    title: 'ADDRESS AND CONTACT',
-                    child: Column(children: [
-                      _row(Icons.location_on_outlined,    'Customer Address',
-                          stripHtml(addr['addressDisplay']?.toString() ?? '-')),
-                      // _row(Icons.local_shipping_outlined, 'Shipping Address Name',
-                      //     addr['shippingAddressName']?.toString() ?? '-'),
-                      // _row(Icons.person_outline,          'Contact Person',
-                      //     addr['contactPerson']?.toString() ?? '-'),
-                    ]),
-                  ),
-                  _card(
-                    title: 'SALES TAXES AND CHARGES',
-                    child: Column(children: [
-                      Row(children: const [
-                        Expanded(flex: 2, child: _ColHeader('Type')),
-                        Expanded(flex: 3, child: _ColHeader('Account Head')),
-                        SizedBox(width: 46, child: _ColHeader('Rate', center: true)),
-                        Expanded(flex: 2, child: _ColHeader('Amount', right: true)),
-                      ]),
-                      const SizedBox(height: 8),
-                      const Divider(height: 1, color: Color(0xFFEEEEEE)),
-                      if (taxes.isEmpty)
-                        const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 12),
-                          child: Center(
-                            child: Text('Tidak ada pajak',
-                                style: TextStyle(fontSize: 12, color: Colors.black38)),
-                          ),
-                        )
-                      else
-                        ...taxes.map((t) {
-                          final rate = t['rate'] is num ? (t['rate'] as num).toDouble() : 0.0;
-                          final amt  = t['amount'] is int ? t['amount'] as int : 0;
-                          return Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 8),
-                            child: Row(children: [
-                              Expanded(flex: 2, child: Text(t['type']?.toString() ?? '-', style: const TextStyle(fontSize: 12))),
-                              Expanded(flex: 3, child: Text(t['accountHead']?.toString() ?? '-', style: const TextStyle(fontSize: 12))),
-                              SizedBox(width: 46, child: Text('${rate.toStringAsFixed(0)}%', textAlign: TextAlign.center, style: const TextStyle(fontSize: 12))),
-                              Expanded(flex: 2, child: Text(_rupiah(amt), textAlign: TextAlign.right, style: const TextStyle(fontSize: 12))),
-                            ]),
-                          );
-                        }),
-                      const Divider(height: 1, color: Color(0xFFEEEEEE)),
-                      const SizedBox(height: 8),
-                      Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                        const Text('Total', style: TextStyle(fontSize: 12, color: Colors.black54)),
-                        Text(_rupiah(taxTotal), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                      ]),
-                    ]),
-                  ),
-                  if ((discount['baseDiscountAmount'] ?? 0) != 0)
-                  _card(
-                    title: 'ADDITIONAL DISCOUNT',
-                    child: Column(children: [
-                      _row(Icons.tune,      'Apply Additional Discount On',
-                          discount['applyOn']?.toString() ?? '-'),
-                      _row(Icons.percent,   'Additional Discount %',
-                          '${discount['discountPercent']?.toString() ?? '0'}%'),
-                      _row(Icons.money_off, 'Additional Discount Amount',
-                          _rupiah(discount['discountAmount'] is int
-                              ? discount['discountAmount'] as int
-                              : 0)),
-                    ]),
-                  ),
-                  const SizedBox(height: 24),
-                ]),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _tabItem() {
-    final items = _list('items');
-    final displayItems = items.isNotEmpty
-        ? items
-        : [
-            {'itemCode': 'Paket Pemeriksaan Lengkap', 'itemName': 'Paket Pemeriksaan Lengkap', 'qty': 3, 'date': '12 Apr 2024', 'amount': 4500000},
-            {'itemCode': 'Paket Pemeriksaan Lengkap', 'itemName': 'Paket Pemeriksaan Lengkap', 'qty': 3, 'date': '12 Apr 2024', 'amount': 4500000},
-            {'itemCode': 'Paket Pemeriksaan Lengkap', 'itemName': 'Paket Pemeriksaan Lengkap', 'qty': 3, 'date': '12 Apr 2024', 'amount': 4500000},
-          ];
-
-    final ScrollController scrollController = ScrollController();
-
-    return Scrollbar(
-      controller: scrollController,
-      thumbVisibility: true,
-      thickness: 4,
-      radius: const Radius.circular(8),
-      child: ScrollConfiguration(
-        behavior: ScrollConfiguration.of(context).copyWith(
-          overscroll: false,
-        ),
-        child: CustomScrollView(
-          controller: scrollController,
-          physics: const ClampingScrollPhysics(),
-          slivers: [
-            SliverPadding(
-              padding: const EdgeInsets.all(16),
-              sliver: SliverList(
-                delegate: SliverChildListDelegate([
-                  _card(
-                    title: 'RINCIAN ITEM',
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        ...displayItems.map((item) {
-                          final code = item['itemCode']?.toString() ?? '-';
-                          final nama = item['itemName']?.toString() ?? '-';
-                          final qty  = item['qty'];
-                          final date = item['date'];
-                          final amt  = item['amount'];
-                          final rate = item['rate'];
-
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 16),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                _label('Item Code'),
-                                _valueBold(code),
-                                const SizedBox(height: 10),
-                                _label('Item Name'),
-                                _valueBold(nama),
-                                const SizedBox(height: 10),
-                                _label('Qty'),
-                                _value('${qty}x'),
-                                const SizedBox(height: 10),
-                                _label('Date'),
-                                _value(date),
-                                const SizedBox(height: 10),
-                                _label('Rate'),
-                                _value(_rupiah(rate)),
-                                const SizedBox(height: 10),
-                                _label('Amount'),
-                                _value(_rupiah(amt)),
-                                const Divider(height: 24),
-                              ],
-                            ),
-                          );
-                        }),
+                        const Text(
+                          'EKAPLUS',
+                          maxLines: 1,
+                          style: TextStyle(
+                            fontFamily: AppFonts.primaryFont,
+                            color: Color(0xFFFECACA),
+                            fontSize: 9,
+                            fontWeight: FontWeight.w500,
+                            letterSpacing: .35,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontFamily: AppFonts.primaryFont,
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: -.3,
+                          ),
+                        ),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 24),
-                ]),
+                ],
               ),
             ),
-          ],
-        ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+            child: summary,
+          ),
+        ],
       ),
     );
   }
 
-  // TAB 3 — PAYMENT  (list ↔ detail)
+  /// Ringkasan invoice: series, tanggal, status, total tagihan & jatuh tempo.
+  Widget _invoiceSummary(bool isBelumBayar) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _s('series'),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: -0.2,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  _metaLine(Icons.calendar_today_outlined, _s('date')),
+                ],
+              ),
+            ),
+            const SizedBox(width: 10),
+            _statusPill(_s('status'), paid: !isBelumBayar),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.14),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.white.withOpacity(0.18)),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Total Tagihan',
+                      style: TextStyle(
+                        color: Colors.white70,
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        _rupiah(_i('nilai')),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  const Text(
+                    'Jatuh Tempo',
+                    style: TextStyle(
+                      color: Colors.white70,
+                      fontSize: 9.5,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    _s('dueDate'),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Ringkasan untuk halaman detail (payment / delivery / sales order).
+  Widget _detailSummary({
+    required String title,
+    required String status,
+    required List<(IconData, String)> metas,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                title,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 19,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            _statusPill(status, paid: _isPaidLike(status)),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Wrap(
+          spacing: 14,
+          runSpacing: 6,
+          children: [for (final m in metas) _metaLine(m.$1, m.$2)],
+        ),
+      ],
+    );
+  }
+
+  Widget _metaLine(IconData icon, String text) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 13, color: Colors.white70),
+        const SizedBox(width: 5),
+        Flexible(
+          child: Text(
+            text,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(color: Colors.white70, fontSize: 12),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _statusPill(String text, {required bool paid}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: paid ? kGreen : Colors.white.withOpacity(0.2),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: paid ? Colors.transparent : Colors.white38),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 6,
+            height: 6,
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            text,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 11.5,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ─── TAB BAR (pill style) ─────────────────────────────────────────────────
+  Widget _buildTabs() {
+    const labels = [
+      'Detail',
+      'Item',
+      'Payment',
+      'Delivery Note',
+      'Sales Order',
+    ];
+    return Container(
+      color: kBg,
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 2),
+      child: TabBar(
+        controller: _tabController,
+        isScrollable: true,
+        tabAlignment: TabAlignment.start,
+        dividerColor: Colors.transparent,
+        splashFactory: NoSplash.splashFactory,
+        overlayColor: const WidgetStatePropertyAll(Colors.transparent),
+        indicatorSize: TabBarIndicatorSize.tab,
+        indicator: BoxDecoration(
+          color: kRed,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x33D52A2F),
+              blurRadius: 8,
+              offset: Offset(0, 3),
+            ),
+          ],
+        ),
+        labelPadding: const EdgeInsets.symmetric(horizontal: 3),
+        labelColor: Colors.white,
+        unselectedLabelColor: kMuted,
+        labelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+        unselectedLabelStyle: const TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+        ),
+        tabs: [
+          for (final l in labels)
+            Tab(
+              height: 34,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+                child: Text(l),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  // ─── TAB 1 — DETAIL ───────────────────────────────────────────────────────
+  Widget _tabDetail() {
+    final addr = _map('address');
+    final taxes = _list('taxes');
+    final int taxTotal = _i('taxTotal');
+    final discount = _map('discount');
+
+    return _ScrollPage(
+      children: [
+        _card(
+          title: 'INFORMASI INVOICE',
+          child: _infoGroup([
+            (Icons.tag, 'Nomor Invoice', _s('series')),
+            (Icons.calendar_today_outlined, 'Tanggal', _s('date')),
+            (Icons.business_outlined, 'Customer', _s('customer')),
+            (Icons.event_outlined, 'Jatuh Tempo', _s('dueDate')),
+          ]),
+        ),
+        _card(
+          title: 'ALAMAT & KONTAK',
+          child: _infoGroup([
+            (
+              Icons.location_on_outlined,
+              'Alamat Customer',
+              _stripHtml(addr['addressDisplay']?.toString()),
+            ),
+          ]),
+        ),
+        _card(
+          title: 'PAJAK & BIAYA',
+          child: Column(
+            children: [
+              if (taxes.isEmpty)
+                const _InlineEmpty(
+                  icon: Icons.percent,
+                  message: 'Tidak ada pajak',
+                )
+              else
+                ...taxes.map((t) {
+                  final rate = t['rate'] is num
+                      ? (t['rate'] as num).toDouble()
+                      : 0.0;
+                  final amt = t['amount'] is num
+                      ? (t['amount'] as num).toInt()
+                      : 0;
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                t['type']?.toString() ?? '-',
+                                style: const TextStyle(
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.w700,
+                                  color: kInk,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                t['accountHead']?.toString() ?? '-',
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  color: kMuted,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: kLine,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            '${rate.toStringAsFixed(0)}%',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: kMuted,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Text(
+                          _rupiah(amt),
+                          style: const TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w600,
+                            color: kInk,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }),
+              const Divider(height: 20, color: kLine),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Total Pajak',
+                    style: TextStyle(fontSize: 12, color: kMuted),
+                  ),
+                  Text(
+                    _rupiah(taxTotal),
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                      color: kRed,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        if ((discount['baseDiscountAmount'] ?? 0) != 0)
+          _card(
+            title: 'DISKON TAMBAHAN',
+            child: _infoGroup([
+              (
+                Icons.tune,
+                'Diskon Diterapkan Pada',
+                discount['applyOn']?.toString() ?? '-',
+              ),
+              (
+                Icons.percent,
+                'Diskon (%)',
+                '${discount['discountPercent']?.toString() ?? '0'}%',
+              ),
+              (
+                Icons.money_off,
+                'Jumlah Diskon',
+                _money(discount['discountAmount']),
+              ),
+            ]),
+          ),
+      ],
+    );
+  }
+
+  // ─── TAB 2 — ITEM ─────────────────────────────────────────────────────────
+  Widget _tabItem() {
+    final items = _list('items');
+
+    return _ScrollPage(
+      children: [
+        _sectionHeader(
+          'RINCIAN ITEM',
+          count: items.isEmpty ? null : items.length,
+        ),
+        if (items.isEmpty)
+          _card(
+            title: '',
+            child: const _InlineEmpty(
+              icon: Icons.inventory_2_outlined,
+              message: 'Belum ada item invoice.',
+            ),
+          )
+        else
+          ...List.generate(items.length, (i) => _itemCard(items[i], i + 1)),
+      ],
+    );
+  }
+
+  // ─── TAB 3 — PAYMENT (list ↔ detail) ──────────────────────────────────────
   Widget _tabPembayaran() {
     return _selectedPayment == null
-        ? _paymentList_()
+        ? _paymentListView()
         : _paymentDetail(_selectedPayment!);
   }
 
-  // ── Payment List ──────────────────────────────────────────────────────────
-  Widget _paymentList_() {
+  Widget _paymentListView() {
     if (_isLoadingPayment) {
       return const Center(child: CircularProgressIndicator());
     }
 
-    final ScrollController scrollController = ScrollController();
-
-    return Scrollbar(
-      controller: scrollController,
-      thumbVisibility: true,
-      thickness: 4,
-      radius: const Radius.circular(8),
-      child: ScrollConfiguration(
-        behavior: ScrollConfiguration.of(context).copyWith(overscroll: false),
-        child: CustomScrollView(
-          controller: scrollController,
-          physics: const ClampingScrollPhysics(),
-          slivers: [
-            SliverPadding(
-              padding: const EdgeInsets.all(16),
-              sliver: SliverList(
-                delegate: SliverChildListDelegate([
-                  if (_paymentList.isEmpty)
-                    _card(
-                      title: 'DAFTAR PAYMENT',
-                      child: const Center(
-                        child: Padding(
-                          padding: EdgeInsets.symmetric(vertical: 12),
-                          child: Text(
-                            'Belum ada payment',
-                            style: TextStyle(fontSize: 12, color: Colors.black38),
-                          ),
-                        ),
-                      ),
-                    )
-                  else
-                    ...List.generate(_paymentList.length, (i) {
-                      final p = _paymentList[i];
-                      final paidAmount = (p['paid_amount'] as num?)?.toInt() ?? 0;
-                      return GestureDetector(
-                        onTap: () => setState(() => _selectedPayment = p),
-                        child: _card(
-                          title: i == 0 ? 'DAFTAR PAYMENT' : '',
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 4),
-                            child: Row(
-                              children: [
-                                Container(
-                                  width: 42,
-                                  height: 42,
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFE8F5E9),
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  child: const Icon(
-                                    Icons.payments_outlined,
-                                    size: 20,
-                                    color: kGreen,
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        p['name']?.toString() ?? '-',
-                                        style: const TextStyle(
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w700,
-                                          color: Colors.black87,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 5),
-                                      Row(
-                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                        children: [
-                                          _chip(p['status']?.toString() ?? '-'),
-                                          Text(
-                                            p['posting_date']?.toString() ?? '-',
-                                            style: const TextStyle(
-                                              fontSize: 11,
-                                              color: Colors.black38,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Row(
-                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                        children: [
-                                          Row(children: [
-                                            const Icon(Icons.person_outline,
-                                                size: 12, color: Colors.black38),
-                                            const SizedBox(width: 4),
-                                            Text(
-                                              p['party_name']?.toString() ?? '-',
-                                              style: const TextStyle(
-                                                fontSize: 11,
-                                                color: Colors.black54,
-                                              ),
-                                            ),
-                                          ]),
-                                          Text(
-                                            _rupiah(paidAmount),
-                                            style: const TextStyle(
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.w600,
-                                              color: kGreen,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(width: 6),
-                                const Icon(Icons.chevron_right,
-                                    color: Colors.black26, size: 18),
-                              ],
-                            ),
-                          ),
-                        ),
-                      );
-                    }),
-                  const SizedBox(height: 24),
-                ]),
-              ),
-            ),
-          ],
+    return _ScrollPage(
+      children: [
+        _sectionHeader(
+          'DAFTAR PAYMENT',
+          count: _paymentList.isEmpty ? null : _paymentList.length,
         ),
-      ),
+        if (_paymentList.isEmpty)
+          _card(
+            title: '',
+            child: const _InlineEmpty(
+              icon: Icons.payments_outlined,
+              message: 'Belum ada payment',
+            ),
+          )
+        else
+          ..._paymentList.map((p) {
+            return _listTile(
+              icon: Icons.payments_outlined,
+              iconColor: kGreen,
+              iconBg: const Color(0xFFE8F5E9),
+              title: p['name']?.toString() ?? '-',
+              status: p['status']?.toString() ?? '-',
+              date: p['posting_date']?.toString() ?? '-',
+              subtitle: p['party_name']?.toString() ?? '-',
+              amount: _money(p['paid_amount']),
+              amountColor: kGreen,
+              onTap: () => setState(() => _selectedPayment = p),
+            );
+          }),
+      ],
     );
   }
 
-  // ── Payment Detail ────────────────────────────────────────────────────────
   Widget _paymentDetail(Map<String, dynamic> p) {
-    final paidAmount        = (p['paid_amount'] as num?)?.toInt() ?? 0;
-    final outstandingAmount = (p['outstanding_amount'] as num?)?.toInt() ?? 0;
-    final allocatedAmount   = (p['allocated_amount'] as num?)?.toInt() ?? 0;
-    final status            = p['status']?.toString() ?? '-';
-    final bool isBelumLunas = status == 'Unpaid' || status == 'Belum Lunas';
-    final Color statusColor = isBelumLunas ? kRed : kGreen;
-    final Color statusBg    = isBelumLunas
-        ? const Color(0xFFFDEDED)
-        : const Color(0xFFE8F5E9);
+    final status = p['status']?.toString() ?? '-';
 
-    final ScrollController scrollController = ScrollController();
-
-    return Scrollbar(
-      controller: scrollController,
-      thumbVisibility: true,
-      thickness: 4,
-      radius: const Radius.circular(8),
-      child: ScrollConfiguration(
-        behavior: ScrollConfiguration.of(context).copyWith(overscroll: false),
-        child: CustomScrollView(
-          controller: scrollController,
-          physics: const ClampingScrollPhysics(),
-          slivers: [
-            SliverPadding(
-              padding: const EdgeInsets.all(16),
-              sliver: SliverList(
-                delegate: SliverChildListDelegate([
-                  _card(
-                    title: 'RINCIAN PEMBAYARAN',
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-
-                        // ── Name + Status sejajar ──
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            Expanded(
-                              child: Text(
-                                p['name']?.toString() ?? '-',
-                                style: const TextStyle(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w700,
-                                    color: Colors.black87),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 10, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: statusBg,
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              child: Text(status,
-                                  style: TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w600,
-                                      color: statusColor)),
-                            ),
-                          ],
-                        ),
-
-                        const SizedBox(height: 12),
-                        const Divider(height: 1, color: Color(0xFFF5F5F5)),
-
-                        // ── Detail rows ──
-                        _row(Icons.calendar_today_outlined,  'Posting Date',       p['posting_date']?.toString() ?? '-'),
-                        _row(Icons.person_outline,           'Customer',           p['party_name']?.toString() ?? '-'),
-                        _row(Icons.receipt_outlined,         'Outstanding Amount', _rupiah(outstandingAmount)),
-                        _row(Icons.monetization_on_outlined, 'Grand Total',        _rupiah(paidAmount)),
-                        _row(Icons.monetization_on_outlined, 'Allocated Amount',   _rupiah(allocatedAmount)),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                ]),
+    return _ScrollPage(
+      children: [
+        // Hero jumlah dibayar
+        Container(
+          width: double.infinity,
+          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: const Color(0xFFE8F5E9),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.payments_outlined, color: kGreen),
               ),
-            ),
-          ],
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Jumlah Dibayar',
+                      style: TextStyle(fontSize: 11.5, color: kMuted),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      _money(p['paid_amount']),
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                        color: kGreen,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              _chip(status),
+            ],
+          ),
         ),
-      ),
+        _card(
+          title: 'RINCIAN PEMBAYARAN',
+          child: _infoGroup([
+            (Icons.tag, 'Nomor Payment', p['name']?.toString() ?? '-'),
+            (
+              Icons.calendar_today_outlined,
+              'Tanggal Posting',
+              p['posting_date']?.toString() ?? '-',
+            ),
+            (
+              Icons.person_outline,
+              'Customer',
+              p['party_name']?.toString() ?? '-',
+            ),
+            (
+              Icons.receipt_outlined,
+              'Outstanding',
+              _money(p['outstanding_amount']),
+            ),
+            (
+              Icons.monetization_on_outlined,
+              'Allocated Amount',
+              _money(p['allocated_amount']),
+            ),
+          ]),
+        ),
+      ],
     );
   }
 
-  Widget _label(String text) {
-    return Text(
-      text,
-      style: TextStyle(
-        fontSize: 11,
-        color: Colors.grey.shade600,
-      ),
-    );
-  }
-
-  Widget _valueBold(String text) {
-    return Text(
-      text,
-      style: const TextStyle(
-        fontSize: 13,
-        fontWeight: FontWeight.w600,
-      ),
-    );
-  }
-
-  Widget _value(String text, {Color color = Colors.black}) {
-    return Text(
-      text,
-      style: TextStyle(
-        fontSize: 13,
-        color: color,
-      ),
-    );
-  }
-
-  Widget _chip(String label) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: const Color(0xFFE3F2FD),
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Text(label,
-          style: const TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF1565C0))),
-    );
-  }
-
-  // TAB 4 — DELIVERY (placeholder)
+  // ─── TAB 4 — DELIVERY NOTE (list ↔ detail) ────────────────────────────────
   Widget _tabDelivery() {
     return _selectedDelivery == null
-        ? _deliveryList_()
+        ? _deliveryListView()
         : _deliveryDetail(_selectedDelivery!);
   }
 
-  Widget _deliveryList_() {
+  Widget _deliveryListView() {
     if (_isLoadingDelivery) {
       return const Center(child: CircularProgressIndicator());
     }
 
-    final displayDelivery = _deliveryNoteList; // ← dari API, bukan _list('delivery')
-
-    final ScrollController scrollController = ScrollController();
-
-    return Scrollbar(
-      controller: scrollController,
-      thumbVisibility: true,
-      thickness: 4,
-      radius: const Radius.circular(8),
-      child: ScrollConfiguration(
-        behavior: ScrollConfiguration.of(context).copyWith(overscroll: false),
-        child: CustomScrollView(
-          controller: scrollController,
-          physics: const ClampingScrollPhysics(),
-          slivers: [
-            SliverPadding(
-              padding: const EdgeInsets.all(16),
-              sliver: SliverList(
-                delegate: SliverChildListDelegate([
-                  if (displayDelivery.isEmpty)
-                    _card(
-                      title: 'DAFTAR DELIVERY',
-                      child: const Center(
-                        child: Padding(
-                          padding: EdgeInsets.symmetric(vertical: 12),
-                          child: Text('Belum ada delivery',
-                              style: TextStyle(fontSize: 12, color: Colors.black38)),
-                        ),
-                      ),
-                    )
-                  else
-                    ...List.generate(displayDelivery.length, (i) {
-                      final p = displayDelivery[i];
-
-                      return GestureDetector(
-                        onTap: () => setState(() => _selectedDelivery = p),
-                        child: _card(
-                          title: i == 0 ? 'DAFTAR DELIVERY' : '',
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 4),
-                            child: Row(
-                              children: [
-                                Container(
-                                  width: 42,
-                                  height: 42,
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFE8F5E9),
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  child: const Icon(Icons.local_shipping_outlined,
-                                      size: 20, color: kGreen),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        p['name']?.toString() ?? '-',
-                                        style: const TextStyle(
-                                            fontSize: 13,
-                                            fontWeight: FontWeight.w700,
-                                            color: Colors.black87),
-                                      ),
-                                      const SizedBox(height: 5),
-                                      Row(
-                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                        children: [
-                                          _chip(p['status']?.toString() ?? '-'),
-                                          Text(
-                                            p['posting_date']?.toString() ?? '-', // ← fix: posting_date bukan date
-                                            style: const TextStyle(
-                                                fontSize: 11, color: Colors.black38),
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Row(children: [
-                                        const Icon(Icons.person_outline,
-                                            size: 12, color: Colors.black38),
-                                        const SizedBox(width: 4),
-                                        Text(
-                                          p['customer_name']?.toString() ?? '-', // ← fix: customer_name sesuai API
-                                          style: const TextStyle(
-                                              fontSize: 11, color: Colors.black54),
-                                        ),
-                                      ]),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(width: 6),
-                                const Icon(Icons.chevron_right,
-                                    color: Colors.black26, size: 18),
-                              ],
-                            ),
-                          ),
-                        ),
-                      );
-                    }),
-                  const SizedBox(height: 24),
-                ]),
-              ),
-            ),
-          ],
+    return _ScrollPage(
+      children: [
+        _sectionHeader(
+          'DAFTAR DELIVERY',
+          count: _deliveryNoteList.isEmpty ? null : _deliveryNoteList.length,
         ),
-      ),
+        if (_deliveryNoteList.isEmpty)
+          _card(
+            title: '',
+            child: const _InlineEmpty(
+              icon: Icons.local_shipping_outlined,
+              message: 'Belum ada delivery',
+            ),
+          )
+        else
+          ..._deliveryNoteList.map((p) {
+            return _listTile(
+              icon: Icons.local_shipping_outlined,
+              iconColor: kGreen,
+              iconBg: const Color(0xFFE8F5E9),
+              title: p['name']?.toString() ?? '-',
+              status: p['status']?.toString() ?? '-',
+              date: p['posting_date']?.toString() ?? '-',
+              subtitle: p['customer_name']?.toString() ?? '-',
+              onTap: () => setState(() => _selectedDelivery = p),
+            );
+          }),
+      ],
     );
   }
 
   Widget _deliveryDetail(Map<String, dynamic> p) {
     final items = _list('items');
-    final displayItems = items.isNotEmpty
-        ? items
-        : [
-            {
-              'itemCode': 'D-004',
-              'itemName': 'Paket Pemeriksaan Lengkap',
-              'qty': '12',
-              'date': "12 Apr 2024",
-              'amount': 'Gudang Utama'
-            },
-            {
-              'itemCode': 'D-005',
-              'itemName': 'Paket Pemeriksaan Lengkap',
-              'qty': '12',
-              'date': "12 Apr 2024",
-              'amount': 'Gudang Utama'
-            },
-            {
-              'itemCode': 'D-006',
-              'itemName': 'Paket Pemeriksaan Lengkap',
-              'qty': '12',
-              'date': "12 Apr 2024",
-              'amount': 'Gudang Utama'
-            },
-          ];
 
-    final ScrollController scrollController = ScrollController();
-
-    return Scrollbar(
-      controller: scrollController,
-      thumbVisibility: true,
-      thickness: 4,
-      radius: const Radius.circular(8),
-      child: ScrollConfiguration(
-        behavior: ScrollConfiguration.of(context).copyWith(
-          overscroll: false,
+    return _ScrollPage(
+      children: [
+        _sectionHeader(
+          'RINCIAN DELIVERY',
+          count: items.isEmpty ? null : items.length,
         ),
-        child: CustomScrollView(
-          controller: scrollController,
-          physics: const ClampingScrollPhysics(),
-          slivers: [
-            SliverPadding(
-              padding: const EdgeInsets.all(16),
-              sliver: SliverList(
-                delegate: SliverChildListDelegate([
-                  _card(
-                    title: 'RINCIAN DELIVERY',
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        ...displayItems.map((item) {
-                          final itemCode =
-                              item['itemCode']?.toString() ?? '-';
-                          final itemName =
-                              item['itemName']?.toString() ?? '-';
-                          final qty =
-                              item['qty']?.toString() ?? '-';
-                          final date =
-                              item['date']?.toString() ?? '-';
-                          final amount =
-                              item['amount']?.toString() ?? '-';
-                          final rate =
-                              item['rate']?.toString() ?? '-';
-
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 16),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                _label('Item Code'),
-                                _valueBold(itemCode),
-                                const SizedBox(height: 10),
-                                _label('Item Name'),
-                                _value(itemName),
-                                const SizedBox(height: 10),
-                                _label('Qty'),
-                                _value(qty),
-                                const SizedBox(height: 10),
-                                _label('Date'),
-                                _value(date),
-                                const SizedBox(height: 10),
-                                _label('Rate'),
-                                _value(rate),
-                                const SizedBox(height: 10),
-                                _label('Amount'),
-                                _value(amount),
-                                const Divider(height: 24),
-                              ],
-                            ),
-                          );
-                        }),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                ]),
-              ),
+        if (items.isEmpty)
+          _card(
+            title: '',
+            child: const _InlineEmpty(
+              icon: Icons.inventory_2_outlined,
+              message: 'Belum ada item delivery.',
             ),
-          ],
-        ),
-      ),
+          )
+        else
+          ...List.generate(items.length, (i) => _itemCard(items[i], i + 1)),
+      ],
     );
   }
 
+  // ─── TAB 5 — SALES ORDER (list ↔ detail) ──────────────────────────────────
   Widget _tabSales() {
     return _selectedSales == null
-        ? _salesList_()
+        ? _salesListView()
         : _salesDetail(_selectedSales!);
   }
 
-  Widget _salesList_() {
+  Widget _salesListView() {
     if (_isLoadingSales) {
       return const Center(child: CircularProgressIndicator());
     }
 
-    final ScrollController scrollController = ScrollController();
-
-    return Scrollbar(
-      controller: scrollController,
-      thumbVisibility: true,
-      thickness: 4,
-      radius: const Radius.circular(8),
-      child: ScrollConfiguration(
-        behavior: ScrollConfiguration.of(context).copyWith(overscroll: false),
-        child: CustomScrollView(
-          controller: scrollController,
-          physics: const ClampingScrollPhysics(),
-          slivers: [
-            SliverPadding(
-              padding: const EdgeInsets.all(16),
-              sliver: SliverList(
-                delegate: SliverChildListDelegate([
-                  if (_salesList.isEmpty)
-                    _card(
-                      title: 'DAFTAR SALES INVOICE',
-                      child: const Center(
-                        child: Padding(
-                          padding: EdgeInsets.symmetric(vertical: 12),
-                          child: Text(
-                            'Belum ada sales invoice',
-                            style: TextStyle(fontSize: 12, color: Colors.black38),
-                          ),
-                        ),
-                      ),
-                    )
-                  else
-                    ...List.generate(_salesList.length, (i) {
-                      final p = _salesList[i];
-                      final grandTotal = (p['grand_total'] as num?)?.toInt() ?? 0;
-                      return GestureDetector(
-                        onTap: () => setState(() => _selectedSales = p),
-                        child: _card(
-                          title: i == 0 ? 'DAFTAR SALES INVOICE' : '',
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 4),
-                            child: Row(
-                              children: [
-                                Container(
-                                  width: 42,
-                                  height: 42,
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFFFF3E0),
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  child: const Icon(
-                                    Icons.receipt_outlined,
-                                    size: 20,
-                                    color: Color(0xFFF57C00),
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        p['name']?.toString() ?? '-',
-                                        style: const TextStyle(
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w700,
-                                          color: Colors.black87,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 5),
-                                      Row(
-                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                        children: [
-                                          _chip(p['status']?.toString() ?? '-'),
-                                          Text(
-                                            p['posting_date']?.toString() ?? '-',
-                                            style: const TextStyle(
-                                              fontSize: 11,
-                                              color: Colors.black38,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Row(
-                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                        children: [
-                                          Row(children: [
-                                            const Icon(Icons.person_outline,
-                                                size: 12, color: Colors.black38),
-                                            const SizedBox(width: 4),
-                                            Text(
-                                              p['customer_name']?.toString() ?? '-',
-                                              style: const TextStyle(
-                                                fontSize: 11,
-                                                color: Colors.black54,
-                                              ),
-                                            ),
-                                          ]),
-                                          Text(
-                                            _rupiah(grandTotal),
-                                            style: const TextStyle(
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.w600,
-                                              color: Color(0xFFF57C00),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(width: 6),
-                                const Icon(Icons.chevron_right,
-                                    color: Colors.black26, size: 18),
-                              ],
-                            ),
-                          ),
-                        ),
-                      );
-                    }),
-                  const SizedBox(height: 24),
-                ]),
-              ),
-            ),
-          ],
+    return _ScrollPage(
+      children: [
+        _sectionHeader(
+          'DAFTAR SALES ORDER',
+          count: _salesList.isEmpty ? null : _salesList.length,
         ),
-      ),
+        if (_salesList.isEmpty)
+          _card(
+            title: '',
+            child: const _InlineEmpty(
+              icon: Icons.receipt_outlined,
+              message: 'Belum ada sales order',
+            ),
+          )
+        else
+          ..._salesList.map((p) {
+            return _listTile(
+              icon: Icons.receipt_outlined,
+              iconColor: const Color(0xFFF57C00),
+              iconBg: const Color(0xFFFFF3E0),
+              title: p['name']?.toString() ?? '-',
+              status: p['status']?.toString() ?? '-',
+              date: p['posting_date']?.toString() ?? '-',
+              subtitle: p['customer_name']?.toString() ?? '-',
+              amount: _money(p['grand_total']),
+              amountColor: const Color(0xFFF57C00),
+              onTap: () => setState(() => _selectedSales = p),
+            );
+          }),
+      ],
     );
   }
 
   Widget _salesDetail(Map<String, dynamic> p) {
-    final ScrollController scrollController = ScrollController();
     final items = _list('items');
-    final displayItems = items.isNotEmpty
-        ? items
-        : [];
 
-    return Scrollbar(
-      controller: scrollController,
-      thumbVisibility: true,
-      thickness: 4,
-      radius: const Radius.circular(8),
-      child: ScrollConfiguration(
-        behavior: ScrollConfiguration.of(context).copyWith(overscroll: false),
-        child: CustomScrollView(
-          controller: scrollController,
-          physics: const ClampingScrollPhysics(),
-          slivers: [
-            SliverPadding(
-              padding: const EdgeInsets.all(16),
-              sliver: SliverList(
-                delegate: SliverChildListDelegate([
-                  _card(
-                    title: 'INFO SALES INVOICE',
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        ...displayItems.map((item) {
-                          final itemCode =
-                              item['itemCode']?.toString() ?? '-';
-                          final itemName =
-                              item['itemName']?.toString() ?? '-';
-                          final qty =
-                              item['qty']?.toString() ?? '-';
-                          final date =
-                              item['date']?.toString() ?? '-';
-                          final amount =
-                              item['amount']?.toString() ?? '-';
-                          final rate =
-                              item['rate']?.toString() ?? '-';
+    return _ScrollPage(
+      children: [
+        _sectionHeader(
+          'INFO SALES ORDER',
+          count: items.isEmpty ? null : items.length,
+        ),
+        if (items.isEmpty)
+          _card(
+            title: '',
+            child: const _InlineEmpty(
+              icon: Icons.inventory_2_outlined,
+              message: 'Belum ada item.',
+            ),
+          )
+        else
+          ...List.generate(items.length, (i) => _itemCard(items[i], i + 1)),
+      ],
+    );
+  }
 
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 16),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                _label('Item Code'),
-                                _valueBold(itemCode),
-                                const SizedBox(height: 10),
-                                _label('Item Name'),
-                                _value(itemName),
-                                const SizedBox(height: 10),
-                                _label('Qty'),
-                                _value(qty),
-                                const SizedBox(height: 10),
-                                _label('Date'),
-                                _value(date),
-                                const SizedBox(height: 10),
-                                _label('Rate'),
-                                _value(rate),
-                                const SizedBox(height: 10),
-                                _label('Amount'),
-                                _value(amount),
-                                const Divider(height: 24),
-                              ],
-                            ),
-                          );
-                        }),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                ]),
+  // ─── SHARED WIDGETS ───────────────────────────────────────────────────────
+  Widget _sectionHeader(String title, {int? count}) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(4, 4, 4, 10),
+      child: Row(
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              fontFamily: AppFonts.primaryFont,
+              color: kFaint,
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.6,
+            ),
+          ),
+          if (count != null) ...[
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+              decoration: BoxDecoration(
+                color: kRed.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                '$count',
+                style: const TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  color: kRed,
+                ),
               ),
             ),
           ],
-        ),
+        ],
       ),
     );
   }
 
+  BoxDecoration _cardDecoration() => BoxDecoration(
+    color: Colors.white,
+    borderRadius: BorderRadius.circular(16),
+    border: Border.all(color: kLine),
+    boxShadow: const [
+      BoxShadow(color: Color(0x0D0F172A), blurRadius: 10, offset: Offset(0, 2)),
+    ],
+  );
 
-  // ─── SHARED WIDGETS ───────────────────────────────────────────────────────
   Widget _card({required String title, required Widget child}) {
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-      ),
+      decoration: _cardDecoration(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title,
+          if (title.isNotEmpty) ...[
+            Text(
+              title,
               style: const TextStyle(
-                  color: Color(0xFF9E9E9E),
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 0.8)),
-          const SizedBox(height: 14),
+                fontFamily: AppFonts.primaryFont,
+                color: kFaint,
+                fontSize: 10,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.6,
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
           child,
         ],
       ),
     );
   }
 
-  Widget _row(
-    IconData icon,
-    String label,
-    String value, {
-    Color valueColor = Colors.black87,
-    bool valueBold = false,
-    bool multiline = false,
-  }) {
+  /// Daftar info: ikon dalam kotak tint, label kecil di atas, nilai di bawah.
+  /// Nilai panjang (alamat, nama PT) otomatis wrap rapi di kiri.
+  Widget _infoGroup(List<(IconData, String, String)> rows) {
     return Column(
       children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          child: Row(
-            crossAxisAlignment: multiline
-                ? CrossAxisAlignment.start
-                : CrossAxisAlignment.center,
-            children: [
-              Icon(icon, size: 18, color: Colors.black26),
-              const SizedBox(width: 10),
-              Expanded(
-                flex: 2,                          
-                child: Text(label,
-                    style: const TextStyle(
-                        fontSize: 13, color: Colors.black45)),
-              ),
-              Expanded(
-                flex: 3,                          
-                child: Text(value,
-                    textAlign: TextAlign.right,
-                    style: TextStyle(
-                        fontSize: 13,
-                        color: valueColor,
-                        fontWeight: valueBold
-                            ? FontWeight.bold
-                            : FontWeight.w500)),
-              ),
-            ],
+        for (int i = 0; i < rows.length; i++) ...[
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    color: kRed.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(rows[i].$1, size: 17, color: kRed),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        rows[i].$2,
+                        style: const TextStyle(fontSize: 11, color: kMuted),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        rows[i].$3,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          height: 1.35,
+                          fontWeight: FontWeight.w600,
+                          color: kInk,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
-        const Divider(height: 1, color: Color(0xFFF5F5F5)),
+          if (i != rows.length - 1) const Divider(height: 1, color: kLine),
+        ],
       ],
     );
   }
 
+  /// Kartu item (dipakai di tab Item, Delivery detail, Sales detail).
+  Widget _itemCard(Map<String, dynamic> item, int index) {
+    final code = item['itemCode']?.toString() ?? '-';
+    final name = item['itemName']?.toString() ?? '-';
+    final qty = item['qty']?.toString() ?? '-';
+    final date = item['date']?.toString() ?? '-';
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: _cardDecoration(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 26,
+                height: 26,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: kRed.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  '$index',
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    color: kRed,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      name,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        height: 1.3,
+                        fontWeight: FontWeight.w700,
+                        color: kInk,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      code,
+                      style: const TextStyle(fontSize: 11, color: kMuted),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                Expanded(child: _kv('Qty', '${qty}x')),
+                Expanded(child: _kv('Harga', _money(item['rate']))),
+                Expanded(
+                  child: _kv(
+                    'Subtotal',
+                    _money(item['amount']),
+                    end: true,
+                    color: kRed,
+                    bold: true,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (date != '-') ...[
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                const Icon(
+                  Icons.calendar_today_outlined,
+                  size: 12,
+                  color: kFaint,
+                ),
+                const SizedBox(width: 5),
+                Text(date, style: const TextStyle(fontSize: 11, color: kMuted)),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
   }
 
-class _ColHeader extends StatelessWidget {
-  final String text;
-  final bool center;
-  final bool right;
-  const _ColHeader(this.text, {this.center = false, this.right = false});
+  Widget _kv(
+    String label,
+    String value, {
+    bool end = false,
+    Color color = kInk,
+    bool bold = false,
+  }) {
+    return Column(
+      crossAxisAlignment: end
+          ? CrossAxisAlignment.end
+          : CrossAxisAlignment.start,
+      children: [
+        Text(label, style: const TextStyle(fontSize: 10.5, color: kFaint)),
+        const SizedBox(height: 3),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 12.5,
+            fontWeight: bold ? FontWeight.w800 : FontWeight.w600,
+            color: color,
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Baris list yang bisa di-tap (payment / delivery / sales order).
+  Widget _listTile({
+    required IconData icon,
+    required Color iconColor,
+    required Color iconBg,
+    required String title,
+    required String status,
+    required String date,
+    required String subtitle,
+    required VoidCallback onTap,
+    String? amount,
+    Color amountColor = kInk,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Material(
+        color: Colors.transparent,
+        child: Ink(
+          decoration: _cardDecoration(),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(16),
+            onTap: onTap,
+            child: Padding(
+              padding: const EdgeInsets.all(14),
+              child: Row(
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: iconBg,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(icon, size: 21, color: iconColor),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                title,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                  color: kInk,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            _chip(status),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.person_outline,
+                              size: 12,
+                              color: kFaint,
+                            ),
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: Text(
+                                subtitle,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 11.5,
+                                  color: kMuted,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              date,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                color: kFaint,
+                              ),
+                            ),
+                            if (amount != null)
+                              Text(
+                                amount,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w800,
+                                  color: amountColor,
+                                ),
+                              ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  const Icon(
+                    Icons.chevron_right,
+                    color: Colors.black26,
+                    size: 20,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _chip(String label) {
+    final Color fg;
+    final Color bg;
+    if (_isPaidLike(label)) {
+      fg = kGreen;
+      bg = const Color(0xFFE8F5E9);
+    } else if (_isUnpaidLike(label)) {
+      fg = kRed;
+      bg = const Color(0xFFFDEDED);
+    } else {
+      fg = const Color(0xFF1565C0);
+      bg = const Color(0xFFE3F2FD);
+    }
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: fg),
+      ),
+    );
+  }
+}
+
+/// Halaman scroll dengan ScrollController milik sendiri
+/// (tidak lagi membuat controller baru di setiap build).
+class _ScrollPage extends StatefulWidget {
+  final List<Widget> children;
+  const _ScrollPage({required this.children});
+
+  @override
+  State<_ScrollPage> createState() => _ScrollPageState();
+}
+
+class _ScrollPageState extends State<_ScrollPage> {
+  final ScrollController _controller = ScrollController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Text(
-      text,
-      textAlign: center
-          ? TextAlign.center
-          : right
-              ? TextAlign.right
-              : TextAlign.left,
-      style: const TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w700,
-          color: Colors.black38),
+    return Scrollbar(
+      controller: _controller,
+      thumbVisibility: true,
+      thickness: 4,
+      radius: const Radius.circular(8),
+      child: ListView(
+        controller: _controller,
+        physics: const ClampingScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
+        children: widget.children,
+      ),
     );
   }
+}
+
+class _InlineEmpty extends StatelessWidget {
+  const _InlineEmpty({
+    required this.message,
+    this.icon = Icons.inventory_2_outlined,
+  });
+
+  final String message;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 20),
+    child: Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 52,
+            height: 52,
+            decoration: const BoxDecoration(
+              color: Color(0xFFF1F5F9),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, size: 24, color: const Color(0xFFCBD5E1)),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontFamily: AppFonts.primaryFont,
+              fontSize: 12,
+              color: Color(0xFF64748B),
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
 }

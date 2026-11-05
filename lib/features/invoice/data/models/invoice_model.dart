@@ -3,10 +3,10 @@ class Invoice {
   final String customer;
   final String customerName;
   final String postingDate;
-  final String dueDate;         
+  final String dueDate;
   final String status;
   final double grandTotal;
-  final double outstandingAmount; 
+  final double outstandingAmount;
   final String currency;
 
   const Invoice({
@@ -32,6 +32,36 @@ class Invoice {
       grandTotal: (json['grand_total'] as num?)?.toDouble() ?? 0,
       outstandingAmount: (json['outstanding_amount'] as num?)?.toDouble() ?? 0,
       currency: json['currency'] ?? '',
+    );
+  }
+}
+
+class InvoiceStatusSummary {
+  final String status;
+  final int totalCount;
+  final double totalOutstanding;
+  final List<Invoice> preview;
+
+  const InvoiceStatusSummary({
+    required this.status,
+    required this.totalCount,
+    required this.totalOutstanding,
+    required this.preview,
+  });
+
+  factory InvoiceStatusSummary.fromJson(
+    String status,
+    Map<String, dynamic> json,
+  ) {
+    final rawPreview = json['preview'] as List? ?? const [];
+    return InvoiceStatusSummary(
+      status: status,
+      totalCount: (json['total_count'] as num?)?.toInt() ?? rawPreview.length,
+      totalOutstanding: (json['total_outstanding'] as num?)?.toDouble() ?? 0,
+      preview: rawPreview
+          .whereType<Map>()
+          .map((item) => Invoice.fromJson(Map<String, dynamic>.from(item)))
+          .toList(),
     );
   }
 }

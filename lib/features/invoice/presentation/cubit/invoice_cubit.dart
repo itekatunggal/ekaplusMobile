@@ -5,16 +5,22 @@ import 'package:ekaplus_ekatunggal/features/invoice/data/models/invoice_model.da
 
 // ── State ──────────────────────────────────────────────────────────────────
 abstract class InvoiceState {}
+
 class InvoiceInitial extends InvoiceState {}
+
 class InvoiceLoading extends InvoiceState {}
+
 class InvoiceLoaded extends InvoiceState {
   final List<Invoice> items;
-  InvoiceLoaded(this.items);
+  final Map<String, InvoiceStatusSummary> perStatus;
+  InvoiceLoaded(this.items, {this.perStatus = const {}});
 }
+
 class InvoiceUnauthorized extends InvoiceState {
   final String message;
   InvoiceUnauthorized(this.message);
 }
+
 class InvoiceError extends InvoiceState {
   final String message;
   InvoiceError(this.message);
@@ -28,9 +34,9 @@ class InvoiceCubit extends Cubit<InvoiceState> {
   InvoiceCubit({
     BranchCredentialService? credentialService,
     InvoiceService? invoiceService,
-  })  : _credentialService = credentialService ?? BranchCredentialService(),
-        _invoiceService = invoiceService ?? InvoiceService(),
-        super(InvoiceInitial());
+  }) : _credentialService = credentialService ?? BranchCredentialService(),
+       _invoiceService = invoiceService ?? InvoiceService(),
+       super(InvoiceInitial());
 
   Future<void> loadInvoices({
     required String branchCode,
@@ -55,7 +61,7 @@ class InvoiceCubit extends Cubit<InvoiceState> {
     );
 
     if (result.status == InvoiceFetchStatus.success) {
-      emit(InvoiceLoaded(result.items));
+      emit(InvoiceLoaded(result.items, perStatus: result.perStatus));
     } else if (result.status == InvoiceFetchStatus.unauthorized) {
       emit(InvoiceUnauthorized(result.message ?? 'Token tidak valid.'));
     } else {

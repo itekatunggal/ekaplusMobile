@@ -7,11 +7,13 @@ enum InvoiceFetchStatus { success, unauthorized, error }
 class InvoiceFetchResult {
   final InvoiceFetchStatus status;
   final List<Invoice> items;
+  final Map<String, InvoiceStatusSummary> perStatus;
   final String? message;
 
   const InvoiceFetchResult({
     required this.status,
     this.items = const [],
+    this.perStatus = const {},
     this.message,
   });
 }
@@ -25,11 +27,7 @@ class InvoiceService {
     int page = 1,
   }) async {
     try {
-      final body = jsonEncode({
-        'bcid': bcid,
-        'doctype': doctype,
-        'page': page,
-      });
+      final body = jsonEncode({'bcid': bcid, 'doctype': doctype, 'page': page});
 
       final response = await http.post(
         Uri.parse(
@@ -42,11 +40,9 @@ class InvoiceService {
         body: body,
       );
 
-
       if (response.statusCode == 200) {
         final responseBody = jsonDecode(response.body);
-        final message =
-            responseBody['message'] as Map<String, dynamic>? ?? {};
+        final message = responseBody['message'] as Map<String, dynamic>? ?? {};
         final success = message['success'] == true;
 
         if (!success) {
@@ -59,14 +55,37 @@ class InvoiceService {
         final data = message['data'] as Map<String, dynamic>? ?? {};
         final doctypeData = data[doctype] as Map<String, dynamic>? ?? {};
         final preview = doctypeData['preview'] as List? ?? [];
+        final rawPerStatus =
+            doctypeData['per_status'] as Map<String, dynamic>? ?? {};
 
         final list = preview
             .map((e) => Invoice.fromJson(e as Map<String, dynamic>))
             .toList();
+        final perStatus = <String, InvoiceStatusSummary>{};
+        for (final entry in rawPerStatus.entries) {
+          final value = entry.value;
+          if (value is Map) {
+            perStatus[entry.key] = InvoiceStatusSummary.fromJson(
+              entry.key,
+              Map<String, dynamic>.from(value),
+            );
+          }
+        }
+
+        final mergedItems = <String, Invoice>{};
+        for (final item in list) {
+          mergedItems[item.name] = item;
+        }
+        for (final summary in perStatus.values) {
+          for (final item in summary.preview) {
+            mergedItems[item.name] = item;
+          }
+        }
 
         return InvoiceFetchResult(
           status: InvoiceFetchStatus.success,
-          items: list,
+          items: mergedItems.values.toList(),
+          perStatus: perStatus,
         );
       } else if (response.statusCode == 401 || response.statusCode == 403) {
         return const InvoiceFetchResult(
@@ -87,7 +106,6 @@ class InvoiceService {
     }
   }
 }
-
 
 // import 'dart:convert';
 // import 'package:http/http.dart' as http;
@@ -128,7 +146,7 @@ class InvoiceService {
 
 //       print("📡 URL: $uri");
 
-//       final response = await http.get(  
+//       final response = await http.get(
 //         uri,
 //         headers: {
 //           'Content-Type': 'application/json',
