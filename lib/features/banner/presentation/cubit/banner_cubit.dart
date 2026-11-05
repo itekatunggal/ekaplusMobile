@@ -11,13 +11,11 @@ class BannerCubit extends Cubit<BannerState> {
   BannerCubit({required this.getAllBanner, required this.getBanner})
     : super(BannerInitial());
 
-  // Helper method to check if error is network-related
   bool _isNetworkError(Failure failure) {
-    final errorMessage = failure.message?.toLowerCase() ?? '';
     return failure is NetworkFailure ||
-        errorMessage.contains('socketexception') ||
-        errorMessage.contains('no connection') ||
-        errorMessage.contains('failed host lookup');
+        failure is TimeoutFailure ||
+        (failure is ServerFailure &&
+            (failure.statusCode == null || failure.statusCode! >= 500));
   }
 
   Future<void> fetchBanners({int page = 1}) async {
@@ -25,17 +23,14 @@ class BannerCubit extends Cubit<BannerState> {
 
     final result = await getAllBanner.execute(page);
 
-    result.fold(
-      (failure) {
-        // If network failure, keep showing loading (dialog will handle notification)
-        if (_isNetworkError(failure)) {
-          emit(BannerLoading());
-        } else {
-          emit(BannerError(failure.message ?? 'Failed to load banners'));
-        }
-      },
-      (banners) => emit(BannerLoaded(banners)),
-    );
+    result.fold((failure) {
+      // If network failure, keep showing loading (dialog will handle notification)
+      if (_isNetworkError(failure)) {
+        emit(BannerLoading());
+      } else {
+        emit(BannerError(failure.message ?? 'Failed to load banners'));
+      }
+    }, (banners) => emit(BannerLoaded(banners)));
   }
 
   void reset() {

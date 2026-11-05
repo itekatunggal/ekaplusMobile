@@ -78,7 +78,7 @@ class _VerifyContactCompletePageState extends State<VerifyContactCompletePage> {
               context.read<AuthSessionCubit>().updateUser(state.user);
 
               // Show success message
-              ScaffoldMessenger.of(context).showSnackBar(
+              AppSnackbar.showRaw(context, 
                 SnackBar(
                   content: Text(state.message),
                   backgroundColor: Colors.green,
@@ -99,7 +99,7 @@ class _VerifyContactCompletePageState extends State<VerifyContactCompletePage> {
               });
 
               // Show error message
-              ScaffoldMessenger.of(context).showSnackBar(
+              AppSnackbar.showRaw(context, 
                 SnackBar(
                   content: Text(state.message),
                   backgroundColor: Colors.red,

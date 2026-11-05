@@ -2,6 +2,8 @@
 
 import 'dart:convert';
 import 'package:ekaplus_ekatunggal/core/config/api_config.dart';
+import 'package:ekaplus_ekatunggal/core/network/http_request_handler.dart';
+import 'package:ekaplus_ekatunggal/core/network/resource_visibility.dart';
 
 import 'package:ekaplus_ekatunggal/features/product/data/models/product_model.dart';
 import 'package:ekaplus_ekatunggal/features/product/domain/entities/product.dart';
@@ -24,6 +26,31 @@ class ProductRemoteDatasourceImplementation extends ProductRemoteDatasource {
 
   ProductRemoteDatasourceImplementation({required this.client});
 
+  List<dynamic> _filterVisibleVariants(List<dynamic> variants) {
+    return variants.where((variant) {
+      if (variant is! Map<String, dynamic>) return false;
+      if (!ResourceVisibility.isVisibleRecord(variant)) return false;
+
+      final item = variant['item'];
+      if (item is! Map<String, dynamic>) return false;
+      return ResourceVisibility.isVisibleRecord(item);
+    }).toList();
+  }
+
+  List<Map<String, dynamic>> _sanitizeProducts(List<dynamic> data) {
+    return data
+        .whereType<Map<String, dynamic>>()
+        .where((row) {
+          return ResourceVisibility.isVisibleRecord(row);
+        })
+        .map((row) {
+          final variants = row['variants'];
+          if (variants is! List) return row;
+          return {...row, 'variants': _filterVisibleVariants(variants)};
+        })
+        .toList();
+  }
+
   @override
   Future<List<Product>> getAllProduct({
     int page = 1,
@@ -33,118 +60,129 @@ class ProductRemoteDatasourceImplementation extends ProductRemoteDatasource {
     List<List<String>>? orderBy,
     String? search,
   }) async {
-    try {
-      final spec = <String, dynamic>{
-        "fields": fields ?? ["id", "product_name"],
-        "limit": limit,
-        "page": page,
-        "childs": [
-          {
-            "alias": "variants",
-            "table": "ekatalog_variant",
-            "fields": ["item.id", "item.image"],
-            "limit": 1,
-            "order_by": [
-              ["item.updated_at", "desc"],
-            ],
-          },
-        ],
-      };
+    final spec = <String, dynamic>{
+      "fields": fields ?? ["id", "product_name", "disabled", "status"],
+      "limit": limit,
+      "page": page,
+      "childs": [
+        {
+          "alias": "variants",
+          "table": "ekatalog_variant",
+          "fields": ["item.id", "item.image", "item.disabled", "item.status"],
+          // Do not limit before client-side visibility filtering. The newest
+          // variant can be disabled while an older, visible variant still
+          // provides the product card image.
+          "order_by": [
+            ["item.updated_at", "desc"],
+          ],
+        },
+      ],
+    };
 
-      List<List<dynamic>> finalFilter = [];
+    final finalFilter = <List<dynamic>>[];
 
-      if (filters != null && filters.isNotEmpty) {
-        finalFilter.addAll(filters);
-      }
-
-      finalFilter.addAll([
-        ["disabled", "=", "0"],
-        // ["variants.item.disabled", "=", "0"],
-        // ["variants.item.image", "is", "set"],
-      ]);
-
-      spec["filters"] = finalFilter;
-
-      if (orderBy != null && orderBy.isNotEmpty) {
-        spec["order_by"] = orderBy;
-      }
-
-      if (search != null && search.trim().isNotEmpty) {
-        spec["search"] = search;
-      }
-
-      final uri = Uri.parse(
-        '${ApiConfig.baseUrl}/api/resource/ekatalog_product'
-        '?spec=${Uri.encodeComponent(jsonEncode(spec))}',
-      );
-
-      final response = await http.get(uri, headers: {...ApiConfig.headers});
-
-      if (response.statusCode != 200) {
-        throw response.body;
-      }
-
-      final decoded = jsonDecode(response.body);
-
-      final List<dynamic> data = decoded is List
-          ? decoded
-          : (decoded['data'] ?? []);
-
-      List<Product> result = ProductModel.fromJsonList(data);
-
-      return result;
-    } catch (e) {
-      throw e.toString();
+    if (filters != null && filters.isNotEmpty) {
+      finalFilter.addAll(filters);
     }
+
+    finalFilter.addAll([
+      ["disabled", "=", "0"],
+    ]);
+
+    spec["filters"] = finalFilter;
+
+    if (orderBy != null && orderBy.isNotEmpty) {
+      spec["order_by"] = orderBy;
+    }
+
+    if (search != null && search.trim().isNotEmpty) {
+      spec["search"] = search;
+    }
+
+    final uri = Uri.parse(
+      '${ApiConfig.baseUrl}/api/resource/ekatalog_product'
+      '?spec=${Uri.encodeComponent(jsonEncode(spec))}',
+    );
+
+    final response = await HttpRequestHandler.send(
+      () => client.get(uri, headers: {...ApiConfig.headers}),
+      defaultServerMessage: 'Gagal mengambil data produk',
+    );
+
+    final decoded = jsonDecode(response.body);
+
+    final List<dynamic> data = decoded is List
+        ? decoded
+        : (decoded['data'] ?? []);
+    final sanitized = _sanitizeProducts(data);
+
+    return ProductModel.fromJsonList(sanitized);
   }
 
   @override
   Future<Product> getProduct(String id) async {
-    try {
-      final spec = {
-        "fields": [
-          "product_name",
-          "id",
-          "item_category",
-          "hot_deals",
-          "item_category.category_name",
-          "item_category.id",
-        ],
-        "childs": [
-          {
-            "alias": "variants",
-            "table": "ekatalog_variant",
-            "fields": [
-              "item.id",
-              "item.item_code",
-              "item.item_name",
-              "item.image",
-              "item.item_desc",
-            ],
-            "order_by": [
-              ["item.updated_at", "desc"],
-            ],
-          },
-        ],
-      };
+    final spec = {
+      "fields": [
+        "product_name",
+        "id",
+        "item_category",
+        "hot_deals",
+        "item_category.category_name",
+        "item_category.id",
+      ],
+      "childs": [
+        {
+          "alias": "variants",
+          "table": "ekatalog_variant",
+          "fields": [
+            "item.id",
+            "item.item_code",
+            "item.item_name",
+            "item.image",
+            "item.item_desc",
+            "item.disabled",
+            "item.status",
+          ],
+          "order_by": [
+            ["item.updated_at", "desc"],
+          ],
+        },
+      ],
+      "filters": [
+        ["id", "=", id],
+        ["disabled", "=", "0"],
+      ],
+      "limit": 1,
+    };
 
-      final uri = Uri.parse(
-        '${ApiConfig.baseUrl}/api/resource/ekatalog_product/$id'
-        '?spec=${Uri.encodeComponent(jsonEncode(spec))}',
-      );
-      final response = await http.get(uri, headers: {...ApiConfig.headers});
+    final uri = Uri.parse(
+      '${ApiConfig.baseUrl}/api/resource/ekatalog_product/$id'
+      '?spec=${Uri.encodeComponent(jsonEncode(spec))}',
+    );
+    final response = await HttpRequestHandler.send(
+      () => client.get(uri, headers: {...ApiConfig.headers}),
+      defaultServerMessage: 'Gagal mengambil detail produk',
+    );
 
-      if (response.statusCode != 200) {
-        throw response.body;
+    final decoded = jsonDecode(response.body);
+    final rawData = decoded is Map<String, dynamic> ? decoded['data'] : decoded;
+
+    if (rawData is Map<String, dynamic>) {
+      final sanitized = _sanitizeProducts([rawData]);
+      if (sanitized.isEmpty) {
+        throw const FormatException('Produk tidak ditemukan atau nonaktif');
       }
-
-      final decoded = jsonDecode(response.body);
-
-      final dynamic data = decoded is List ? decoded : (decoded['data'] ?? []);
-
-      return ProductModel.fromJson(data);
-    } catch (e) {
-      throw e.toString();
+      return ProductModel.fromJson(sanitized.first);
     }
+
+    if (rawData is List && rawData.isNotEmpty) {
+      final sanitized = _sanitizeProducts(rawData);
+      if (sanitized.isEmpty) {
+        throw const FormatException('Produk tidak ditemukan atau nonaktif');
+      }
+      return ProductModel.fromJson(sanitized.first);
+    }
+
+    throw const FormatException('Produk tidak ditemukan atau nonaktif');
   }
 }

@@ -1,5 +1,6 @@
 // lib/constant.dart
 import 'package:flutter/material.dart';
+export 'core/shared_widgets/app_snackbar.dart';
 
 class AppColors {
   static const primaryColor = Color(0xFFB11F23);

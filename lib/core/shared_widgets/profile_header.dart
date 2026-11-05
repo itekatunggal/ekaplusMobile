@@ -4,15 +4,86 @@ import 'package:ekaplus_ekatunggal/constant.dart';
 import 'package:ekaplus_ekatunggal/core/config/api_config.dart';
 import 'package:ekaplus_ekatunggal/features/auth/presentation/cubit/auth_session_cubit.dart';
 import 'package:ekaplus_ekatunggal/features/auth/presentation/cubit/auth_session_state.dart';
+import 'package:ekaplus_ekatunggal/features/member/domain/entities/active_member_company.dart';
+import 'package:ekaplus_ekatunggal/features/member/presentation/cubit/active_company_cubit.dart';
+import 'package:ekaplus_ekatunggal/features/member/presentation/widgets/company_picker_sheet.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
-class ProfileHeader extends StatelessWidget {
+class ProfileHeader extends StatefulWidget {
   final VoidCallback? onCompanyTap;
 
   const ProfileHeader({super.key, this.onCompanyTap});
+
+  @override
+  State<ProfileHeader> createState() => _ProfileHeaderState();
+}
+
+class _ProfileHeaderState extends State<ProfileHeader> {
+  int? _lastLoadedUserId;
+
+  void _showActiveCompanyToast(String message) {
+    AppSnackbar.show(
+      context,
+      message: message,
+      type: AppSnackbarType.success,
+    );
+  }
+
+  Future<void> _showCompanyPicker() async {
+    final activeCubit = context.read<ActiveCompanyCubit>();
+    final state = activeCubit.state;
+    final companies = state is ActiveCompanyReady
+        ? state.companies
+        : const <ActiveMemberCompany>[];
+    final activeBcid = state is ActiveCompanyReady ? state.activeBcid : null;
+
+
+    await showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (dialogContext) => CompanyPickerSheet(
+        companies: companies,
+        activeBcid: activeBcid,
+        onSelectCompany: (selected) async {
+          try {
+            final changed = await activeCubit.setActiveCompany(selected);
+            if (dialogContext.mounted) {
+              Navigator.of(dialogContext).pop();
+            }
+            if (!mounted) return;
+            if (changed) {
+              _showActiveCompanyToast(
+                '${selected.displayName} menjadi perusahaan aktif',
+              );
+            } else {
+              AppSnackbar.show(
+                context,
+                message: 'Perusahaan belum memiliki BCID valid',
+                type: AppSnackbarType.error,
+              );
+            }
+          } catch (e) {
+            if (dialogContext.mounted) {
+              Navigator.of(dialogContext).pop();
+            }
+            if (!mounted) return;
+            AppSnackbar.show(
+              context,
+              message: 'Gagal memilih perusahaan aktif: $e',
+              type: AppSnackbarType.error,
+            );
+          }
+        },
+        onAddCompany: () {
+          Navigator.of(dialogContext).pop();
+          context.pushNamed('companySelection');
+        },
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -25,6 +96,23 @@ class ProfileHeader extends StatelessWidget {
       ),
       child: BlocBuilder<AuthSessionCubit, AuthSessionState>(
         builder: (context, authState) {
+          if (authState is AuthSessionAuthenticated) {
+            final userId = authState.user.id;
+            final shouldForceReload = _lastLoadedUserId != userId;
+            _lastLoadedUserId = userId;
+
+            final activeState = context.read<ActiveCompanyCubit>().state;
+            if (shouldForceReload ||
+                (activeState is! ActiveCompanyReady &&
+                    activeState is! ActiveCompanyLoading)) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (!mounted) return;
+                context.read<ActiveCompanyCubit>().loadCompaniesAndResolveActive(
+                  force: shouldForceReload,
+                );
+              });
+            }
+          }
           Widget buildAvatar() {
             if (authState is AuthSessionAuthenticated) {
               final user = authState.user;
@@ -56,7 +144,7 @@ class ProfileHeader extends StatelessWidget {
                   }
                 } else if (profilePic.startsWith('http')) {
                   return Image.network(
-                    profilePic,
+                    ApiConfig.addImageUpdatedAt(profilePic),
                     fit: BoxFit.contain,
                     errorBuilder: (_, __, ___) =>
                         _buildDefaultAvatar(user.fullName),
@@ -70,7 +158,7 @@ class ProfileHeader extends StatelessWidget {
                   );
                 } else {
                   return Image.network(
-                    "${ApiConfig.baseImageUrl}/$profilePic",
+                    ApiConfig.getImageUrl(profilePic),
                     fit: BoxFit.contain,
                     errorBuilder: (_, __, ___) =>
                         _buildDefaultAvatar(user.fullName),
@@ -132,56 +220,6 @@ class ProfileHeader extends StatelessWidget {
 
             if (authState is AuthSessionAuthenticated) {
               final user = authState.user;
-              final status = authState.status;
-
-              if (status == UserStatus.member) {
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Halo, ${user.firstName}',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontFamily: AppFonts.primaryFont,
-                        color: AppColors.blackColor,
-                        fontSize: isIOS ? 16 : 14,
-                        letterSpacing: -0.3,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    GestureDetector(
-                      onTap:
-                          onCompanyTap ??
-                          () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                  'Pilih perusahaan (segera hadir)',
-                                ),
-                              ),
-                            );
-                          },
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            'PT Nama Perusahaan',
-                            style: TextStyle(
-                              color: AppColors.primaryColor,
-                              fontSize: isIOS ? 12 : 10,
-                              fontWeight: FontWeight.w500,
-                              fontFamily: AppFonts.primaryFont,
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          Icon(Icons.expand_more, size: isIOS ? 18 : 16),
-                        ],
-                      ),
-                    ),
-                  ],
-                );
-              }
-
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -194,6 +232,47 @@ class ProfileHeader extends StatelessWidget {
                       fontSize: isIOS ? 16 : 14,
                       letterSpacing: -0.3,
                     ),
+                  ),
+                  const SizedBox(height: 2),
+                  BlocBuilder<ActiveCompanyCubit, ActiveCompanyState>(
+                    builder: (context, state) {
+                      final readyState = state is ActiveCompanyReady
+                          ? state
+                          : null;
+                      final hasActiveCompany =
+                          readyState != null &&
+                          readyState.companies.isNotEmpty &&
+                          readyState.activeCompany != null;
+                      if (!hasActiveCompany) {
+                        return const SizedBox.shrink();
+                      }
+                      final companyLabel = readyState.activeCompany!.displayName;
+                      return GestureDetector(
+                        onTap: widget.onCompanyTap ?? _showCompanyPicker,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 180),
+                              switchInCurve: Curves.easeOutCubic,
+                              switchOutCurve: Curves.easeInCubic,
+                              child: Text(
+                                companyLabel,
+                                key: ValueKey(companyLabel),
+                                style: TextStyle(
+                                  color: AppColors.primaryColor,
+                                  fontSize: isIOS ? 12 : 10,
+                                  fontWeight: FontWeight.w500,
+                                  fontFamily: AppFonts.primaryFont,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Icon(Icons.expand_more, size: isIOS ? 18 : 16),
+                          ],
+                        ),
+                      );
+                    },
                   ),
                 ],
               );
@@ -243,7 +322,7 @@ class ProfileHeader extends StatelessWidget {
               ),
               // IconButton(
               //   onPressed: () {
-              //     ScaffoldMessenger.of(context).showSnackBar(
+              //     AppSnackbar.showRaw(context,
               //       const SnackBar(content: Text('Notifikasi (segera hadir)')),
               //     );
               //   },

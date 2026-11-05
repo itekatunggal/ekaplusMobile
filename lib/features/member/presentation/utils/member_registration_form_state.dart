@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:ekaplus_ekatunggal/features/branch/domain/entities/branch.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../../data/models/province_model.dart';
 import '../../data/models/regency_model.dart';
 import '../../data/models/district_model.dart';
@@ -12,6 +13,17 @@ import '../../data/models/shipping_address_model.dart';
 
 /// Class untuk mengelola semua form controllers dan state untuk Member Registration
 class MemberRegistrationFormState {
+  String _normalizePhoneForDb(String raw) {
+    final digits = raw.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digits.isEmpty) return raw.trim();
+    if (digits.startsWith('0')) return '62${digits.substring(1)}';
+    if (digits.startsWith('62')) return digits;
+    return digits;
+  }
+
+  String _uppercaseText(String raw) {
+    return raw.trim().toUpperCase();
+  }
   // === IDENTITY SECTION (Read-only from User data) ===
   // Controllers untuk data identitas yang sudah ada
   final TextEditingController namaController;
@@ -19,6 +31,14 @@ class MemberRegistrationFormState {
   final TextEditingController emailController;
   final TextEditingController birthPlaceController;
   final TextEditingController dateOfBirthController;
+  final TextEditingController branchPicNameController;
+  final TextEditingController branchPicPhoneController;
+  final TextEditingController branchPicEmailController;
+  final TextEditingController branchPicBirthPlaceController;
+  final TextEditingController branchPicDateOfBirthController;
+  final TextEditingController userNamaController;
+  final TextEditingController userPhoneController;
+  final TextEditingController userEmailController;
 
   // === COMPANY INFO SECTION ===
   final TextEditingController companyNameController;
@@ -62,6 +82,7 @@ class MemberRegistrationFormState {
   File? npwpFile;
   String? companyDocFilePath; // SIUP/TDP/NIB
   bool isPKP = false; // Pengusaha Kena Pajak checkbox
+  bool branchPicSameAsOwner = false;
 
   // === SHIPPING ADDRESSES ===
   List<ShippingAddressModel> shippingAddresses = [];
@@ -73,6 +94,14 @@ class MemberRegistrationFormState {
     required this.emailController,
     required this.birthPlaceController,
     required this.dateOfBirthController,
+    required this.branchPicNameController,
+    required this.branchPicPhoneController,
+    required this.branchPicEmailController,
+    required this.branchPicBirthPlaceController,
+    required this.branchPicDateOfBirthController,
+    required this.userNamaController,
+    required this.userPhoneController,
+    required this.userEmailController,
     // Company Info
     required this.companyNameController,
     required this.nikController,
@@ -98,6 +127,14 @@ class MemberRegistrationFormState {
       emailController: TextEditingController(),
       birthPlaceController: TextEditingController(),
       dateOfBirthController: TextEditingController(),
+      branchPicNameController: TextEditingController(),
+      branchPicPhoneController: TextEditingController(),
+      branchPicEmailController: TextEditingController(),
+      branchPicBirthPlaceController: TextEditingController(),
+      branchPicDateOfBirthController: TextEditingController(),
+      userNamaController: TextEditingController(),
+      userPhoneController: TextEditingController(),
+      userEmailController: TextEditingController(),
       // Company Info
       companyNameController: TextEditingController(),
       nikController: TextEditingController(),
@@ -130,6 +167,14 @@ class MemberRegistrationFormState {
       emailController: TextEditingController(text: email),
       birthPlaceController: TextEditingController(text: birthPlace),
       dateOfBirthController: TextEditingController(text: dateOfBirth),
+      branchPicNameController: TextEditingController(),
+      branchPicPhoneController: TextEditingController(),
+      branchPicEmailController: TextEditingController(),
+      branchPicBirthPlaceController: TextEditingController(),
+      branchPicDateOfBirthController: TextEditingController(),
+      userNamaController: TextEditingController(text: nama),
+      userPhoneController: TextEditingController(text: phone),
+      userEmailController: TextEditingController(text: email),
       // Company Info (empty)
       companyNameController: TextEditingController(),
       nikController: TextEditingController(),
@@ -155,6 +200,14 @@ class MemberRegistrationFormState {
     emailController.dispose();
     birthPlaceController.dispose();
     dateOfBirthController.dispose();
+    branchPicNameController.dispose();
+    branchPicPhoneController.dispose();
+    branchPicEmailController.dispose();
+    branchPicBirthPlaceController.dispose();
+    branchPicDateOfBirthController.dispose();
+    userNamaController.dispose();
+    userPhoneController.dispose();
+    userEmailController.dispose();
     // Company Info
     companyNameController.dispose();
     nikController.dispose();
@@ -182,6 +235,22 @@ class MemberRegistrationFormState {
     shippingAddresses.add(ShippingAddressModel.create());
   }
 
+  void syncBranchPicWithOwner() {
+    branchPicNameController.text = namaController.text;
+    branchPicPhoneController.text = phoneController.text;
+    branchPicEmailController.text = emailController.text;
+    branchPicBirthPlaceController.text = birthPlaceController.text;
+    branchPicDateOfBirthController.text = dateOfBirthController.text;
+  }
+
+  void clearBranchPicIdentity() {
+    branchPicNameController.clear();
+    branchPicPhoneController.clear();
+    branchPicEmailController.clear();
+    branchPicBirthPlaceController.clear();
+    branchPicDateOfBirthController.clear();
+  }
+
   /// Remove shipping address by index
   void removeShippingAddress(int index) {
     if (index >= 0 && index < shippingAddresses.length) {
@@ -199,9 +268,11 @@ class MemberRegistrationFormState {
         province: selectedProvince,
         regency: selectedRegency,
         district: selectedDistrict,
+        village: selectedVillage,
         companyProvinces: provinces,
         companyRegencies: regencies,
         companyDistricts: districts,
+        companyVillages: villages,
       );
     }
   }
@@ -250,11 +321,23 @@ class MemberRegistrationFormState {
     Map<String, String?> errors = {};
 
     // Identity
+    if (namaController.text.trim().isEmpty) {
+      errors['ownerName'] = 'Nama pemilik wajib diisi';
+    }
+    if (phoneController.text.trim().isEmpty) {
+      errors['ownerPhone'] = 'No. HP pemilik wajib diisi';
+    }
     if (birthPlaceController.text.trim().isEmpty) {
       errors['birthPlace'] = 'Tempat lahir wajib diisi';
     }
     if (dateOfBirthController.text.trim().isEmpty) {
       errors['dateOfBirth'] = 'Tanggal lahir wajib diisi';
+    }
+    if (branchPicNameController.text.trim().isEmpty) {
+      errors['branchPicName'] = 'Nama PIC Branch wajib diisi';
+    }
+    if (branchPicPhoneController.text.trim().isEmpty) {
+      errors['branchPicPhone'] = 'No. HP PIC Branch wajib diisi';
     }
 
     // Company Type
@@ -320,9 +403,9 @@ class MemberRegistrationFormState {
     if (selectedDistrict == null) {
       errors['district'] = 'Pilih kecamatan';
     }
-    // if (selectedVillage == null) {
-    //   errors['village'] = 'Pilih kelurahan/desa';
-    // }
+    if (selectedVillage == null) {
+      errors['village'] = 'Pilih kelurahan/desa';
+    }
 
     // RT/RW
     // if (rtController.text.trim().isEmpty) {
@@ -333,11 +416,11 @@ class MemberRegistrationFormState {
     // }
 
     // Postal Code
-    if (postalCodeController.text.trim().isEmpty) {
-      errors['postalCode'] = 'Kode pos tidak boleh kosong';
-    } else if (postalCodeController.text.trim().length != 5) {
-      errors['postalCode'] = 'Kode pos harus 5 digit';
-    }
+    // if (postalCodeController.text.trim().isEmpty) {
+    //   errors['postalCode'] = 'Kode pos tidak boleh kosong';
+    // } else if (postalCodeController.text.trim().length != 5) {
+    //   errors['postalCode'] = 'Kode pos harus 5 digit';
+    // }
 
     // Shipping Addresses: minimal 1 alamat pengiriman valid
     if (shippingAddresses.isEmpty) {
@@ -383,6 +466,11 @@ class MemberRegistrationFormState {
         companyTitle != null ||
         (companySuffix != null && companySuffix!.isNotEmpty) ||
         selectedBranch != null ||
+        branchPicNameController.text.trim().isNotEmpty ||
+        branchPicPhoneController.text.trim().isNotEmpty ||
+        branchPicEmailController.text.trim().isNotEmpty ||
+        branchPicBirthPlaceController.text.trim().isNotEmpty ||
+        branchPicDateOfBirthController.text.trim().isNotEmpty ||
         companyNameController.text.trim().isNotEmpty ||
         nikController.text.trim().isNotEmpty ||
         npwpController.text.trim().isNotEmpty ||
@@ -411,7 +499,8 @@ class MemberRegistrationFormState {
           shipping.postalCodeController.text.trim().isNotEmpty ||
           shipping.selectedProvince != null ||
           shipping.selectedRegency != null ||
-          shipping.selectedDistrict != null) {
+          shipping.selectedDistrict != null ||
+          shipping.selectedVillage != null) {
         return true;
       }
     }
@@ -432,7 +521,63 @@ class MemberRegistrationFormState {
     String registrationType = 'GPID',
     String? parentGcid,
   }) {
+    return toApiCustomerRegisterJson();
+  }
+
+  Map<String, dynamic> toApiCustomerRegisterJson() {
+    // String registrationType = 'GPID',
+    // String? parentGcid,
+    // }) {
     final companyNameFormatted = getFormattedCompanyName();
+
+    final hasShipping = shippingAddresses.isNotEmpty;
+    final allShippingSameAsCompany =
+        hasShipping && shippingAddresses.every((e) => e.sameAsCompanyAddress);
+
+    final customerRegisterAddress = shippingAddresses
+        .map(
+          (e) => {
+            'label': e.labelController.text.trim().isEmpty
+                ? 'ALAMAT PENGIRIMAN'
+                : _uppercaseText(e.labelController.text),
+            'type': 'Shipping',
+            'address': e.sameAsCompanyAddress
+                ? _uppercaseText(addressController.text)
+                : _uppercaseText(e.addressController.text),
+            'province': e.sameAsCompanyAddress
+                ? selectedProvince?.name.toUpperCase()
+                : e.selectedProvince?.name.toUpperCase(),
+            'city': e.sameAsCompanyAddress
+                ? selectedRegency?.name.toUpperCase()
+                : e.selectedRegency?.name.toUpperCase(),
+            'district': e.sameAsCompanyAddress
+                ? selectedDistrict?.name.toUpperCase()
+                : e.selectedDistrict?.name.toUpperCase(),
+            'village': e.sameAsCompanyAddress
+                ? selectedVillage?.name.toUpperCase()
+                : e.selectedVillage?.name.toUpperCase(),
+            'company_village': e.sameAsCompanyAddress
+                ? selectedVillage?.name.toUpperCase()
+                : e.selectedVillage?.name.toUpperCase(),
+            if ((e.sameAsCompanyAddress
+                    ? postalCodeController.text.trim()
+                    : e.postalCodeController.text.trim())
+                .isNotEmpty)
+              'postal_code': e.sameAsCompanyAddress
+                  ? postalCodeController.text.trim()
+                  : e.postalCodeController.text.trim(),
+            'pic_name': _uppercaseText(e.picNameController.text),
+            'pic_phone': e.picPhoneController.text.trim().isEmpty
+                ? ''
+                : _normalizePhoneForDb(e.picPhoneController.text.trim()),
+            if (e.picEmailController.text.trim().isNotEmpty)
+              'pic_email': e.picEmailController.text.trim(),
+            'is_default': e.isDefault ? 1 : 0,
+            'country':
+                'Indonesia', // ini hanya untuk sementara (api development belum di build ulang) nanti hapus yaaa!!!
+          },
+        )
+        .toList();
 
     // Generate BC_name with format: "COMPANY_NAME - DAERAH" (untuk SEMUA registration)
     // final bcName = selectedBranch != null
@@ -441,64 +586,102 @@ class MemberRegistrationFormState {
 
     return {
       // Registration Metadata
-      'type': registrationType,
-      'nama': namaController.text.trim(),
-      'email': emailController.text.trim(),
-      'phone': phoneController.text.trim(),
-      'birthPlace': birthPlaceController.text.trim(),
-      'dateOfBirth': dateOfBirthController.text.trim(),
+      // 'type': registrationType,
+      'source': 'ekaplus',
+      'owner_name': _uppercaseText(namaController.text),
+      'owner_full_name': _uppercaseText(namaController.text),
+      'owner_phone': _normalizePhoneForDb(phoneController.text.trim()),
+      if (emailController.text.trim().isNotEmpty)
+        'owner_email': emailController.text.trim(),
+      'owner_place_of_birth': _uppercaseText(birthPlaceController.text),
+      'owner_date_of_birth': _formatDateForApi(
+        dateOfBirthController.text.trim(),
+      ),
+      'branch_owner': _uppercaseText(branchPicNameController.text),
+      'branch_owner_phone': branchPicPhoneController.text.trim().isEmpty
+          ? ''
+          : _normalizePhoneForDb(branchPicPhoneController.text.trim()),
+      if (branchPicEmailController.text.trim().isNotEmpty)
+        'branch_owner_email': branchPicEmailController.text.trim(),
+      'branch_owner_place_of_birth': _uppercaseText(
+        branchPicBirthPlaceController.text,
+      ),
+      'branch_owner_date_of_birth': _formatDateForApi(
+        branchPicDateOfBirthController.text.trim(),
+      ),
 
       // Company Info (kept for compatibility)
-      'business_name': companyNameFormatted,
-      'entity': companyType,
-      // 'nik': nikController.text.trim(),
-      // 'npwp': npwpController.text.trim(),
+      'company_type': companyType,
+      'company_title': companyTitle,
+      'company_name': companyNameFormatted,
       'product_need': productNeed,
+      'tax_status': isPKP ? 1 : 0,
+      if (npwpController.text.trim().isNotEmpty) 'npwp': npwpController.text.trim(),
+      // 'nik': nikController.text.trim(),
 
       // Branch
-      'branch': selectedBranch?.id,
+      'branch_id': selectedBranch?.id,
       'branch_name': selectedBranch?.branchName,
-      'branch_daerah': selectedBranch?.area, // NEW: Daerah from branch
-      // Address
-      'address': addressController.text.trim(),
-      'province': selectedProvince?.name,
-      'city': selectedRegency?.name,
-      'district': selectedDistrict?.name,
-      // 'village': selectedVillage?.name,
+      'branch_area': selectedBranch?.area,
+
+      // Company Address
+      'company_address': _uppercaseText(addressController.text),
+      'company_province': selectedProvince?.name.toUpperCase(),
+      'company_city': selectedRegency?.name.toUpperCase(),
+      'company_district': selectedDistrict?.name.toUpperCase(),
+      'village': selectedVillage?.name.toUpperCase(),
+      'company_village': selectedVillage?.name.toUpperCase(),
       // 'rt': rtController.text.trim(),
       // 'rw': rwController.text.trim(),
-      'postal_code': postalCodeController.text.trim(),
+      if (postalCodeController.text.trim().isNotEmpty)
+        'company_postal_code': postalCodeController.text.trim(),
 
+      'same_as_company_address': allShippingSameAsCompany ? 1 : 0,
+      if (hasShipping) 'customer_register_address': customerRegisterAddress,
       // Supporting Data
-      'contact_person': contactPersonController.text.trim(),
-      'factory_address': factoryAddressController.text.trim(),
-      'email_company': emailCompanyController.text.trim(),
-      'fax': faxController.text.trim(),
-
-      // PKP Status
-      'is_pkp': isPKP,
+      // 'contact_person': contactPersonController.text.trim(),
+      // 'factory_address': factoryAddressController.text.trim(),
+      // 'email_company': emailCompanyController.text.trim(),
+      // 'fax': faxController.text.trim(),
 
       // Shipping Addresses - jika sameAsCompanyAddress true, gunakan data alamat perusahaan
-      'shipping_addresses': shippingAddresses.map((addr) {
-        if (addr.sameAsCompanyAddress) {
-          // Gunakan data alamat perusahaan terbaru
-          return {
-            'label': addr.labelController.text.trim().isEmpty
-                ? 'Alamat Pengiriman'
-                : addr.labelController.text.trim(),
-            'address': addressController.text.trim(),
-            'province': selectedProvince?.name,
-            'province_code': selectedProvince?.code,
-            'city': selectedRegency?.name,
-            'city_code': selectedRegency?.code,
-            'district': selectedDistrict?.name,
-            'district_code': selectedDistrict?.code,
-            'postal_code': postalCodeController.text.trim(),
-            'same_as_company': true,
-          };
-        }
-        return addr.toJson();
-      }).toList(),
+      // 'shipping_addresses': shippingAddresses.map((addr) {
+      //   if (addr.sameAsCompanyAddress) {
+      //     // Gunakan data alamat perusahaan terbaru
+      //     return {
+      //       'label': addr.labelController.text.trim().isEmpty
+      //           ? 'Alamat Pengiriman'
+      //           : addr.labelController.text.trim(),
+      //       'address': addressController.text.trim(),
+      //       'province': selectedProvince?.name,
+      //       'province_code': selectedProvince?.code,
+      //       'city': selectedRegency?.name,
+      //       'city_code': selectedRegency?.code,
+      //       'district': selectedDistrict?.name,
+      //       'district_code': selectedDistrict?.code,
+      //       'postal_code': postalCodeController.text.trim(),
+      //       'same_as_company': true,
+      //     };
+      //   }
+      //   return addr.toJson();
+      // }).toList(),
     };
+  }
+
+  String _formatDateForApi(String value) {
+    final raw = value.trim();
+    if (raw.isEmpty) return raw;
+
+    try {
+      final parsed = DateFormat('dd MMMM yyyy', 'id_ID').parseStrict(raw);
+      return '${parsed.year.toString().padLeft(4, '0')}-${parsed.month.toString().padLeft(2, '0')}-${parsed.day.toString().padLeft(2, '0')}';
+    } catch (_) {}
+
+    try {
+      final parsed = DateFormat('dd/MM/yyyy').parseStrict(raw);
+      return '${parsed.year.toString().padLeft(4, '0')}-${parsed.month.toString().padLeft(2, '0')}-${parsed.day.toString().padLeft(2, '0')}';
+    } catch (_) {}
+
+    return raw;
   }
 }

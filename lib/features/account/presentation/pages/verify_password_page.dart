@@ -58,7 +58,7 @@ class _VerifyPasswordPageState extends State<VerifyPasswordPage> {
           setState(() => _isVerifying = false);
 
           if (!state.valid) {
-            ScaffoldMessenger.of(context).showSnackBar(
+            AppSnackbar.showRaw(context, 
               const SnackBar(
                 content: Text('Password salah'),
                 backgroundColor: Colors.red,
@@ -77,7 +77,7 @@ class _VerifyPasswordPageState extends State<VerifyPasswordPage> {
         if (state is AuthError) {
           setState(() => _isVerifying = false);
 
-          ScaffoldMessenger.of(context).showSnackBar(
+          AppSnackbar.showRaw(context, 
             SnackBar(content: Text(state.message), backgroundColor: Colors.red),
           );
         }

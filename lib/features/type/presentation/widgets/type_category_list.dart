@@ -1,5 +1,6 @@
 // lib/features/type/presentation/widgets/type_category_list.dart
 import 'package:ekaplus_ekatunggal/constant.dart';
+import 'package:ekaplus_ekatunggal/core/config/api_config.dart';
 import 'package:ekaplus_ekatunggal/features/category/presentation/widgets/category_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -159,7 +160,7 @@ class TypeCategoryList extends StatelessWidget {
     // Network image -> gunakan CachedNetworkImage
     if (imgPath.startsWith('http')) {
       return CachedNetworkImage(
-        imageUrl: imgPath,
+        imageUrl: ApiConfig.addImageUpdatedAt(imgPath),
         fit: BoxFit.contain,
         placeholder: (context, url) => const SizedBox(
           width: 24,

@@ -3,6 +3,7 @@
 import 'package:ekaplus_ekatunggal/features/banner/presentation/cubit/banner_cubit.dart';
 import 'package:ekaplus_ekatunggal/features/branch/presentation/cubit/branch_cubit.dart';
 import 'package:ekaplus_ekatunggal/features/member/presentation/cubit/member_registration_cubit.dart';
+import 'package:ekaplus_ekatunggal/features/member/presentation/cubit/active_company_cubit.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -27,6 +28,39 @@ import 'features/type/presentation/bloc/type_bloc.dart';
 import 'features/wishlist/presentation/bloc/wishlist_bloc.dart';
 
 import 'core/routes/my_router.dart';
+
+class FadeThroughPageTransitionsBuilder extends PageTransitionsBuilder {
+  const FadeThroughPageTransitionsBuilder();
+
+  @override
+  Widget buildTransitions<T>(
+    PageRoute<T> route,
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+    Widget child,
+  ) {
+    final fadeIn = CurvedAnimation(
+      parent: animation,
+      curve: const Interval(0.2, 1.0, curve: Curves.easeOutCubic),
+    );
+    final fadeOut = CurvedAnimation(
+      parent: secondaryAnimation,
+      curve: const Interval(0.0, 0.8, curve: Curves.easeOutCubic),
+    );
+    final scaleIn = Tween<double>(begin: 0.94, end: 1.0).animate(
+      CurvedAnimation(parent: animation, curve: Curves.easeOutCubic),
+    );
+
+    return FadeTransition(
+      opacity: Tween<double>(begin: 1.0, end: 0.0).animate(fadeOut),
+      child: FadeTransition(
+        opacity: fadeIn,
+        child: ScaleTransition(scale: scaleIn, child: child),
+      ),
+    );
+  }
+}
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -67,6 +101,9 @@ class _EkaplusAppState extends State<EkaplusApp> {
         ),
         BlocProvider(
           create: (_) => myinjection<AuthSessionCubit>()..refreshUser(),
+        ),
+        BlocProvider(
+          create: (_) => myinjection<ActiveCompanyCubit>()..loadCompaniesAndResolveActive(),
         ),
         BlocProvider(
           create: (_) {
@@ -142,6 +179,31 @@ class _EkaplusAppState extends State<EkaplusApp> {
             fontFamily: AppFonts.primaryFont,
             colorScheme: ColorScheme.fromSeed(
               seedColor: AppColors.primaryColor,
+            ).copyWith(
+              surface: Colors.white,
+            ),
+            dialogTheme: const DialogThemeData(
+              backgroundColor: Colors.white,
+              surfaceTintColor: Colors.transparent,
+            ),
+            bottomSheetTheme: const BottomSheetThemeData(
+              backgroundColor: Colors.white,
+              modalBackgroundColor: Colors.white,
+              surfaceTintColor: Colors.transparent,
+            ),
+            popupMenuTheme: const PopupMenuThemeData(
+              color: Colors.white,
+              surfaceTintColor: Colors.transparent,
+            ),
+            pageTransitionsTheme: const PageTransitionsTheme(
+              builders: {
+                TargetPlatform.android: FadeThroughPageTransitionsBuilder(),
+                TargetPlatform.iOS: FadeThroughPageTransitionsBuilder(),
+                TargetPlatform.macOS: FadeThroughPageTransitionsBuilder(),
+                TargetPlatform.windows: FadeThroughPageTransitionsBuilder(),
+                TargetPlatform.linux: FadeThroughPageTransitionsBuilder(),
+                TargetPlatform.fuchsia: FadeThroughPageTransitionsBuilder(),
+              },
             ),
           ),
         ),

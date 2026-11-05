@@ -1,6 +1,7 @@
 // lib/features/auth/presentation/cubit/auth_session_cubit.dart
 import 'package:ekaplus_ekatunggal/features/auth/domain/usecases/get_user_info.dart';
 import 'package:ekaplus_ekatunggal/features/auth/domain/usecases/save_login_user.dart';
+import 'package:ekaplus_ekatunggal/features/member/domain/usecases/get_active_member_companies_by_user_id.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ekaplus_ekatunggal/core/utils/session_manager.dart';
 import 'package:ekaplus_ekatunggal/features/auth/data/models/user_model.dart';
@@ -10,8 +11,36 @@ import 'auth_session_state.dart';
 class AuthSessionCubit extends Cubit<AuthSessionState> {
   final SaveLoginUser saveLoginUser;
   final GetUserInfo getUserInfo;
-  AuthSessionCubit({required this.saveLoginUser, required this.getUserInfo})
-    : super(AuthSessionInitial());
+  final GetActiveMemberCompaniesByUserId getActiveMemberCompaniesByUserId;
+
+  AuthSessionCubit({
+    required this.saveLoginUser,
+    required this.getUserInfo,
+    required this.getActiveMemberCompaniesByUserId,
+  }) : super(AuthSessionInitial());
+
+  Future<UserStatus> _resolveUserStatus() async {
+    try {
+      final result = await getActiveMemberCompaniesByUserId.execute();
+      return await result.fold<Future<UserStatus>>(
+        (_) async => UserStatus.loggedIn,
+        (companies) async {
+          if (companies.isNotEmpty) {
+            return UserStatus.member;
+          }
+          final storedBcid = await SessionManager.getActiveBranchCustomerId();
+          return storedBcid != null && storedBcid > 0
+              ? UserStatus.member
+              : UserStatus.loggedIn;
+        },
+      );
+    } catch (_) {
+      final storedBcid = await SessionManager.getActiveBranchCustomerId();
+      return storedBcid != null && storedBcid > 0
+          ? UserStatus.member
+          : UserStatus.loggedIn;
+    }
+  }
 
   Future<void> checkSession() async {
     emit(AuthSessionLoading());
@@ -32,7 +61,8 @@ class AuthSessionCubit extends Cubit<AuthSessionState> {
 
       final user = UserModel.fromLocalJson(userData);
 
-      emit(AuthSessionAuthenticated(user: user, status: UserStatus.loggedIn));
+      final status = await _resolveUserStatus();
+      emit(AuthSessionAuthenticated(user: user, status: status));
     } catch (_) {
       emit(const AuthSessionGuest());
     }
@@ -45,14 +75,16 @@ class AuthSessionCubit extends Cubit<AuthSessionState> {
       (f) {
         checkSession();
       },
-      (user) {
-        emit(AuthSessionAuthenticated(user: user, status: UserStatus.loggedIn));
+      (user) async {
+        final status = await _resolveUserStatus();
+        emit(AuthSessionAuthenticated(user: user, status: status));
       },
     );
   }
 
   Future<void> login(User user) async {
-    emit(AuthSessionAuthenticated(user: user, status: UserStatus.loggedIn));
+    final status = await _resolveUserStatus();
+    emit(AuthSessionAuthenticated(user: user, status: status));
   }
 
   Future<void> logout() async {
@@ -64,8 +96,7 @@ class AuthSessionCubit extends Cubit<AuthSessionState> {
     final userMap = (updatedUser as UserModel).toJson();
     await SessionManager.saveUser(userMap);
 
-    emit(
-      AuthSessionAuthenticated(user: updatedUser, status: UserStatus.loggedIn),
-    );
+    final status = await _resolveUserStatus();
+    emit(AuthSessionAuthenticated(user: updatedUser, status: status));
   }
 }

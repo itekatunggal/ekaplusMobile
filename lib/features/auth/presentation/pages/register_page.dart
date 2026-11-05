@@ -36,7 +36,7 @@ class _RegisterPageState extends State<RegisterPage>
     if (messenger == null) return;
 
     messenger.clearSnackBars();
-    messenger.showSnackBar(snackBar);
+    AppSnackbar.showRaw(context, snackBar);
   }
 
   @override

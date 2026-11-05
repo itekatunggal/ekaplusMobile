@@ -3,8 +3,9 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:ekaplus_ekatunggal/core/utils/session_manager.dart';
+import 'package:ekaplus_ekatunggal/core/network/http_request_handler.dart';
+import 'package:ekaplus_ekatunggal/core/network/network_exceptions.dart';
 import 'package:ekaplus_ekatunggal/features/auth/domain/entities/user.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:hive/hive.dart';
 import 'package:http/http.dart' as http;
@@ -38,7 +39,7 @@ abstract class AuthRemoteDataSource {
   Future<UserModel?> getUserByUsername(String username);
   Future<UserModel?> getUserByEmail(String email);
 
-  Future<void> updateUser(int userId, Map<String, dynamic> changes);
+  Future<User> updateUser(int userId, Map<String, dynamic> changes);
 
   // ⭐ NEW: Update profile picture
   Future<User> updateProfilePicture(String profilePicPath);
@@ -47,7 +48,6 @@ abstract class AuthRemoteDataSource {
 }
 
 class AuthLocalDataSourceImpl implements AuthRemoteDataSource {
-  static const _assetPath = 'assets/data/users.json';
   static const _tokenKey = 'auth_token';
   static const _refreshTokenKey = 'refresh_token';
   static const _userKey = 'current_user';
@@ -60,17 +60,6 @@ class AuthLocalDataSourceImpl implements AuthRemoteDataSource {
   // ============================================================
   // PRIVATE HELPERS
   // ============================================================
-
-  Future<List<Map<String, dynamic>>> _loadUsersFromAssets() async {
-    try {
-      final raw = await rootBundle.loadString(_assetPath);
-      final decoded = jsonDecode(raw);
-      final list = decoded is Map ? decoded['users'] ?? [] : decoded;
-      return List<Map<String, dynamic>>.from(list);
-    } catch (_) {
-      return [];
-    }
-  }
 
   String normalizePhone(String phone) {
     var cleaned = phone.replaceAll(RegExp(r'[^0-9]'), '');
@@ -86,7 +75,11 @@ class AuthLocalDataSourceImpl implements AuthRemoteDataSource {
     final body = jsonDecode(response.body);
 
     if (response.statusCode != 200 || body['status'] != 'success') {
-      throw Exception(body['message'] ?? 'Gagal memperbarui data');
+      throw ServerException(
+        message: body['message'] ?? 'Gagal memperbarui data',
+        statusCode: response.statusCode,
+        body: response.body,
+      );
     }
 
     final updatedUser = UserModel.fromApiJson(body['data']);
@@ -117,53 +110,48 @@ class AuthLocalDataSourceImpl implements AuthRemoteDataSource {
     String token,
     String filePath,
   ) async {
-    final request = http.MultipartRequest('PUT', uri);
-
-    request.headers['Authorization'] = 'Bearer $token';
-    request.headers['Accept'] = 'application/json';
-
     final file = File(filePath);
 
     if (!await file.exists()) {
-      throw Exception('File tidak ditemukan');
+      throw const UnknownException(message: 'File tidak ditemukan');
     }
 
-    // Detect MIME type
     final mimeType = lookupMimeType(filePath) ?? 'image/jpeg';
     final mimeTypeParts = mimeType.split('/');
 
-    // Add file
-    request.files.add(
-      await http.MultipartFile.fromPath(
-        'profile_pic',
-        filePath,
-        contentType: MediaType(mimeTypeParts[0], mimeTypeParts[1]),
-      ),
-    );
-
-    // Send request
-    final streamedResponse = await request.send();
-    final response = await http.Response.fromStream(streamedResponse);
-
-    // Handle 401
-    if (response.statusCode == 401) {
-      final refreshed = await _refreshTokenInternal();
-      if (!refreshed) {
-        await clearSession();
-        throw Exception('Session expired');
-      }
-
-      // Retry
-      final newToken = await getToken();
-      request.headers['Authorization'] = 'Bearer $newToken!';
-
-      final retryStreamedResponse = await request.send();
-      final retryResponse = await http.Response.fromStream(
-        retryStreamedResponse,
+    Future<http.Response> sendMultipart(String currentToken) async {
+      final request = http.MultipartRequest('PUT', uri);
+      request.headers['Authorization'] = 'Bearer $currentToken';
+      request.headers['Accept'] = 'application/json';
+      request.files.add(
+        await http.MultipartFile.fromPath(
+          'profile_pic',
+          filePath,
+          contentType: MediaType(mimeTypeParts[0], mimeTypeParts[1]),
+        ),
       );
 
-      return _parseUpdateResponse(retryResponse);
+      final streamedResponse = await request.send();
+      return http.Response.fromStream(streamedResponse);
     }
+
+    final response = await HttpRequestHandler.send(
+      () => sendMultipart(token),
+      retryOnUnauthorized: () async {
+        final refreshed = await _refreshTokenInternal();
+        if (!refreshed) {
+          await clearSession();
+          throw const UnauthorizedException();
+        }
+        final newToken = await getToken();
+        if (newToken == null || newToken.isEmpty) {
+          throw const UnauthorizedException();
+        }
+        return sendMultipart(newToken);
+      },
+      defaultServerMessage: 'Gagal memperbarui foto profil',
+      successCodes: const {200},
+    );
 
     return _parseUpdateResponse(response);
   }
@@ -173,30 +161,30 @@ class AuthLocalDataSourceImpl implements AuthRemoteDataSource {
     String token,
     String profilePic,
   ) async {
-    final response = await http.put(
-      uri,
-      headers: {...ApiConfig.headers, 'Authorization': 'Bearer $token'},
-      body: jsonEncode({'profile_pic': profilePic}),
-    );
-
-    // Handle 401
-    if (response.statusCode == 401) {
-      final refreshed = await _refreshTokenInternal();
-      if (!refreshed) {
-        await clearSession();
-        throw Exception('Session expired');
-      }
-
-      // Retry
-      final newToken = await getToken();
-      final retryResponse = await http.put(
+    final response = await HttpRequestHandler.send(
+      () => http.put(
         uri,
-        headers: {...ApiConfig.headers, 'Authorization': 'Bearer $newToken!'},
+        headers: {...ApiConfig.headers, 'Authorization': 'Bearer $token'},
         body: jsonEncode({'profile_pic': profilePic}),
-      );
-
-      return _parseUpdateResponse(retryResponse);
-    }
+      ),
+      retryOnUnauthorized: () async {
+        final refreshed = await _refreshTokenInternal();
+        if (!refreshed) {
+          await clearSession();
+          throw const UnauthorizedException();
+        }
+        final newToken = await getToken();
+        if (newToken == null || newToken.isEmpty) {
+          throw const UnauthorizedException();
+        }
+        return http.put(
+          uri,
+          headers: {...ApiConfig.headers, 'Authorization': 'Bearer $newToken'},
+          body: jsonEncode({'profile_pic': profilePic}),
+        );
+      },
+      defaultServerMessage: 'Gagal memperbarui foto profil',
+    );
 
     return _parseUpdateResponse(response);
   }
@@ -205,21 +193,26 @@ class AuthLocalDataSourceImpl implements AuthRemoteDataSource {
     final refreshToken = await getRefreshToken();
     if (refreshToken == null) return false;
 
-    final response = await http.post(
-      Uri.parse('${ApiConfig.baseUrl}/api/user/auth/refresh-token'),
-      headers: ApiConfig.headers,
-      body: jsonEncode({'refresh_token': refreshToken}),
-    );
+    try {
+      final response = await HttpRequestHandler.send(
+        () => http.post(
+          Uri.parse('${ApiConfig.baseUrl}/api/user/auth/refresh-token'),
+          headers: ApiConfig.headers,
+          body: jsonEncode({'refresh_token': refreshToken}),
+        ),
+        defaultServerMessage: 'Gagal memperbarui sesi login',
+      );
 
-    if (response.statusCode != 200) return false;
+      final body = jsonDecode(response.body);
+      final data = body['data'];
 
-    final body = jsonDecode(response.body);
-    final data = body['data'];
+      await saveToken(data['access_token']);
+      await saveRefreshToken(data['refresh_token']);
 
-    await saveToken(data['access_token']);
-    await saveRefreshToken(data['refresh_token']);
-
-    return true;
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 
   Future<http.Response> authedRequest(
@@ -228,24 +221,26 @@ class AuthLocalDataSourceImpl implements AuthRemoteDataSource {
     final token = await getToken();
 
     if (token == null) {
-      throw Exception('Not authenticated');
+      throw const UnauthorizedException(message: 'Not authenticated');
     }
 
-    var response = await request(token);
+    return HttpRequestHandler.send(
+      () => request(token),
+      retryOnUnauthorized: () async {
+        final refreshed = await _refreshTokenInternal();
+        if (!refreshed) {
+          await clearSession();
+          throw const UnauthorizedException(message: 'Session expired');
+        }
 
-    if (response.statusCode != 401) {
-      return response;
-    }
-
-    // Coba refresh
-    final refreshed = await _refreshTokenInternal();
-    if (!refreshed) {
-      await clearSession();
-      throw Exception('Session expired');
-    }
-
-    final newToken = await getToken();
-    return request(newToken!);
+        final newToken = await getToken();
+        if (newToken == null || newToken.isEmpty) {
+          throw const UnauthorizedException(message: 'Session expired');
+        }
+        return request(newToken);
+      },
+      defaultServerMessage: 'Permintaan autentikasi gagal',
+    );
   }
 
   // ============================================================
@@ -254,14 +249,13 @@ class AuthLocalDataSourceImpl implements AuthRemoteDataSource {
 
   @override
   Future<bool> checkPhoneExists(String phone) async {
-    final response = await http.get(
-      Uri.parse('${ApiConfig.baseUrl}/api/user/exist/$phone'),
-      headers: ApiConfig.headers,
+    final response = await HttpRequestHandler.send(
+      () => http.get(
+        Uri.parse('${ApiConfig.baseUrl}/api/user/exist/$phone'),
+        headers: ApiConfig.headers,
+      ),
+      defaultServerMessage: 'Gagal memeriksa nomor telepon',
     );
-
-    if (response.statusCode != 200) {
-      throw 'Gagal memeriksa nomor telepon';
-    }
 
     final body = jsonDecode(response.body);
 
@@ -270,15 +264,14 @@ class AuthLocalDataSourceImpl implements AuthRemoteDataSource {
 
   @override
   Future<String> registerOtp(String phone) async {
-    final response = await http.post(
-      Uri.parse('${ApiConfig.baseUrl}/api/user/register'),
-      headers: ApiConfig.headers,
-      body: jsonEncode({'phone': phone}),
+    final response = await HttpRequestHandler.send(
+      () => http.post(
+        Uri.parse('${ApiConfig.baseUrl}/api/user/register'),
+        headers: ApiConfig.headers,
+        body: jsonEncode({'phone': phone}),
+      ),
+      defaultServerMessage: 'Mengirim OTP gagal',
     );
-
-    if (response.statusCode != 200) {
-      throw 'Mengirim OTP gagal';
-    }
 
     final body = jsonDecode(response.body);
 
@@ -295,117 +288,94 @@ class AuthLocalDataSourceImpl implements AuthRemoteDataSource {
       );
     });
 
-    if (response.statusCode != 200) {
-      final body = jsonDecode(response.body);
-      throw body['message'] ?? 'Mengirim OTP gagal';
-    }
-
     final body = jsonDecode(response.body);
     return body['message'];
   }
 
   @override
   Future<bool> verifyOtp(String account, String otp, String method) async {
-    try {
-      if (otp.length != 6) return false;
-      final response = await http.post(
+    if (otp.length != 6) return false;
+    await HttpRequestHandler.send(
+      () => http.post(
         Uri.parse('${ApiConfig.baseUrl}/api/user/otp/verify'),
         headers: ApiConfig.headers,
         body: jsonEncode({'account': account, "code": otp, "method": method}),
-      );
+      ),
+      defaultServerMessage: 'Verifikasi OTP gagal',
+    );
 
-      final body = jsonDecode(response.body);
-      if (response.statusCode != 200) {
-        throw body["message"] ?? 'Verifikasi OTP gagal';
-      }
-
-      return true;
-    } catch (e) {
-      throw e.toString();
-    }
+    return true;
   }
 
   @override
   Future<UserModel> login(String identifier, String password) async {
-    try {
-      final response = await http.post(
+    final response = await HttpRequestHandler.send(
+      () => http.post(
         Uri.parse('${ApiConfig.baseUrl}/api/user/login'),
         headers: ApiConfig.headers,
         body: jsonEncode({'user': identifier, 'password': password}),
-      );
+      ),
+      defaultServerMessage: 'Login gagal',
+    );
 
-      if (response.statusCode != 200) {
-        final errorBody = jsonDecode(response.body);
-        throw '${errorBody["message"] ?? response.body}';
-      }
+    final body = jsonDecode(response.body);
 
-      final body = jsonDecode(response.body);
-
-      if (body['status'] != 'success' || body['data'] == null) {
-        throw body['message'] ?? 'Login failed';
-      }
-
-      final data = body['data'];
-      final token = data['access_token'];
-      final refreshToken = data['refresh_token'];
-
-      final userJson = data['user'];
-
-      if (token == null || userJson == null) {
-        throw 'Invalid login response';
-      }
-
-      final user = UserModel.fromApiJson(userJson);
-
-      await saveToken(token);
-      await saveLoginUser(user);
-      await saveRefreshToken(refreshToken);
-
-      return user;
-    } catch (e) {
-      throw e.toString();
+    if (body['status'] != 'success' || body['data'] == null) {
+      throw ServerException(message: body['message'] ?? 'Login gagal');
     }
+
+    final data = body['data'];
+    final token = data['access_token'];
+    final refreshToken = data['refresh_token'];
+
+    final userJson = data['user'];
+
+    if (token == null || userJson == null) {
+      throw const UnknownException(message: 'Invalid login response');
+    }
+
+    final user = UserModel.fromApiJson(userJson);
+
+    await saveToken(token);
+    await saveLoginUser(user);
+    await saveRefreshToken(refreshToken);
+
+    return user;
   }
 
   @override
   Future<UserModel> loginWithGoogle(String idToken) async {
-    try {
-      final response = await http.post(
+    final response = await HttpRequestHandler.send(
+      () => http.post(
         Uri.parse('${ApiConfig.baseUrl}/api/user/google/mobile'),
         headers: ApiConfig.headers,
         body: jsonEncode({'id_token': idToken}),
-      );
+      ),
+      defaultServerMessage: 'Login Google gagal',
+    );
 
-      if (response.statusCode != 200) {
-        throw Exception('Login Google gagal (${response.statusCode})');
-      }
+    final body = jsonDecode(response.body);
 
-      final body = jsonDecode(response.body);
-
-      if (body == null || body['data'] == null) {
-        throw Exception('Response tidak valid');
-      }
-
-      final data = body['data'];
-      final token = data['access_token'];
-      final refreshToken = data['refresh_token'];
-      final userJson = data['user'];
-
-      if (token == null || userJson == null) {
-        throw Exception('Invalid login response');
-      }
-
-      final user = UserModel.fromApiJson(userJson);
-
-      await saveToken(token);
-      await saveRefreshToken(refreshToken);
-
-      await saveLoginUser(user);
-
-      return user;
-    } catch (e) {
-      throw Exception(e.toString());
+    if (body['data'] == null) {
+      throw const UnknownException(message: 'Response tidak valid');
     }
+
+    final data = body['data'];
+    final token = data['access_token'];
+    final refreshToken = data['refresh_token'];
+    final userJson = data['user'];
+
+    if (token == null || userJson == null) {
+      throw const UnknownException(message: 'Invalid login response');
+    }
+
+    final user = UserModel.fromApiJson(userJson);
+
+    await saveToken(token);
+    await saveRefreshToken(refreshToken);
+    await saveLoginUser(user);
+
+    return user;
   }
 
   @override
@@ -433,21 +403,20 @@ class AuthLocalDataSourceImpl implements AuthRemoteDataSource {
 
   @override
   Future<void> saveUser(UserModel user) async {
-    try {
-      final response = await http.post(
+    final response = await HttpRequestHandler.send(
+      () => http.post(
         Uri.parse('${ApiConfig.baseUrl}/api/user/register/complete'),
         headers: ApiConfig.headers,
         body: jsonEncode(user.toJson()),
-      );
+      ),
+      defaultServerMessage: 'Failed to save user data',
+    );
 
-      final body = jsonDecode(response.body);
+    final body = jsonDecode(response.body);
 
-      if (response.statusCode != 200 || body['status'] != "success") {
-        throw Exception(body['message'] ?? 'Failed to save user data');
-      }
-    } catch (e) {
-      throw Exception(
-        e is Exception ? e.toString() : 'Failed to save user data',
+    if (body['status'] != "success") {
+      throw ServerException(
+        message: body['message'] ?? 'Failed to save user data',
       );
     }
   }
@@ -465,11 +434,7 @@ class AuthLocalDataSourceImpl implements AuthRemoteDataSource {
     if (cached != null && cached.phone == phone) {
       return cached;
     }
-
-    final users = await _loadUsersFromAssets();
-    final data = users.where((u) => u['phone'] == phone);
-    if (data.isEmpty) return null;
-    return UserModel.fromApiJson(data.first);
+    return null;
   }
 
   @override
@@ -478,11 +443,7 @@ class AuthLocalDataSourceImpl implements AuthRemoteDataSource {
     if (cached != null && cached.username == username) {
       return cached;
     }
-
-    final users = await _loadUsersFromAssets();
-    final data = users.where((u) => u['username'] == username);
-    if (data.isEmpty) return null;
-    return UserModel.fromApiJson(data.first);
+    return null;
   }
 
   @override
@@ -491,15 +452,11 @@ class AuthLocalDataSourceImpl implements AuthRemoteDataSource {
     if (cached != null && cached.email == email) {
       return cached;
     }
-
-    final users = await _loadUsersFromAssets();
-    final data = users.where((u) => u['email'] == email);
-    if (data.isEmpty) return null;
-    return UserModel.fromApiJson(data.first);
+    return null;
   }
 
   @override
-  Future<void> updateUser(int userId, Map<String, dynamic> changes) async {
+  Future<User> updateUser(int userId, Map<String, dynamic> changes) async {
     final response = await authedRequest((token) {
       return http.put(
         Uri.parse('${ApiConfig.baseUrl}/api/user/me'),
@@ -511,8 +468,16 @@ class AuthLocalDataSourceImpl implements AuthRemoteDataSource {
     final body = jsonDecode(response.body);
 
     if (response.statusCode != 200 || body['status'] != 'success') {
-      throw Exception(body['message'] ?? 'Gagal memperbarui data user');
+      throw ServerException(
+        message: body['message'] ?? 'Gagal memperbarui data user',
+        statusCode: response.statusCode,
+        body: response.body,
+      );
     }
+
+    final updatedUser = UserModel.fromApiJson(body['data']);
+    await saveLoginUser(updatedUser);
+    return updatedUser;
   }
 
   @override
@@ -564,9 +529,7 @@ class AuthLocalDataSourceImpl implements AuthRemoteDataSource {
 
   @override
   Future<void> clearSession() async {
-    await secureStorage.delete(key: _tokenKey);
-    await secureStorage.delete(key: _refreshTokenKey);
-    await box.delete(_userKey);
+    await SessionManager.clearSession();
   }
 
   @override
@@ -590,27 +553,7 @@ class AuthLocalDataSourceImpl implements AuthRemoteDataSource {
 
   @override
   Future<User> changePassword(String oldPassword, String newPassword) async {
-    final response = await authedRequest((token) {
-      return http.put(
-        Uri.parse('${ApiConfig.baseUrl}/api/user/me/change-password'),
-        headers: {...ApiConfig.headers, 'Authorization': 'Bearer $token'},
-        body: jsonEncode({
-          'old_password': oldPassword,
-          'new_password': newPassword,
-        }),
-      );
-    });
-
-    final body = jsonDecode(response.body);
-
-    if (response.statusCode != 200 || body['status'] != 'success') {
-      throw Exception(body['message'] ?? 'Gagal memperbarui password');
-    }
-
-    final updatedUser = UserModel.fromApiJson(body['data']);
-
-    await saveLoginUser(updatedUser);
-    return updatedUser;
+    return updateUser(0, {'password': newPassword});
   }
 
   @override

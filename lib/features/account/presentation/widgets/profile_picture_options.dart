@@ -169,7 +169,6 @@ class ProfilePictureOptionsSheet extends StatelessWidget {
     // Save references BEFORE async operations
     final authBloc = context.read<AuthBloc>();
     final authSessionCubit = context.read<AuthSessionCubit>();
-    final scaffoldMessenger = ScaffoldMessenger.of(context);
 
     try {
       final ImagePicker picker = ImagePicker();
@@ -205,7 +204,7 @@ class ProfilePictureOptionsSheet extends StatelessWidget {
                 // Update session dengan user yang baru
                 await authSessionCubit.updateUser(state.user);
 
-                scaffoldMessenger.showSnackBar(
+                AppSnackbar.showRaw(context, 
                   SnackBar(
                     content: Text(
                       'Foto profil berhasil diubah',
@@ -215,7 +214,7 @@ class ProfilePictureOptionsSheet extends StatelessWidget {
                   ),
                 );
               } else if (state is ProfilePictureUpdateError) {
-                scaffoldMessenger.showSnackBar(
+                AppSnackbar.showRaw(context, 
                   SnackBar(
                     content: Text(
                       'Gagal mengubah foto profil: ${state.message}',
@@ -228,7 +227,7 @@ class ProfilePictureOptionsSheet extends StatelessWidget {
             });
       }
     } catch (e) {
-      scaffoldMessenger.showSnackBar(
+      AppSnackbar.showRaw(context, 
         SnackBar(
           content: Text(
             'Gagal mengambil foto: $e',
@@ -244,7 +243,6 @@ class ProfilePictureOptionsSheet extends StatelessWidget {
     // Save references BEFORE async operations
     final authBloc = context.read<AuthBloc>();
     final authSessionCubit = context.read<AuthSessionCubit>();
-    final scaffoldMessenger = ScaffoldMessenger.of(context);
 
     try {
       final ImagePicker picker = ImagePicker();
@@ -280,7 +278,7 @@ class ProfilePictureOptionsSheet extends StatelessWidget {
                 // Update session dengan user yang baru
                 await authSessionCubit.updateUser(state.user);
 
-                scaffoldMessenger.showSnackBar(
+                AppSnackbar.showRaw(context, 
                   SnackBar(
                     content: Text(
                       'Foto profil berhasil diubah',
@@ -290,7 +288,7 @@ class ProfilePictureOptionsSheet extends StatelessWidget {
                   ),
                 );
               } else if (state is ProfilePictureUpdateError) {
-                scaffoldMessenger.showSnackBar(
+                AppSnackbar.showRaw(context, 
                   SnackBar(
                     content: Text(
                       'Gagal mengubah foto profil: ${state.message}',
@@ -303,7 +301,7 @@ class ProfilePictureOptionsSheet extends StatelessWidget {
             });
       }
     } catch (e) {
-      scaffoldMessenger.showSnackBar(
+      AppSnackbar.showRaw(context, 
         SnackBar(
           content: Text(
             'Gagal mengambil foto: $e',
@@ -318,7 +316,6 @@ class ProfilePictureOptionsSheet extends StatelessWidget {
   Future<void> _deleteLocalAvatar(BuildContext context) async {
     // Save references BEFORE dialog
     final authSessionCubit = context.read<AuthSessionCubit>();
-    final scaffoldMessenger = ScaffoldMessenger.of(context);
 
     final confirmed = await showDialog<bool>(
       context: context,
@@ -374,7 +371,7 @@ class ProfilePictureOptionsSheet extends StatelessWidget {
         final updatedUser = user.copyWith(profilePic: originalProfilePic ?? '');
         await authSessionCubit.updateUser(updatedUser);
 
-        scaffoldMessenger.showSnackBar(
+        AppSnackbar.showRaw(context, 
           SnackBar(
             content: Text(
               'Avatar berhasil dihapus',
@@ -384,7 +381,7 @@ class ProfilePictureOptionsSheet extends StatelessWidget {
           ),
         );
       } catch (e) {
-        scaffoldMessenger.showSnackBar(
+        AppSnackbar.showRaw(context, 
           SnackBar(
             content: Text(
               'Gagal menghapus avatar: $e',

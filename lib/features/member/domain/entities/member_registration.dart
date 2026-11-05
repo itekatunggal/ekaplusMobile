@@ -18,6 +18,8 @@ class MemberRegistration extends Equatable {
   final String businessName;
   final String type;
   final String entity;
+  final String? companyTitle;
+  final String? productNeed;
   final String status;
   final int docstatus;
 
@@ -34,9 +36,17 @@ class MemberRegistration extends Equatable {
   final String? email;
   final String? fax;
   final String? contactPerson;
+  final String? branchOwnerName;
+  final String? branchOwnerPhone;
+  final String? branchOwnerEmail;
+  final String? branchOwnerPlaceOfBirth;
+  final String? branchOwnerDateOfBirth;
+  final String? rejectReason;
+  final String? rejectNotes;
 
   final String nik;
   final String? npwp;
+  final bool taxStatus;
   final String? ktpImage;
   final String? npwpImage;
 
@@ -60,6 +70,8 @@ class MemberRegistration extends Equatable {
     required this.businessName,
     required this.type,
     required this.entity,
+    this.companyTitle,
+    this.productNeed,
     required this.status,
     required this.docstatus,
     required this.address,
@@ -74,8 +86,16 @@ class MemberRegistration extends Equatable {
     this.email,
     this.fax,
     this.contactPerson,
+    this.branchOwnerName,
+    this.branchOwnerPhone,
+    this.branchOwnerEmail,
+    this.branchOwnerPlaceOfBirth,
+    this.branchOwnerDateOfBirth,
+    this.rejectReason,
+    this.rejectNotes,
     required this.nik,
     this.npwp,
+    this.taxStatus = false,
     this.ktpImage,
     this.npwpImage,
     required this.branch,
@@ -97,6 +117,8 @@ class MemberRegistration extends Equatable {
     businessName,
     type,
     entity,
+    companyTitle,
+    productNeed,
     status,
     docstatus,
     address,
@@ -111,8 +133,16 @@ class MemberRegistration extends Equatable {
     email,
     fax,
     contactPerson,
+    branchOwnerName,
+    branchOwnerPhone,
+    branchOwnerEmail,
+    branchOwnerPlaceOfBirth,
+    branchOwnerDateOfBirth,
+    rejectReason,
+    rejectNotes,
     nik,
     npwp,
+    taxStatus,
     ktpImage,
     npwpImage,
     branch,

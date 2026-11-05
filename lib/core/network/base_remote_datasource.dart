@@ -3,6 +3,8 @@
 import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:ekaplus_ekatunggal/core/config/api_config.dart';
+import 'package:ekaplus_ekatunggal/core/network/http_request_handler.dart';
+import 'package:ekaplus_ekatunggal/core/network/network_exceptions.dart';
 import 'package:ekaplus_ekatunggal/core/utils/session_manager.dart';
 
 enum Resource { wishlist }
@@ -36,19 +38,24 @@ class BaseRemoteDatasource {
     Future<http.Response> Function() call, {
     bool retried = false,
   }) async {
-    final response = await call().timeout(const Duration(seconds: 15));
+    return HttpRequestHandler.send(
+      call,
+      timeout: const Duration(seconds: 15),
+      retryOnUnauthorized: retried
+          ? null
+          : () async {
+              final refreshed = await SessionManager.refreshToken();
 
-    if (response.statusCode == 401 && !retried) {
-      final refreshed = await SessionManager.refreshToken();
+              if (!refreshed) {
+                await SessionManager.clearSession();
+                throw const UnauthorizedException();
+              }
 
-      if (refreshed) {
-        return _send(call, retried: true);
-      }
-
-      await SessionManager.clearSession();
-    }
-
-    return response;
+              return call();
+            },
+      defaultServerMessage: 'Permintaan ke server gagal',
+      successCodes: const {200, 204},
+    );
   }
 
   Future<http.Response> ADD(String body) {

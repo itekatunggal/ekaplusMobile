@@ -27,6 +27,18 @@ class MemberRegistrationSuccess extends MemberRegistrationState {
   const MemberRegistrationSuccess();
 }
 
+class MemberRegistrationDraftSaved extends MemberRegistrationState {
+  final MemberRegistration registration;
+
+  const MemberRegistrationDraftSaved(this.registration);
+}
+
+class MemberRegistrationDraftDeleted extends MemberRegistrationState {
+  final int registrationId;
+
+  const MemberRegistrationDraftDeleted(this.registrationId);
+}
+
 // Branches Loaded
 class MemberRegistrationBranchesLoaded extends MemberRegistrationState {
   final List<BranchModel> branches;
@@ -83,6 +95,22 @@ class MemberRegistrationAllRegistrationsLoaded extends MemberRegistrationState {
   const MemberRegistrationAllRegistrationsLoaded(this.registrations);
 }
 
+class MemberRegistrationActiveCompaniesLoading extends MemberRegistrationState {
+  const MemberRegistrationActiveCompaniesLoading();
+}
+
+class MemberRegistrationActiveCompaniesLoaded extends MemberRegistrationState {
+  final List<ActiveMemberCompany> companies;
+
+  const MemberRegistrationActiveCompaniesLoaded(this.companies);
+}
+
+class MemberRegistrationActiveCompaniesError extends MemberRegistrationState {
+  final String message;
+
+  const MemberRegistrationActiveCompaniesError(this.message);
+}
+
 // === SHIPPING ADDRESS STATES ===
 
 // Shipping Provinces Loaded
@@ -107,4 +135,11 @@ class MemberRegistrationShippingDistrictsLoaded extends MemberRegistrationState 
   final List<DistrictModel> districts;
 
   const MemberRegistrationShippingDistrictsLoaded(this.addressId, this.districts);
+}
+
+class MemberRegistrationShippingVillagesLoaded extends MemberRegistrationState {
+  final String addressId;
+  final List<VillageModel> villages;
+
+  const MemberRegistrationShippingVillagesLoaded(this.addressId, this.villages);
 }

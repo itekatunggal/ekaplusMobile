@@ -66,7 +66,7 @@ class _NewPasswordPageState extends State<NewPasswordPage> {
             // Update auth session
             context.read<AuthSessionCubit>().updateUser(state.user);
 
-            ScaffoldMessenger.of(context).showSnackBar(
+            AppSnackbar.showRaw(context, 
               SnackBar(
                 content: Text(state.message),
                 backgroundColor: Colors.green,
@@ -83,7 +83,7 @@ class _NewPasswordPageState extends State<NewPasswordPage> {
               context.go('/login');
             }
           } else if (state is ChangePasswordError) {
-            ScaffoldMessenger.of(context).showSnackBar(
+            AppSnackbar.showRaw(context, 
               SnackBar(
                 content: Text(state.message),
                 backgroundColor: Colors.red,

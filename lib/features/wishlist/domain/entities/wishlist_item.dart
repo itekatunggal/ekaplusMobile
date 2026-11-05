@@ -22,16 +22,30 @@ class WishlistItemProduct extends Equatable {
   final String image;
   final String itemCode;
   final String itemName;
+  final WishlistItemCategory? category;
+  final String uom;
 
   const WishlistItemProduct({
     required this.id,
     required this.image,
     required this.itemCode,
     required this.itemName,
+    this.category,
+    this.uom = '',
   });
 
   @override
-  List<Object?> get props => [id, image, itemCode, itemName];
+  List<Object?> get props => [id, image, itemCode, itemName, category, uom];
+}
+
+class WishlistItemCategory extends Equatable {
+  final int id;
+  final String name;
+
+  const WishlistItemCategory({required this.id, required this.name});
+
+  @override
+  List<Object?> get props => [id, name];
 }
 
 class WishlistItemUser extends Equatable {

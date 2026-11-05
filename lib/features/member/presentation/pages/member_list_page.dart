@@ -1,16 +1,27 @@
 // lib/features/member/presentation/pages/member_list_page.dart
 
+import 'dart:convert';
+
+import 'package:ekaplus_ekatunggal/features/member/domain/entities/active_member_company.dart';
 import 'package:ekaplus_ekatunggal/features/member/presentation/cubit/member_registration_cubit.dart';
+import 'package:ekaplus_ekatunggal/features/member/presentation/cubit/active_company_cubit.dart';
+import 'package:ekaplus_ekatunggal/core/config/api_config.dart';
+import 'package:ekaplus_ekatunggal/core/utils/session_manager.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:http/http.dart' as http;
 import '../../../../constant.dart';
 import '../../../../core/shared_widgets/custom_header.dart';
 // import '../../../../injection.dart';
 
 // import '../../domain/usecases/get_member_registrations_by_user_id.dart';
 import '../../domain/entities/member_registration.dart';
+import '../widgets/active_company_detail_dialog.dart';
+import '../widgets/active_member_card.dart';
 import '../widgets/member_registration_card.dart';
+import '../widgets/member_confirmation_dialog.dart';
+import '../utils/member_status_helper.dart';
 
 class MemberListPage extends StatefulWidget {
   final int initialTabIndex;
@@ -23,15 +34,25 @@ class MemberListPage extends StatefulWidget {
 
 class _MemberListPageState extends State<MemberListPage>
     with SingleTickerProviderStateMixin {
+  // Fitur daftar pengajuan disiapkan untuk update berikutnya.
+  // Ubah menjadi true saat tab akan ditampilkan kembali.
+  final bool _showRegistrationTab = false;
+
   late TabController _tabController;
+  final TextEditingController _searchController = TextEditingController();
+  final FocusNode _searchFocusNode = FocusNode();
+  String _searchQuery = '';
 
   // final GetMemberRegistrationsByUserId _getMemberRegistrationsByUserId =
   //     myinjection<GetMemberRegistrationsByUserId>();
 
   late MemberRegistrationCubit rBlok;
-  // List<MemberRegistration> _allRegistrations = [];
-  final List<MemberRegistration> _activeRegistrations = [];
-  final Map<String, List<MemberRegistration>> _groupedByGCID = {};
+  List<MemberRegistration> _userRegistrations = [];
+  List<ActiveMemberCompany> _activeCompanies = [];
+  bool _isRegistrationsLoading = true;
+  bool _isActiveCompaniesLoading = true;
+  String? _registrationsError;
+  String? _activeCompaniesError;
 
   // bool _isLoading = false;
   // int? _userId;
@@ -40,271 +61,400 @@ class _MemberListPageState extends State<MemberListPage>
   void initState() {
     super.initState();
 
+    final initialTabIndex = _showRegistrationTab && widget.initialTabIndex == 1
+        ? 1
+        : 0;
     _tabController = TabController(
-      length: 2,
+      length: _showRegistrationTab ? 2 : 1,
       vsync: this,
-      initialIndex: widget.initialTabIndex,
+      initialIndex: initialTabIndex,
     );
-    rBlok = context.read<MemberRegistrationCubit>()..getUserRegistrations();
-    _loadData();
+    rBlok = context.read<MemberRegistrationCubit>();
+    if (_showRegistrationTab) {
+      rBlok.getUserRegistrations();
+    }
+    rBlok.getActiveMemberCompanies();
+    context.read<ActiveCompanyCubit>().loadCompaniesAndResolveActive();
   }
 
   @override
   void dispose() {
     _tabController.dispose();
+    _searchController.dispose();
+    _searchFocusNode.dispose();
     super.dispose();
   }
 
-  Future<void> _loadData() async {
-    // setState(() => _isLoading = true);
-
-    // final authState = context.read<AuthSessionCubit>().state;
-    // if (authState is! AuthSessionAuthenticated) {
-    //   setState(() => _isLoading = false);
-    //   return;
-    // }
-
-    // _userId = authState.user.id;
-
-    // // final result = await _getMemberRegistrationsByUserId.execute();
-
-    // result.fold(
-    //   (failure) {
-    //     setState(() => _isLoading = false);
-    //   },
-    //   (registrations) {
-    //     final Map<String, List<MemberRegistration>> grouped = {};
-
-    //     for (final reg in registrations) {
-    //       final key = reg.gcid?.name ?? 'no_gcid';
-    //       grouped.putIfAbsent(key, () => []);
-    //       grouped[key]!.add(reg);
-    //     }
-
-    //     setState(() {
-    //       _allRegistrations = registrations;
-    //       _activeRegistrations = registrations
-    //           .where((r) => r.status == 'approved')
-    //           .toList();
-    //       _groupedByGCID = grouped;
-    //       _isLoading = false;
-    //     });
-    //   },
-    // );
+  void _onSearchChanged(String value) {
+    setState(() => _searchQuery = value.trim().toLowerCase());
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.whiteColor,
-      appBar: const CustomHeaderAppBar(
-        title: 'Member',
-        subtitle: 'Daftar Perusahaan',
-      ),
-      body: Column(
+  void _clearSearch() {
+    _searchController.clear();
+    setState(() => _searchQuery = '');
+    _searchFocusNode.requestFocus();
+  }
+
+  Future<void> _refreshAll() async {
+    if (_showRegistrationTab) {
+      rBlok.getUserRegistrations();
+    }
+    rBlok.getActiveMemberCompanies();
+  }
+
+  void _showFloatingToast(String message, {bool isError = false}) {
+    AppSnackbar.show(
+      context,
+      message: message,
+      type: isError ? AppSnackbarType.error : AppSnackbarType.success,
+    );
+  }
+
+  void _showComingSoon(String feature) {
+    AppSnackbar.show(
+      context,
+      message: '$feature akan segera tersedia',
+      type: AppSnackbarType.info,
+    );
+  }
+
+  // ================= HEADER =================
+
+  Widget _buildHeader(BuildContext context) {
+    return SizedBox(
+      height: 178,
+      child: Stack(
         children: [
-          Container(
-            color: AppColors.whiteColor,
-            child: TabBar(
-              controller: _tabController,
-              labelColor: AppColors.primaryColor,
-              unselectedLabelColor: AppColors.grayColor,
-              labelStyle: TextStyle(
-                fontFamily: AppFonts.primaryFont,
-                fontSize: 14,
-                fontWeight: FontWeight.w700,
-              ),
-              unselectedLabelStyle: TextStyle(
-                fontFamily: AppFonts.primaryFont,
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-              ),
-              indicatorColor: AppColors.primaryColor,
-              indicatorWeight: 3,
-              tabs: const [
-                Tab(text: 'Daftar Pengajuan'),
-                Tab(text: 'Perusahaan Aktif'),
+          Positioned.fill(
+            child: CustomHeaderAppBar(
+              title: 'Daftar Perusahaan',
+              brandStyle: true,
+              brandLabel: 'EKAPLUS',
+              showBackButton: true,
+              onBackPressed: () => context.pop(),
+              height: 178,
+              actions: [
+                CustomHeaderActionButton(
+                  tooltip: 'Bantuan',
+                  onPressed: () => _showComingSoon('Panduan perusahaan'),
+                  icon: const Icon(
+                    Icons.help_outline_rounded,
+                    color: Colors.white,
+                    size: 19,
+                  ),
+                ),
               ],
             ),
           ),
-          Container(
-            width: double.infinity,
-            height: 1,
-            color: const Color(0xFFE0E0E0),
-          ),
-          Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: [_buildRegistrationList(), _buildActiveCompaniesList()],
-            ),
+
+          // Search bar
+          Positioned(
+            left: 16,
+            right: 16,
+            bottom: 18,
+            child: _buildSearchField(),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildRegistrationList() {
-    return BlocBuilder<MemberRegistrationCubit, MemberRegistrationState>(
-      bloc: rBlok,
-      builder: (context, state) {
-        if (state is MemberRegistrationLoading) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
-        if (state is MemberRegistrationUserRegistrationsLoaded) {
-          if (state.registrations.isEmpty) {
-            return _buildEmptyState(
-              icon: Icons.description_outlined,
-              title: 'Belum Ada Pengajuan',
-              subtitle:
-                  'Anda belum memiliki pengajuan member.\nSilakan daftar untuk menjadi member.',
-              buttonText: 'Daftar Member',
-              onPressed: () {
-                context.pushNamed('memberRegistration');
-              },
-            );
-          }
-
-          return RefreshIndicator(
-            onRefresh: () async => rBlok.getUserRegistrations(),
-            child: ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: state.registrations.length,
-              itemBuilder: (context, index) {
-                final registration = state.registrations[index];
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: MemberRegistrationCard(
-                    registration: registration,
-                    onTap: () => _showRegistrationDetail(registration),
+  Widget _buildSearchField() {
+    return Container(
+      height: 42,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(11),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x100F172A),
+            blurRadius: 8,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: TextField(
+        controller: _searchController,
+        focusNode: _searchFocusNode,
+        textInputAction: TextInputAction.search,
+        onChanged: _onSearchChanged,
+        style: const TextStyle(
+          color: Color(0xFF1E293B),
+          fontSize: 11.5,
+          fontWeight: FontWeight.w500,
+          fontFamily: AppFonts.primaryFont,
+        ),
+        decoration: InputDecoration(
+          hintText: 'Cari nama perusahaan...',
+          hintStyle: const TextStyle(
+            color: Color(0xFF94A3B8),
+            fontSize: 11,
+            fontWeight: FontWeight.w400,
+            fontFamily: AppFonts.primaryFont,
+          ),
+          prefixIcon: const Icon(
+            Icons.search_rounded,
+            color: Color(0xFF94A3B8),
+            size: 18,
+          ),
+          suffixIcon: _searchController.text.isNotEmpty
+              ? IconButton(
+                  tooltip: 'Hapus pencarian',
+                  onPressed: _clearSearch,
+                  splashRadius: 18,
+                  icon: const Icon(
+                    Icons.close_rounded,
+                    color: Color(0xFF94A3B8),
+                    size: 17,
                   ),
-                );
-              },
-            ),
-          );
-        }
-
-        return SizedBox();
-      },
+                )
+              : null,
+          border: InputBorder.none,
+          enabledBorder: InputBorder.none,
+          focusedBorder: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(vertical: 12),
+        ),
+      ),
     );
   }
 
-  Widget _buildActiveCompaniesList() {
-    if (_activeRegistrations.isEmpty) {
+  @override
+  Widget build(BuildContext context) {
+    final media = MediaQuery.of(context);
+    final scaler = media.textScaler.clamp(
+      minScaleFactor: 0.90,
+      maxScaleFactor: 1.0,
+    );
+
+    return MediaQuery(
+      data: media.copyWith(textScaler: scaler),
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF6F7F9),
+        body: Column(
+          children: [
+            _buildHeader(context),
+            Expanded(
+              child:
+                  BlocListener<
+                    MemberRegistrationCubit,
+                    MemberRegistrationState
+                  >(
+                    bloc: rBlok,
+                    listener: (context, state) {
+                      if (state is MemberRegistrationLoading) {
+                        setState(() {
+                          _isRegistrationsLoading = true;
+                          _registrationsError = null;
+                        });
+                      } else if (state
+                          is MemberRegistrationUserRegistrationsLoaded) {
+                        setState(() {
+                          _userRegistrations = state.registrations;
+                          _isRegistrationsLoading = false;
+                          _registrationsError = null;
+                        });
+                      } else if (state
+                          is MemberRegistrationActiveCompaniesLoading) {
+                        setState(() {
+                          _isActiveCompaniesLoading = true;
+                          _activeCompaniesError = null;
+                        });
+                      } else if (state
+                          is MemberRegistrationActiveCompaniesLoaded) {
+                        setState(() {
+                          _activeCompanies = state.companies;
+                          _isActiveCompaniesLoading = false;
+                          _activeCompaniesError = null;
+                        });
+                        context
+                            .read<ActiveCompanyCubit>()
+                            .loadCompaniesAndResolveActive(force: true);
+                      } else if (state
+                          is MemberRegistrationActiveCompaniesError) {
+                        setState(() {
+                          _isActiveCompaniesLoading = false;
+                          _activeCompaniesError = state.message;
+                        });
+                      } else if (state is MemberRegistrationError) {
+                        setState(() {
+                          _isRegistrationsLoading = false;
+                          _registrationsError = state.message;
+                        });
+                      }
+                    },
+                    child: _showRegistrationTab
+                        ? Column(
+                            children: [
+                              Container(
+                                color: AppColors.whiteColor,
+                                child: TabBar(
+                                  controller: _tabController,
+                                  labelColor: AppColors.primaryColor,
+                                  unselectedLabelColor: AppColors.grayColor,
+                                  labelStyle: TextStyle(
+                                    fontFamily: AppFonts.primaryFont,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                  unselectedLabelStyle: TextStyle(
+                                    fontFamily: AppFonts.primaryFont,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                  indicatorColor: AppColors.primaryColor,
+                                  indicatorWeight: 3,
+                                  tabs: const [
+                                    Tab(text: 'Daftar Pengajuan'),
+                                    Tab(text: 'Perusahaan Aktif'),
+                                  ],
+                                ),
+                              ),
+                              Container(
+                                width: double.infinity,
+                                height: 1,
+                                color: const Color(0xFFE0E0E0),
+                              ),
+                              Expanded(
+                                child: TabBarView(
+                                  controller: _tabController,
+                                  children: [
+                                    _buildRegistrationList(),
+                                    _buildActiveCompaniesList(),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          )
+                        : _buildActiveCompaniesList(),
+                  ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRegistrationList() {
+    if (_isRegistrationsLoading && _userRegistrations.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_registrationsError != null && _userRegistrations.isEmpty) {
       return _buildEmptyState(
-        icon: Icons.business_outlined,
-        title: 'Belum Ada Perusahaan Aktif',
-        subtitle:
-            'Anda belum memiliki perusahaan aktif.\nPengajuan yang disetujui akan muncul di sini.',
+        icon: Icons.error_outline,
+        title: 'Gagal Memuat Pengajuan',
+        subtitle: _registrationsError!,
+        buttonText: 'Muat Ulang',
+        onPressed: () => rBlok.getUserRegistrations(),
       );
     }
 
-    final Map<String, List<MemberRegistration>> approvedGrouped = {};
-
-    for (final entry in _groupedByGCID.entries) {
-      final approved = entry.value
-          .where((r) => r.status == 'approved')
-          .toList();
-      if (approved.isNotEmpty) {
-        approvedGrouped[entry.key] = approved;
-      }
-    }
-
-    if (approvedGrouped.isEmpty) {
+    if (_userRegistrations.isEmpty) {
       return _buildEmptyState(
-        icon: Icons.business_outlined,
-        title: 'Belum Ada Perusahaan Aktif',
+        icon: Icons.description_outlined,
+        title: 'Belum Ada Pengajuan',
         subtitle:
-            'Anda belum memiliki perusahaan aktif.\nPengajuan yang disetujui akan muncul di sini.',
+            'Anda belum memiliki pengajuan Perusahaan.\nSilakan daftarkan perusahaan anda.',
+        buttonText: 'Daftar Perusahaan',
+        onPressed: () {
+          context.pushNamed('memberRegistration');
+        },
       );
     }
 
     return RefreshIndicator(
-      onRefresh: _loadData,
+      onRefresh: () async => _refreshAll(),
       child: ListView.builder(
         padding: const EdgeInsets.all(16),
-        itemCount: approvedGrouped.length,
+        itemCount: _userRegistrations.length,
         itemBuilder: (context, index) {
-          final gcid = approvedGrouped.keys.elementAt(index);
-          final regs = approvedGrouped[gcid]!;
-
-          final gcidReg = regs.first;
-          final bcidRegs = regs.skip(1).toList();
-
+          final registration = _userRegistrations[index];
           return Padding(
             padding: const EdgeInsets.only(bottom: 12),
-            child: _buildHierarchicalCompanyCard(gcidReg, bcidRegs),
+            child: MemberRegistrationCard(
+              registration: registration,
+              onTap: () => _showRegistrationDetail(registration),
+            ),
           );
         },
       ),
     );
   }
 
-  Widget _buildHierarchicalCompanyCard(
-    MemberRegistration gcidReg,
-    List<MemberRegistration> bcidRegs,
-  ) {
-    final gcName = gcidReg.gcid?.name ?? gcidReg.businessName;
-    // final hasChildren = bcidRegs.isNotEmpty;
+  Widget _buildActiveCompaniesList() {
+    if (_isActiveCompaniesLoading && _activeCompanies.isEmpty) {
+      return const Center(
+        child: CircularProgressIndicator(color: AppColors.primaryColor),
+      );
+    }
 
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.whiteColor,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.green[200]!),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.green.withOpacity(0.1),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          InkWell(
-            onTap: () => _showRegistrationDetail(gcidReg),
-            borderRadius: BorderRadius.circular(12),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: Colors.green[50],
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Icon(
-                      Icons.business,
-                      color: Colors.green[700],
-                      size: 24,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      gcName,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontFamily: AppFonts.primaryFont,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.blackColor,
-                      ),
-                    ),
-                  ),
-                  Icon(
-                    Icons.chevron_right,
-                    color: AppColors.grayColor,
-                    size: 20,
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
+    if (_activeCompaniesError != null && _activeCompanies.isEmpty) {
+      return _buildEmptyState(
+        icon: Icons.error_outline,
+        title: 'Gagal Memuat Perusahaan Aktif',
+        subtitle: _activeCompaniesError!,
+        buttonText: 'Muat Ulang',
+        onPressed: () => rBlok.getActiveMemberCompanies(),
+      );
+    }
+
+    if (_activeCompanies.isEmpty) {
+      return _buildEmptyState(
+        icon: Icons.business_outlined,
+        title: 'Belum Ada Perusahaan Aktif',
+        subtitle:
+            'Anda belum memiliki perusahaan aktif.\nPengajuan yang disetujui akan muncul di sini.',
+      );
+    }
+
+    final visibleCompanies = _activeCompanies.where((company) {
+      if (_searchQuery.isEmpty) return true;
+
+      final gcCompanyName = (company.gcName ?? '').trim();
+      final fallbackCompanyName = (company.customerCompanyName ?? '').trim();
+      final companyName = gcCompanyName.isNotEmpty
+          ? gcCompanyName
+          : fallbackCompanyName;
+      return companyName.toLowerCase().contains(_searchQuery);
+    }).toList();
+
+    if (visibleCompanies.isEmpty) {
+      return _buildEmptyState(
+        icon: Icons.search_off_rounded,
+        title: 'Perusahaan Tidak Ditemukan',
+        subtitle: 'Tidak ada nama perusahaan yang cocok dengan pencarian Anda.',
+      );
+    }
+
+    return RefreshIndicator(
+      color: AppColors.primaryColor,
+      onRefresh: () async {
+        await _refreshAll();
+        if (!mounted) return;
+        await context.read<ActiveCompanyCubit>().refreshCompanies();
+      },
+      child: BlocBuilder<ActiveCompanyCubit, ActiveCompanyState>(
+        builder: (context, activeState) {
+          final activeBcid = activeState is ActiveCompanyReady
+              ? activeState.activeBcid
+              : null;
+          return ListView.builder(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+            itemCount: visibleCompanies.length,
+            itemBuilder: (context, index) {
+              final company = visibleCompanies[index];
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: ActiveMemberCard(
+                  company: company,
+                  isActiveSelected: company.branchCustomerId == activeBcid,
+                  onTap: () => _showActiveCompanyDetail(company),
+                  onLongPress: () => _confirmSetActiveCompany(company),
+                ),
+              );
+            },
+          );
+        },
       ),
     );
   }
@@ -365,14 +515,23 @@ class _MemberListPageState extends State<MemberListPage>
       child: Column(
         children: [
           const Spacer(),
-          Icon(icon, size: 80, color: AppColors.grayColor.withOpacity(0.5)),
-          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(22),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade100,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, size: 44, color: Colors.grey.shade400),
+          ),
+          const SizedBox(height: 20),
           Text(
             title,
-            style: TextStyle(
+            textAlign: TextAlign.center,
+            style: const TextStyle(
               fontFamily: AppFonts.primaryFont,
               fontSize: 16,
               fontWeight: FontWeight.w700,
+              color: Color(0xFF1E293B),
             ),
           ),
           const SizedBox(height: 8),
@@ -412,5 +571,353 @@ class _MemberListPageState extends State<MemberListPage>
     );
   }
 
-  void _showRegistrationDetail(MemberRegistration registration) {}
+  Future<void> _showRegistrationDetail(MemberRegistration registration) async {
+    final isDraft = MemberStatusHelper.isDraft(registration.status);
+    final isRejected = MemberStatusHelper.isRejected(registration.status);
+    final canEdit = isDraft || isRejected;
+    final shippingAddresses = await _loadShippingAddresses(registration.id);
+    if (!mounted) return;
+    final formData = _toConfirmationFormData(
+      registration,
+      shippingAddresses: shippingAddresses,
+    );
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => MemberConfirmationDialog(
+        formData: formData,
+        title: 'Detail Pengajuan',
+        description:
+            'Berikut adalah detail pendaftaran Perusaahaan Anda yang sudah tersimpan.',
+        primaryButtonText: isDraft ? 'Lanjutkan Pengajuan' : 'Selesai',
+        secondaryButtonText: isDraft
+            ? 'Hapus Draft'
+            : (canEdit ? 'Edit Pengajuan' : null),
+        showSectionEditAction: false,
+        showPrimarySendIcon: false,
+        onClose: () => Navigator.of(dialogContext).pop(),
+        onConfirm: () async {
+          Navigator.of(dialogContext).pop();
+          if (!isDraft) return;
+          final shouldRefresh = await context.pushNamed<bool>(
+            'memberRegistration',
+            extra: {'registration': registration, 'resubmitAsNew': false},
+          );
+          if (!mounted) return;
+          if (shouldRefresh == true) {
+            await _refreshAll();
+          }
+        },
+        onEdit: canEdit
+            ? () {
+                Navigator.of(dialogContext).pop();
+                if (isDraft) {
+                  _confirmDeleteDraft(registration);
+                  return;
+                }
+                context.pushNamed(
+                  'memberRegistration',
+                  extra: {
+                    'registration': registration,
+                    'resubmitAsNew': isRejected,
+                  },
+                );
+              }
+            : null,
+      ),
+    );
+  }
+
+  Future<void> _confirmDeleteDraft(MemberRegistration registration) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Hapus Draft?'),
+        content: const Text(
+          'Draft pengajuan yang dihapus tidak bisa dikembalikan. Yakin ingin melanjutkan?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Batal'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Hapus'),
+          ),
+        ],
+      ),
+    );
+    if (!mounted || ok != true) return;
+
+    final deleted = await rBlok.deleteDraft(registration.id);
+    if (!mounted) return;
+
+    if (deleted) {
+      _showFloatingToast('Draft berhasil dihapus');
+      await _refreshAll();
+    }
+  }
+
+  Future<void> _showActiveCompanyDetail(ActiveMemberCompany company) async {
+    final bcid = company.branchCustomerId;
+    final activeState = context.read<ActiveCompanyCubit>().state;
+    final isSelected =
+        activeState is ActiveCompanyReady &&
+        activeState.activeBcid == company.branchCustomerId;
+    List<Map<String, dynamic>> shippingAddresses = const [];
+    var addressesLoaded = bcid == null || bcid <= 0;
+    var startedFetch = false;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (ctx, setDialogState) {
+          if (!addressesLoaded && !startedFetch) {
+            startedFetch = true;
+            _loadActiveCompanyAddresses(bcid!).then((rows) {
+              if (!ctx.mounted) return;
+              setDialogState(() {
+                shippingAddresses = rows;
+                addressesLoaded = true;
+              });
+            });
+          }
+          return Stack(
+            children: [
+              ActiveCompanyDetailDialog(
+                company: company,
+                shippingAddresses: shippingAddresses,
+                isActiveSelected: isSelected,
+                onSetActive: () => _setActiveCompany(company),
+                onClose: () => Navigator.of(dialogContext).pop(),
+              ),
+              if (!addressesLoaded)
+                const Positioned(
+                  top: 16,
+                  right: 16,
+                  child: SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Future<void> _setActiveCompany(ActiveMemberCompany company) async {
+    final changed = await context.read<ActiveCompanyCubit>().setActiveCompany(
+      company,
+    );
+    if (!mounted) return;
+    if (changed) {
+      _showFloatingToast('${company.displayName} menjadi perusahaan aktif');
+    } else {
+      _showFloatingToast(
+        'Perusahaan ini belum memiliki BCID valid',
+        isError: true,
+      );
+    }
+  }
+
+  Future<void> _confirmSetActiveCompany(ActiveMemberCompany company) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Pilih Perusahaan Aktif'),
+        content: Text(
+          'Jadikan ${company.displayName} sebagai perusahaan aktif?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Batal'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Pilih'),
+          ),
+        ],
+      ),
+    );
+    if (!mounted) return;
+    if (ok == true) {
+      await _setActiveCompany(company);
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> _loadActiveCompanyAddresses(
+    int bcid,
+  ) async {
+    try {
+      final token = await SessionManager.getToken();
+
+      Future<http.Response> fetch(Map<String, dynamic> spec) {
+        final uri = Uri.parse(
+          '${ApiConfig.baseUrl}/api/resource/customer_address'
+          '?spec=${Uri.encodeComponent(jsonEncode(spec))}',
+        );
+        return http.get(
+          uri,
+          headers: {...ApiConfig.headers, 'Authorization': 'Bearer $token'},
+        );
+      }
+
+      http.Response response = await fetch({
+        'fields': ['*'],
+        'filters': [
+          ['parent_type', '=', 'branch_customer'],
+          ['parent_id', '=', bcid.toString()],
+        ],
+        'order_by': [
+          ['is_default', 'desc'],
+          ['idx', 'asc'],
+          ['id', 'asc'],
+        ],
+      });
+
+      if (response.statusCode != 200) {
+        response = await fetch({
+          'fields': ['*'],
+          'filters': [
+            ['bcid', '=', bcid.toString()],
+          ],
+          'order_by': [
+            ['is_default', 'desc'],
+            ['idx_row', 'asc'],
+            ['id', 'asc'],
+          ],
+        });
+      }
+
+      if (response.statusCode != 200) return const [];
+
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
+      final data = body['data'];
+      if (data is! List) return const [];
+      return data
+          .whereType<Map>()
+          .map((e) => Map<String, dynamic>.from(e))
+          .toList();
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  Map<String, dynamic> _toConfirmationFormData(
+    MemberRegistration registration, {
+    List<Map<String, dynamic>> shippingAddresses = const [],
+  }) {
+    final dob = registration.user.dateOfBirth;
+    return {
+      'owner_full_name': registration.user.fullName,
+      'owner_email': registration.user.email,
+      'owner_phone': registration.user.phone,
+      'owner_place_of_birth': registration.user.placeOfBirth,
+      'owner_date_of_birth': dob == null
+          ? ''
+          : '${dob.year.toString().padLeft(4, '0')}-${dob.month.toString().padLeft(2, '0')}-${dob.day.toString().padLeft(2, '0')}',
+      'branch_owner': registration.branchOwnerName,
+      'branch_owner_phone': registration.branchOwnerPhone,
+      'branch_owner_email': registration.branchOwnerEmail,
+      'branch_owner_place_of_birth': registration.branchOwnerPlaceOfBirth,
+      'branch_owner_date_of_birth': registration.branchOwnerDateOfBirth,
+      'company_type': registration.entity,
+      'company_title': registration.companyTitle,
+      'company_name': registration.businessName,
+      'product_need': registration.productNeed,
+      'branch_id': registration.branch.id,
+      'branch_name': registration.branch.branchName,
+      'branch_area': registration.branch.area ?? registration.branch.city,
+      'company_address': registration.address,
+      'company_province': registration.province,
+      'company_city': registration.city,
+      'company_district': registration.district,
+      'village': registration.village,
+      'company_postal_code': registration.postalCode,
+      'customer_register_address': shippingAddresses,
+      'reject_reason': registration.rejectReason,
+      'reject_notes': registration.rejectNotes,
+      'status': MemberStatusHelper.normalize(registration.status),
+    };
+  }
+
+  Future<List<Map<String, dynamic>>> _loadShippingAddresses(
+    int parentId,
+  ) async {
+    try {
+      final token = await SessionManager.getToken();
+      Future<http.Response> fetchWithSpec(Map<String, dynamic> spec) async {
+        final uri = Uri.parse(
+          '${ApiConfig.baseUrl}/api/resource/customer_register_address'
+          '?spec=${Uri.encodeComponent(jsonEncode(spec))}',
+        );
+        return http.get(
+          uri,
+          headers: {...ApiConfig.headers, 'Authorization': 'Bearer $token'},
+        );
+      }
+
+      http.Response response = await fetchWithSpec({
+        'fields': ['*'],
+        'filters': [
+          ['customer_register_id', '=', parentId.toString()],
+        ],
+        'order_by': [
+          ['idx_row', 'asc'],
+          ['id', 'asc'],
+        ],
+      });
+      if (response.statusCode != 200) {
+        response = await fetchWithSpec({
+          'fields': ['*'],
+          'filters': [
+            ['parent_id', '=', parentId.toString()],
+            ['parent_type', '=', 'customer_register'],
+          ],
+          'order_by': [
+            ['idx', 'asc'],
+            ['id', 'asc'],
+          ],
+        });
+      }
+      if (response.statusCode != 200) return const [];
+
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
+      final data = body['data'];
+      if (data is! List) return const [];
+
+      return data
+          .whereType<Map>()
+          .map((e) {
+            final row = Map<String, dynamic>.from(e);
+            final type = (row['type'] ?? '').toString().trim().toLowerCase();
+            if (type.isNotEmpty && type != 'shipping') {
+              return <String, dynamic>{};
+            }
+            final picPhone = (row['pic_phone'] ?? '').toString().trim();
+            if (picPhone.isNotEmpty) {
+              final digits = picPhone.replaceAll(RegExp(r'[^0-9]'), '');
+              if (digits.startsWith('62') && digits.length > 2) {
+                row['pic_phone'] = '0${digits.substring(2)}';
+              } else if (picPhone.startsWith('+62') && digits.length > 2) {
+                row['pic_phone'] = '0${digits.substring(2)}';
+              }
+            }
+            return row;
+          })
+          .where((row) => row.isNotEmpty)
+          .toList();
+    } catch (_) {
+      return const [];
+    }
+  }
 }

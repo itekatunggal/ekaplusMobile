@@ -123,7 +123,6 @@ class ProfilePictureOptionsSheet extends StatelessWidget {
     // Save references BEFORE async operations
     final authBloc = context.read<AuthBloc>();
     final authSessionCubit = context.read<AuthSessionCubit>();
-    final scaffoldMessenger = ScaffoldMessenger.of(context);
 
     try {
       final ImagePicker picker = ImagePicker();
@@ -131,6 +130,7 @@ class ProfilePictureOptionsSheet extends StatelessWidget {
         source: ImageSource.gallery,
         imageQuality: 80,
       );
+      if (!context.mounted) return;
 
       if (image != null) {
         final imagePath = image.path;
@@ -143,32 +143,35 @@ class ProfilePictureOptionsSheet extends StatelessWidget {
           ),
         );
 
-        // Listen to result
-        authBloc.stream.listen((state) {
-          if (state is ProfilePictureUpdateSuccess) {
-            authSessionCubit.updateUser(state.user);
+        final resultState = await authBloc.stream.firstWhere(
+          (state) =>
+              state is ProfilePictureUpdateSuccess ||
+              state is ProfilePictureUpdateError,
+        );
+        if (!context.mounted) return;
 
-            scaffoldMessenger.showSnackBar(
-              SnackBar(
-                content: Text(
-                  'Foto profil berhasil diubah',
-                  style: TextStyle(fontFamily: AppFonts.primaryFont),
-                ),
-                backgroundColor: Colors.green,
-              ),
-            );
-          }
-        });
+        if (resultState is ProfilePictureUpdateSuccess) {
+          await authSessionCubit.updateUser(resultState.user);
+          if (!context.mounted) return;
+          AppSnackbar.show(
+            context,
+            message: 'Foto profil berhasil diubah',
+            type: AppSnackbarType.success,
+          );
+        } else if (resultState is ProfilePictureUpdateError) {
+          AppSnackbar.show(
+            context,
+            message: 'Gagal mengubah foto profil: ${resultState.message}',
+            type: AppSnackbarType.error,
+          );
+        }
       }
     } catch (e) {
-      scaffoldMessenger.showSnackBar(
-        SnackBar(
-          content: Text(
-            'Gagal mengambil foto: $e',
-            style: TextStyle(fontFamily: AppFonts.primaryFont),
-          ),
-          backgroundColor: Colors.red,
-        ),
+      if (!context.mounted) return;
+      AppSnackbar.show(
+        context,
+        message: 'Gagal mengambil foto: $e',
+        type: AppSnackbarType.error,
       );
     }
   }
@@ -177,7 +180,6 @@ class ProfilePictureOptionsSheet extends StatelessWidget {
     // Save references BEFORE dialog
     final authBloc = context.read<AuthBloc>();
     final authSessionCubit = context.read<AuthSessionCubit>();
-    final scaffoldMessenger = ScaffoldMessenger.of(context);
 
     final confirmed = await showDialog<bool>(
       context: context,
@@ -218,6 +220,7 @@ class ProfilePictureOptionsSheet extends StatelessWidget {
         ],
       ),
     );
+    if (!context.mounted) return;
 
     if (confirmed == true) {
       // Update profile pic to null using saved references
@@ -225,22 +228,28 @@ class ProfilePictureOptionsSheet extends StatelessWidget {
         UpdateProfilePictureEvent(userId: user.phone, profilePicPath: ""),
       );
 
-      // Listen to result
-      authBloc.stream.listen((state) {
-        if (state is ProfilePictureUpdateSuccess) {
-          authSessionCubit.updateUser(state.user);
+      final resultState = await authBloc.stream.firstWhere(
+        (state) =>
+            state is ProfilePictureUpdateSuccess ||
+            state is ProfilePictureUpdateError,
+      );
+      if (!context.mounted) return;
 
-          scaffoldMessenger.showSnackBar(
-            SnackBar(
-              content: Text(
-                'Foto profil berhasil dihapus',
-                style: TextStyle(fontFamily: AppFonts.primaryFont),
-              ),
-              backgroundColor: Colors.green,
-            ),
-          );
-        }
-      });
+      if (resultState is ProfilePictureUpdateSuccess) {
+        await authSessionCubit.updateUser(resultState.user);
+        if (!context.mounted) return;
+        AppSnackbar.show(
+          context,
+          message: 'Foto profil berhasil dihapus',
+          type: AppSnackbarType.success,
+        );
+      } else if (resultState is ProfilePictureUpdateError) {
+        AppSnackbar.show(
+          context,
+          message: 'Gagal menghapus foto profil: ${resultState.message}',
+          type: AppSnackbarType.error,
+        );
+      }
     }
   }
 }

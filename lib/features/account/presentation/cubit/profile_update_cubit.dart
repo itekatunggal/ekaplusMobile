@@ -3,6 +3,8 @@ import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:ekaplus_ekatunggal/features/auth/domain/entities/user.dart';
 import 'package:ekaplus_ekatunggal/features/auth/domain/usecases/update_full_name.dart';
+import 'package:ekaplus_ekatunggal/features/auth/domain/usecases/update_personal_profile.dart';
+import 'package:ekaplus_ekatunggal/features/auth/domain/usecases/update_username.dart';
 import 'package:ekaplus_ekatunggal/features/auth/domain/usecases/request_phone_change.dart';
 import 'package:ekaplus_ekatunggal/features/auth/domain/usecases/verify_phone_change.dart';
 import 'package:ekaplus_ekatunggal/features/auth/domain/usecases/request_email_change.dart';
@@ -12,6 +14,8 @@ part 'profile_update_state.dart';
 
 class ProfileUpdateCubit extends Cubit<ProfileUpdateState> {
   final UpdateFullName updateFullName;
+  final UpdatePersonalProfile updatePersonalProfile;
+  final UpdateUsername updateUsername;
   final RequestPhoneChange requestPhoneChange;
   final VerifyPhoneChange verifyPhoneChange;
   final RequestEmailChange requestEmailChange;
@@ -19,11 +23,34 @@ class ProfileUpdateCubit extends Cubit<ProfileUpdateState> {
 
   ProfileUpdateCubit({
     required this.updateFullName,
+    required this.updatePersonalProfile,
+    required this.updateUsername,
     required this.requestPhoneChange,
     required this.verifyPhoneChange,
     required this.requestEmailChange,
     required this.verifyEmailChange,
   }) : super(ProfileUpdateInitial());
+
+  Future<void> updatePersonalData({
+    required String fullName,
+    required String gender,
+    required String placeOfBirth,
+    required DateTime? dateOfBirth,
+  }) async {
+    emit(ProfileUpdateLoading());
+
+    final result = await updatePersonalProfile(
+      fullName: fullName,
+      gender: gender,
+      placeOfBirth: placeOfBirth,
+      dateOfBirth: dateOfBirth,
+    );
+
+    result.fold(
+      (failure) => emit(ProfileUpdateError(failure.message.toString())),
+      (user) => emit(ProfileUpdateSuccess(user, 'Profil berhasil diperbarui')),
+    );
+  }
 
   // Update Full Name
   Future<void> updateName({
@@ -31,15 +58,26 @@ class ProfileUpdateCubit extends Cubit<ProfileUpdateState> {
     required String fullName,
   }) async {
     emit(ProfileUpdateLoading());
-    
-    final result = await updateFullName(
-      userId: userId,
-      fullName: fullName,
-    );
-    
+
+    final result = await updateFullName(userId: userId, fullName: fullName);
+
     result.fold(
       (failure) => emit(ProfileUpdateError(failure.message.toString())),
       (user) => emit(ProfileUpdateSuccess(user, 'Nama berhasil diubah')),
+    );
+  }
+
+  Future<void> updateUsernameValue({
+    required String userId,
+    required String username,
+  }) async {
+    emit(ProfileUpdateLoading());
+
+    final result = await updateUsername(userId: userId, username: username);
+
+    result.fold(
+      (failure) => emit(ProfileUpdateError(failure.message.toString())),
+      (user) => emit(ProfileUpdateSuccess(user, 'Username berhasil diubah')),
     );
   }
 
@@ -50,19 +88,21 @@ class ProfileUpdateCubit extends Cubit<ProfileUpdateState> {
     required String password,
   }) async {
     emit(ProfileUpdateLoading());
-    
+
     final result = await requestPhoneChange(
       userId: userId,
       newPhone: newPhone,
       password: password,
     );
-    
+
     result.fold(
       (failure) => emit(ProfileUpdateError(failure.message.toString())),
-      (message) => emit(ProfileUpdateAwaitingVerification(
-        message: message,
-        pendingPhone: newPhone,
-      )),
+      (message) => emit(
+        ProfileUpdateAwaitingVerification(
+          message: message,
+          pendingPhone: newPhone,
+        ),
+      ),
     );
   }
 
@@ -73,16 +113,17 @@ class ProfileUpdateCubit extends Cubit<ProfileUpdateState> {
     required String verificationCode,
   }) async {
     emit(ProfileUpdateLoading());
-    
+
     final result = await verifyPhoneChange(
       userId: userId,
       newPhone: newPhone,
       verificationCode: verificationCode,
     );
-    
+
     result.fold(
       (failure) => emit(ProfileUpdateError(failure.message.toString())),
-      (user) => emit(ProfileUpdateSuccess(user, 'Nomor telepon berhasil diubah')),
+      (user) =>
+          emit(ProfileUpdateSuccess(user, 'Nomor telepon berhasil diubah')),
     );
   }
 
@@ -93,19 +134,21 @@ class ProfileUpdateCubit extends Cubit<ProfileUpdateState> {
     required String password,
   }) async {
     emit(ProfileUpdateLoading());
-    
+
     final result = await requestEmailChange(
       userId: userId,
       newEmail: newEmail,
       password: password,
     );
-    
+
     result.fold(
       (failure) => emit(ProfileUpdateError(failure.message.toString())),
-      (message) => emit(ProfileUpdateAwaitingVerification(
-        message: message,
-        pendingEmail: newEmail,
-      )),
+      (message) => emit(
+        ProfileUpdateAwaitingVerification(
+          message: message,
+          pendingEmail: newEmail,
+        ),
+      ),
     );
   }
 
@@ -124,7 +167,8 @@ class ProfileUpdateCubit extends Cubit<ProfileUpdateState> {
     );
 
     result.fold(
-      (failure) => emit(ProfileUpdateError(failure.message.toString().toString())),
+      (failure) =>
+          emit(ProfileUpdateError(failure.message.toString().toString())),
       (user) => emit(ProfileUpdateSuccess(user, 'Email berhasil diubah')),
     );
   }
@@ -145,10 +189,12 @@ class ProfileUpdateCubit extends Cubit<ProfileUpdateState> {
 
     result.fold(
       (failure) => emit(ProfileUpdateError(failure.message.toString())),
-      (message) => emit(ProfileUpdateAwaitingVerification(
-        message: message,
-        pendingEmail: email,
-      )),
+      (message) => emit(
+        ProfileUpdateAwaitingVerification(
+          message: message,
+          pendingEmail: email,
+        ),
+      ),
     );
   }
 
@@ -176,4 +222,3 @@ class ProfileUpdateCubit extends Cubit<ProfileUpdateState> {
     emit(ProfileUpdateInitial());
   }
 }
-

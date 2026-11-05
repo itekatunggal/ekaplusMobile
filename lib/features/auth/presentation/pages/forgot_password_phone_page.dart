@@ -48,7 +48,7 @@ class _ForgotPasswordPhonePageState extends State<ForgotPasswordPhonePage> {
         listener: (context, state) {
           if (state is OtpRequestSuccess) {
             // OTP sent, navigate to OTP verification
-            ScaffoldMessenger.of(context).showSnackBar(
+            AppSnackbar.showRaw(context, 
               SnackBar(
                 content: Text('Kode OTP: ${state.otp}'),
                 backgroundColor: Colors.blue,
@@ -66,14 +66,14 @@ class _ForgotPasswordPhonePageState extends State<ForgotPasswordPhonePage> {
               },
             );
           } else if (state is PhoneNotFoundError) {
-            ScaffoldMessenger.of(context).showSnackBar(
+            AppSnackbar.showRaw(context, 
               const SnackBar(
                 content: Text('Nomor handphone tidak terdaftar'),
                 backgroundColor: Colors.red,
               ),
             );
           } else if (state is AuthError) {
-            ScaffoldMessenger.of(context).showSnackBar(
+            AppSnackbar.showRaw(context, 
               SnackBar(
                 content: Text(state.message),
                 backgroundColor: Colors.red,

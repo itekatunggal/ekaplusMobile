@@ -6,6 +6,8 @@ import 'package:ekaplus_ekatunggal/features/account/presentation/pages/account_p
 import 'package:ekaplus_ekatunggal/features/account/presentation/pages/change_password_page.dart';
 import 'package:ekaplus_ekatunggal/features/account/presentation/pages/edit_contact_page.dart';
 import 'package:ekaplus_ekatunggal/features/account/presentation/pages/edit_full_name_page.dart';
+import 'package:ekaplus_ekatunggal/features/account/presentation/pages/edit_username_page.dart';
+import 'package:ekaplus_ekatunggal/features/account/presentation/pages/edit_profile_page.dart';
 import 'package:ekaplus_ekatunggal/features/account/presentation/pages/new_password_page.dart';
 import 'package:ekaplus_ekatunggal/features/account/presentation/pages/select_avatar_page.dart';
 import 'package:ekaplus_ekatunggal/features/account/presentation/pages/verify_contact_complete_page.dart';
@@ -15,12 +17,17 @@ import 'package:ekaplus_ekatunggal/features/member/presentation/pages/member_reg
 import 'package:ekaplus_ekatunggal/features/member/presentation/pages/member_list_page.dart';
 import 'package:ekaplus_ekatunggal/features/member/presentation/pages/company_selection_page.dart';
 import 'package:ekaplus_ekatunggal/features/member/presentation/pages/add_bcid_page.dart';
+import 'package:ekaplus_ekatunggal/features/member/domain/entities/member_registration.dart';
+import 'package:ekaplus_ekatunggal/features/member/domain/entities/active_member_company.dart';
+import 'package:ekaplus_ekatunggal/features/member/presentation/enums/member_registration_intent.dart';
 import 'package:ekaplus_ekatunggal/features/auth/domain/entities/user.dart';
 import 'package:ekaplus_ekatunggal/features/auth/domain/usecases/change_password.dart';
 import 'package:ekaplus_ekatunggal/features/auth/domain/usecases/request_email_change.dart';
 import 'package:ekaplus_ekatunggal/features/auth/domain/usecases/request_phone_change.dart';
 import 'package:ekaplus_ekatunggal/features/auth/domain/usecases/reset_password_with_otp.dart';
 import 'package:ekaplus_ekatunggal/features/auth/domain/usecases/update_full_name.dart';
+import 'package:ekaplus_ekatunggal/features/auth/domain/usecases/update_personal_profile.dart';
+import 'package:ekaplus_ekatunggal/features/auth/domain/usecases/update_username.dart';
 import 'package:ekaplus_ekatunggal/features/auth/domain/usecases/verify_email_change.dart';
 import 'package:ekaplus_ekatunggal/features/auth/domain/usecases/verify_old_password.dart';
 import 'package:ekaplus_ekatunggal/features/auth/domain/usecases/verify_phone_change.dart';
@@ -35,6 +42,20 @@ import 'package:ekaplus_ekatunggal/features/auth/presentation/pages/register_pag
 import 'package:ekaplus_ekatunggal/features/search/presentation/bloc/search_bloc.dart';
 import 'package:ekaplus_ekatunggal/features/search/presentation/pages/search_page.dart';
 import 'package:ekaplus_ekatunggal/features/wishlist/presentation/pages/wishlist_page.dart';
+import 'package:ekaplus_ekatunggal/features/report/presentation/pages/penjualan_page.dart';
+import 'package:ekaplus_ekatunggal/features/transaksi/transaksi.dart';
+import 'package:ekaplus_ekatunggal/features/customer/presentation/pages/customer_page.dart';
+import 'package:ekaplus_ekatunggal/features/loyalty/data/services/loyalty_service.dart';
+import 'package:ekaplus_ekatunggal/features/loyalty/domain/entities/loyalty_models.dart';
+import 'package:ekaplus_ekatunggal/features/loyalty/presentation/cubit/loyalty_point_cubit.dart';
+import 'package:ekaplus_ekatunggal/features/loyalty/presentation/cubit/loyalty_calculation_cubit.dart';
+import 'package:ekaplus_ekatunggal/features/loyalty/presentation/pages/loyalty_calculation_detail_page.dart';
+import 'package:ekaplus_ekatunggal/features/loyalty/presentation/pages/loyalty_earning_detail_page.dart';
+import 'package:ekaplus_ekatunggal/features/loyalty/presentation/pages/loyalty_history_page.dart';
+import 'package:ekaplus_ekatunggal/features/loyalty/presentation/pages/loyalty_point_page.dart';
+import 'package:ekaplus_ekatunggal/features/loyalty/presentation/pages/loyalty_redemption_detail_page.dart';
+import 'package:ekaplus_ekatunggal/features/loyalty/presentation/pages/loyalty_reward_detail_page.dart';
+import 'package:ekaplus_ekatunggal/features/loyalty/presentation/pages/loyalty_reward_list_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
@@ -54,16 +75,50 @@ import 'package:ekaplus_ekatunggal/core/shared_widgets/bottom_nav.dart';
 import 'package:ekaplus_ekatunggal/core/shared_widgets/exit_confirmation_wrapper.dart';
 import 'package:ekaplus_ekatunggal/core/utils/global_navigator_key.dart';
 
+import 'package:ekaplus_ekatunggal/features/auth/presentation/cubit/auth_session_cubit.dart';
+import 'package:ekaplus_ekatunggal/features/auth/presentation/cubit/auth_session_state.dart';
+
 final getIt = GetIt.instance;
+
+CustomTransitionPage<void> _smoothPage({
+  required LocalKey key,
+  required Widget child,
+}) {
+  return CustomTransitionPage<void>(
+    key: key,
+    child: child,
+    transitionDuration: const Duration(milliseconds: 260),
+    reverseTransitionDuration: const Duration(milliseconds: 220),
+    transitionsBuilder: (context, animation, secondaryAnimation, pageChild) {
+      final fadeIn = CurvedAnimation(
+        parent: animation,
+        curve: const Interval(0.2, 1.0, curve: Curves.easeOutCubic),
+      );
+      final fadeOut = CurvedAnimation(
+        parent: secondaryAnimation,
+        curve: const Interval(0.0, 0.8, curve: Curves.easeOutCubic),
+      );
+      final scaleIn = Tween<double>(
+        begin: 0.94,
+        end: 1.0,
+      ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic));
+      return FadeTransition(
+        opacity: Tween<double>(begin: 1.0, end: 0.0).animate(fadeOut),
+        child: FadeTransition(
+          opacity: fadeIn,
+          child: ScaleTransition(scale: scaleIn, child: pageChild),
+        ),
+      );
+    },
+  );
+}
 
 class MyRouter {
   GoRouter get router => GoRouter(
     navigatorKey: globalNavigatorKey,
-    initialLocation: "/splash",
-    // initialLocation: "/member-list",
-    // initialLocation: "/member-registration",
+    // initialLocation: "/splash",
+    initialLocation: "/customer",
     // initialLocation: "/account",
-    // initialLocation: "/registerForm",
     routes: [
       // ********** Splash Screen (tanpa bottom nav) **********
       GoRoute(
@@ -89,9 +144,29 @@ class MyRouter {
             builder: (context, state) => const CategoryPage(),
           ),
           GoRoute(
+            name: 'customer',
+            path: '/customer',
+            builder: (context, state) => const CustomerPage(),
+          ),
+          GoRoute(
             name: 'wishlist',
             path: '/wishlist',
             builder: (context, state) => const WishlistPage(),
+          ),
+          GoRoute(
+            name: 'report',
+            path: '/report',
+            builder: (context, state) => const PenjualanPage(),
+          ),
+          // GoRoute(
+          //   name: 'invoice',
+          //   path: '/invoice',
+          //   builder: (context, state) => const InvoicePage(),
+          // ),
+          GoRoute(
+            name: 'transaksi',
+            path: '/transaksi',
+            builder: (context, state) => const TransaksiPage(),
           ),
           GoRoute(
             name: 'account',
@@ -104,6 +179,118 @@ class MyRouter {
       ),
 
       // ********** Routes tanpa bottom nav *********
+      GoRoute(
+        path: '/customer/points',
+        name: 'loyalty-points',
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>?;
+          final bcid = extra?['bcid']?.toString() ?? '';
+          return BlocProvider(
+            create: (_) => LoyaltyPointCubit(LoyaltyService(), bcid)..loadAll(),
+            child: const LoyaltyPointPage(),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/customer/points/calculation',
+        name: 'loyalty-calculation-detail',
+        builder: (context, state) {
+          final rawGpid = (state.extra as Map<String, dynamic>?)?['gpid'];
+          final bcid = (state.extra as Map<String, dynamic>?)?['bcid']
+              ?.toString();
+          final groupParentName =
+              (state.extra as Map<String, dynamic>?)?['groupParentName']
+                  ?.toString();
+          final groupParentCode =
+              (state.extra as Map<String, dynamic>?)?['groupParentCode']
+                  ?.toString();
+          final gpid = rawGpid is int
+              ? rawGpid
+              : int.tryParse(rawGpid?.toString() ?? '') ?? 0;
+          return BlocProvider(
+            create: (_) =>
+                LoyaltyCalculationCubit(LoyaltyService(), gpid, bcid: bcid)
+                  ..load(),
+            child: LoyaltyCalculationDetailPage(
+              groupParentCode: groupParentCode,
+              groupParentName: groupParentName,
+            ),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/customer/points/earnings',
+        name: 'loyalty-earnings',
+        builder: (context, state) {
+          final bcid =
+              (state.extra as Map<String, dynamic>?)?['bcid']?.toString() ?? '';
+          return BlocProvider(
+            create: (_) =>
+                LoyaltyPointCubit(LoyaltyService(), bcid)..loadEarnings(),
+            child: const LoyaltyEarningDetailPage(),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/customer/points/rewards',
+        name: 'loyalty-rewards',
+        builder: (context, state) {
+          final bcid =
+              (state.extra as Map<String, dynamic>?)?['bcid']?.toString() ?? '';
+          return BlocProvider(
+            create: (_) => LoyaltyPointCubit(LoyaltyService(), bcid)
+              ..loadBalance()
+              ..loadRewards(),
+            child: const LoyaltyRewardListPage(),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/customer/points/rewards/:rewardId',
+        name: 'loyalty-reward-detail',
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>?;
+          final reward = extra?['reward'] as LoyaltyReward?;
+          final bcid = extra?['bcid']?.toString() ?? '';
+          if (reward == null) {
+            return const Scaffold(
+              body: Center(child: Text('Reward tidak tersedia')),
+            );
+          }
+          return BlocProvider(
+            create: (_) =>
+                LoyaltyPointCubit(LoyaltyService(), bcid)..loadBalance(),
+            child: LoyaltyRewardDetailPage(reward: reward),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/customer/points/history',
+        name: 'loyalty-history',
+        builder: (context, state) {
+          final bcid =
+              (state.extra as Map<String, dynamic>?)?['bcid']?.toString() ?? '';
+          return BlocProvider(
+            create: (_) =>
+                LoyaltyPointCubit(LoyaltyService(), bcid)..loadHistory(),
+            child: const LoyaltyHistoryPage(),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/customer/points/history/:redemptionId',
+        name: 'loyalty-redemption-detail',
+        builder: (context, state) {
+          final item =
+              (state.extra as Map<String, dynamic>?)?['redemption']
+                  as LoyaltyRedemption?;
+          return item == null
+              ? const Scaffold(
+                  body: Center(child: Text('Aktivitas tidak tersedia')),
+                )
+              : LoyaltyRedemptionDetailPage(item: item);
+        },
+      ),
 
       // ============================================
       // AUTH ROUTES
@@ -210,7 +397,16 @@ class MyRouter {
         name: 'memberRegistration',
         path: '/member-registration',
         builder: (context, state) {
-          return const MemberRegistrationPage();
+          final extra = state.extra as Map<String, dynamic>?;
+          return MemberRegistrationPage(
+            initialRegistration: extra?['registration'] as MemberRegistration?,
+            resubmitAsNew: extra?['resubmitAsNew'] as bool? ?? false,
+            intent: memberRegistrationIntentFromRouteValue(extra?['intent']),
+            parentGcidId: extra?['selectedGcidId'] as int?,
+            parentGcName: extra?['selectedGcName'] as String?,
+            parentActiveCompany:
+                extra?['selectedActiveCompany'] as ActiveMemberCompany?,
+          );
         },
       ),
 
@@ -318,6 +514,26 @@ class MyRouter {
 
       // 1. Edit Name (No password needed)
       GoRoute(
+        path: '/account/edit-profile',
+        name: 'edit-profile',
+        pageBuilder: (context, state) => _smoothPage(
+          key: state.pageKey,
+          child: BlocProvider(
+            create: (context) => ProfileUpdateCubit(
+              updateFullName: getIt<UpdateFullName>(),
+              updatePersonalProfile: getIt<UpdatePersonalProfile>(),
+              updateUsername: getIt<UpdateUsername>(),
+              requestPhoneChange: getIt<RequestPhoneChange>(),
+              verifyPhoneChange: getIt<VerifyPhoneChange>(),
+              requestEmailChange: getIt<RequestEmailChange>(),
+              verifyEmailChange: getIt<VerifyEmailChange>(),
+            ),
+            child: const EditProfilePage(),
+          ),
+        ),
+      ),
+
+      GoRoute(
         path: '/account/edit-name',
         name: 'edit-name',
         builder: (context, state) {
@@ -325,6 +541,8 @@ class MyRouter {
           return BlocProvider(
             create: (context) => ProfileUpdateCubit(
               updateFullName: getIt<UpdateFullName>(),
+              updatePersonalProfile: getIt<UpdatePersonalProfile>(),
+              updateUsername: getIt<UpdateUsername>(),
               requestPhoneChange: getIt<RequestPhoneChange>(),
               verifyPhoneChange: getIt<VerifyPhoneChange>(),
               requestEmailChange: getIt<RequestEmailChange>(),
@@ -333,6 +551,29 @@ class MyRouter {
             child: EditFullNamePage(
               userId: extra['userId'] as String,
               currentName: extra['currentName'] as String,
+            ),
+          );
+        },
+      ),
+
+      GoRoute(
+        path: '/account/edit-username',
+        name: 'edit-username',
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>;
+          return BlocProvider(
+            create: (context) => ProfileUpdateCubit(
+              updateFullName: getIt<UpdateFullName>(),
+              updatePersonalProfile: getIt<UpdatePersonalProfile>(),
+              updateUsername: getIt<UpdateUsername>(),
+              requestPhoneChange: getIt<RequestPhoneChange>(),
+              verifyPhoneChange: getIt<VerifyPhoneChange>(),
+              requestEmailChange: getIt<RequestEmailChange>(),
+              verifyEmailChange: getIt<VerifyEmailChange>(),
+            ),
+            child: EditUsernamePage(
+              userId: extra['userId'] as String,
+              currentUsername: extra['currentUsername'] as String? ?? '',
             ),
           );
         },
@@ -358,25 +599,30 @@ class MyRouter {
       GoRoute(
         path: '/account/edit-contact',
         name: 'edit-contact',
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final extra = state.extra as Map<String, dynamic>;
           final type = extra['type'] as String;
 
-          return BlocProvider(
-            create: (context) => ProfileUpdateCubit(
-              updateFullName: getIt<UpdateFullName>(),
-              requestPhoneChange: getIt<RequestPhoneChange>(),
-              verifyPhoneChange: getIt<VerifyPhoneChange>(),
-              requestEmailChange: getIt<RequestEmailChange>(),
-              verifyEmailChange: getIt<VerifyEmailChange>(),
-            ),
-            child: EditContactPage(
-              userId: extra['userId'] as String,
-              currentValue: type == 'phone'
-                  ? extra['currentPhone'] as String
-                  : extra['currentEmail'] as String,
-              // verifiedPassword: extra['password'] as String,
-              type: type == 'phone' ? ContactType.phone : ContactType.email,
+          return _smoothPage(
+            key: state.pageKey,
+            child: BlocProvider(
+              create: (context) => ProfileUpdateCubit(
+                updateFullName: getIt<UpdateFullName>(),
+                updatePersonalProfile: getIt<UpdatePersonalProfile>(),
+                updateUsername: getIt<UpdateUsername>(),
+                requestPhoneChange: getIt<RequestPhoneChange>(),
+                verifyPhoneChange: getIt<VerifyPhoneChange>(),
+                requestEmailChange: getIt<RequestEmailChange>(),
+                verifyEmailChange: getIt<VerifyEmailChange>(),
+              ),
+              child: EditContactPage(
+                userId: extra['userId'] as String,
+                currentValue: type == 'phone'
+                    ? extra['currentPhone'] as String
+                    : extra['currentEmail'] as String,
+                // verifiedPassword: extra['password'] as String,
+                type: type == 'phone' ? ContactType.phone : ContactType.email,
+              ),
             ),
           );
         },
@@ -438,19 +684,24 @@ class MyRouter {
       GoRoute(
         path: '/account/verify-email-initial',
         name: 'verify-email-initial',
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final extra = state.extra as Map<String, dynamic>;
-          return BlocProvider(
-            create: (context) => ProfileUpdateCubit(
-              updateFullName: getIt<UpdateFullName>(),
-              requestPhoneChange: getIt<RequestPhoneChange>(),
-              verifyPhoneChange: getIt<VerifyPhoneChange>(),
-              requestEmailChange: getIt<RequestEmailChange>(),
-              verifyEmailChange: getIt<VerifyEmailChange>(),
-            ),
-            child: VerifyEmailInitialPage(
-              userId: extra['userId'] as String,
-              email: extra['email'] as String,
+          return _smoothPage(
+            key: state.pageKey,
+            child: BlocProvider(
+              create: (context) => ProfileUpdateCubit(
+                updateFullName: getIt<UpdateFullName>(),
+                updatePersonalProfile: getIt<UpdatePersonalProfile>(),
+                updateUsername: getIt<UpdateUsername>(),
+                requestPhoneChange: getIt<RequestPhoneChange>(),
+                verifyPhoneChange: getIt<VerifyPhoneChange>(),
+                requestEmailChange: getIt<RequestEmailChange>(),
+                verifyEmailChange: getIt<VerifyEmailChange>(),
+              ),
+              child: VerifyEmailInitialPage(
+                userId: extra['userId'] as String,
+                email: extra['email'] as String,
+              ),
             ),
           );
         },
@@ -582,74 +833,190 @@ class MyRouter {
   );
 }
 
+// class AppShell extends StatelessWidget {
+//   final Widget child;
+//   final String currentPath;
+
+//   const AppShell({required this.child, required this.currentPath, super.key});
+
+//   int _locationToIndex(String path) {
+//     if (path.startsWith('/category')) return 1;
+//     if (path.startsWith('/wishlist')) return 2;
+//     if (path.startsWith('/customer')) return 3;
+//     if (path.startsWith('/account')) return 4;
+//     return 0;
+//   }
+
+//   static const List<String> _routeNames = [
+//     'home',
+//     'category',
+//     'wishlist',
+//     'customer',
+//     'account',
+//   ];
+
+//   void _refreshPage(BuildContext context, int index) {
+//     switch (index) {
+//       case 0: // Home
+//         break;
+
+//       case 1: // Category
+//         context.read<CategoryBloc>().add(
+//           const CategoryEventGetAllCategories(1),
+//         );
+//         break;
+
+//       case 2: // Wishlist
+//         break;
+
+//       case 3: // Customer
+//         break;
+//     }
+//   }
+
+//   @override
+//   Widget build(BuildContext context) {
+//     final currentIndex = _locationToIndex(currentPath);
+
+//     return ExitConfirmationWrapper(
+//       alwaysShowConfirmation: true,
+//       child: Scaffold(
+//         body: child,
+//         bottomNavigationBar: BottomNavBar(
+//           currentIndex: currentIndex,
+//           onTap: (i) {
+//             final name = _routeNames[i];
+
+//             if (i == currentIndex) {
+//               GoRouter.of(context).goNamed(name);
+//               WidgetsBinding.instance.addPostFrameCallback((_) {
+//                 try {
+//                   _refreshPage(context, i);
+//                 } catch (e) {
+//                   // Ignore errors jika bloc tidak tersedia
+//                 }
+//               });
+//               return;
+//             }
+
+//             GoRouter.of(context).goNamed(name);
+//           },
+//         ),
+//       ),
+//     );
+//   }
+// }
+
 class AppShell extends StatelessWidget {
   final Widget child;
   final String currentPath;
 
   const AppShell({required this.child, required this.currentPath, super.key});
 
-  int _locationToIndex(String path) {
-    if (path.startsWith('/category')) return 1;
-    if (path.startsWith('/wishlist')) return 2;
-    if (path.startsWith('/account')) return 3;
+  int _locationToIndex({required String path, required bool isLoggedIn}) {
+    if (path.startsWith('/category')) {
+      return 1;
+    }
+
+    if (path.startsWith('/wishlist')) {
+      return 2;
+    }
+
+    if (isLoggedIn) {
+      if (path.startsWith('/customer')) {
+        return 3;
+      }
+
+      if (path.startsWith('/account')) {
+        return 4;
+      }
+    } else {
+      if (path.startsWith('/account')) {
+        return 3;
+      }
+    }
+
     return 0;
   }
 
-  static const List<String> _routeNames = [
-    'home',
-    'category',
-    'wishlist',
-    'account',
-  ];
+  List<String> _routeNames({required bool isLoggedIn}) {
+    if (isLoggedIn) {
+      return const ['home', 'category', 'wishlist', 'customer', 'account'];
+    }
 
-  void _refreshPage(BuildContext context, int index) {
-    switch (index) {
-      case 0: // Home
+    return const ['home', 'category', 'wishlist', 'account'];
+  }
+
+  void _refreshPage(BuildContext context, String routeName) {
+    switch (routeName) {
+      case 'home':
         break;
 
-      case 1: // Category
+      case 'category':
         context.read<CategoryBloc>().add(
           const CategoryEventGetAllCategories(1),
         );
         break;
 
-      case 2: // Wishlist
+      case 'wishlist':
         break;
 
-      case 3: // account
+      case 'customer':
+        break;
+
+      case 'account':
         break;
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final currentIndex = _locationToIndex(currentPath);
+    return BlocBuilder<AuthSessionCubit, AuthSessionState>(
+      builder: (context, authState) {
+        final isLoggedIn = authState is AuthSessionAuthenticated;
 
-    return ExitConfirmationWrapper(
-      alwaysShowConfirmation: true,
-      child: Scaffold(
-        body: child,
-        bottomNavigationBar: BottomNavBar(
-          currentIndex: currentIndex,
-          onTap: (i) {
-            final name = _routeNames[i];
+        final routeNames = _routeNames(isLoggedIn: isLoggedIn);
 
-            if (i == currentIndex) {
-              GoRouter.of(context).goNamed(name);
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                try {
-                  _refreshPage(context, i);
-                } catch (e) {
-                  // Ignore errors jika bloc tidak tersedia
+        final currentIndex = _locationToIndex(
+          path: currentPath,
+          isLoggedIn: isLoggedIn,
+        );
+
+        return ExitConfirmationWrapper(
+          alwaysShowConfirmation: true,
+          child: Scaffold(
+            body: child,
+            bottomNavigationBar: BottomNavBar(
+              currentIndex: currentIndex,
+              showCustomer: isLoggedIn,
+              onTap: (index) {
+                if (index < 0 || index >= routeNames.length) {
+                  return;
                 }
-              });
-              return;
-            }
 
-            GoRouter.of(context).goNamed(name);
-          },
-        ),
-      ),
+                final routeName = routeNames[index];
+
+                if (index == currentIndex) {
+                  GoRouter.of(context).goNamed(routeName);
+
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    try {
+                      _refreshPage(context, routeName);
+                    } catch (_) {
+                      // Bloc mungkin tidak tersedia
+                      // untuk page tertentu.
+                    }
+                  });
+
+                  return;
+                }
+
+                GoRouter.of(context).goNamed(routeName);
+              },
+            ),
+          ),
+        );
+      },
     );
   }
 }

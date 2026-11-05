@@ -1,8 +1,7 @@
 // lib/features/auth/presentation/pages/register_form_page.dart
-// ignore_for_file: use_build_context_synchronously
+// ignore_for_file: use_build_context_synchronously, unused_element
 
 import 'package:ekaplus_ekatunggal/constant.dart';
-import 'package:ekaplus_ekatunggal/core/services/storage_service.dart';
 import 'package:ekaplus_ekatunggal/core/shared_widgets/custom_header.dart';
 import 'package:ekaplus_ekatunggal/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:ekaplus_ekatunggal/features/auth/presentation/bloc/auth_event.dart';
@@ -12,7 +11,6 @@ import 'package:ekaplus_ekatunggal/features/auth/presentation/widgets/birth_info
 import 'package:ekaplus_ekatunggal/features/auth/presentation/widgets/contact_info_section_widget.dart';
 import 'package:ekaplus_ekatunggal/features/auth/presentation/widgets/password_section_widget.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -89,16 +87,27 @@ class _RegisterFormPageState extends State<RegisterFormPage> {
   }
 
   // Helper: Capitalize each word (untuk save ke DB)
-  String _capitalizeWords(String text) {
+  // String _capitalizeWords(String text) {
+  //   if (text.isEmpty) return text;
+
+  //   return text
+  //       .trim()
+  //       .split(' ')
+  //       .where((word) => word.isNotEmpty)
+  //       .map((word) {
+  //         return word[0].toUpperCase() + word.substring(1).toLowerCase();
+  //       })
+  //       .join(' ');
+  // }
+
+  String _uppercaseWords(String text) {
     if (text.isEmpty) return text;
 
     return text
         .trim()
         .split(' ')
         .where((word) => word.isNotEmpty)
-        .map((word) {
-          return word[0].toUpperCase() + word.substring(1).toLowerCase();
-        })
+        .map((word) => word.toUpperCase())
         .join(' ');
   }
 
@@ -135,15 +144,14 @@ class _RegisterFormPageState extends State<RegisterFormPage> {
 
   // Auto-copy JSON to clipboard (fire-and-forget ok)
   Future<void> _autoCopyJsonToClipboard() async {
+    return; /*
     try {
-      final storageService = StorageService();
-      final jsonString = await storageService.exportUsersAsJson();
-      await Clipboard.setData(ClipboardData(text: jsonString));
       debugPrint('✅ JSON AUTO-COPIED TO CLIPBOARD!');
       debugPrint('📁 Also saved to: ${storageService.getAssetsFilePath()}');
     } catch (e) {
       debugPrint('⚠️ Could not copy to clipboard: $e');
     }
+  */
   }
 
   // Validators
@@ -269,7 +277,8 @@ class _RegisterFormPageState extends State<RegisterFormPage> {
     if (!_formKey.currentState!.validate()) return;
 
     if (_selectedGender == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      AppSnackbar.showRaw(
+        context,
         const SnackBar(
           content: Text('Silakan pilih jenis kelamin'),
           backgroundColor: AppColors.primaryColor,
@@ -283,20 +292,19 @@ class _RegisterFormPageState extends State<RegisterFormPage> {
     setState(() => _isNavigating = true);
 
     // Clean and capitalize data before saving
-    final firstName = _capitalizeWords(_cleanText(_firstNameController.text));
-    final lastName = _capitalizeWords(_cleanText(_lastNameController.text));
-    final fullName = '$firstName $lastName'.trim();
-    final birthPlace = _capitalizeWords(_cleanText(_birthPlaceController.text));
+    final firstName = _uppercaseWords(_cleanText(_firstNameController.text));
+    final lastName = _uppercaseWords(_cleanText(_lastNameController.text));
+    final birthPlace = _uppercaseWords(_cleanText(_birthPlaceController.text));
     final email = _cleanText(_emailController.text).toLowerCase();
     final username = _usernameController.text.trim().isEmpty
         ? null
         : _cleanText(_usernameController.text).toLowerCase();
 
-    debugPrint('📝 Registering user...');
-    debugPrint('Phone: ${widget.phoneNumber}');
-    debugPrint('Full Name: $fullName');
-    debugPrint('Email: $email');
-    debugPrint('Gender: $_selectedGender');
+    // debugPrint('📝 Registering user...');
+    // debugPrint('Phone: ${widget.phoneNumber}');
+    // debugPrint('Full Name: $fullName');
+    // debugPrint('Email: $email');
+    // debugPrint('Gender: $_selectedGender');
 
     // Dispatch event (bloc will handle saving)
     context.read<AuthBloc>().add(
@@ -334,10 +342,9 @@ class _RegisterFormPageState extends State<RegisterFormPage> {
             // 1. Tutup keyboard/hapus fokus secara paksa sebelum navigasi
             FocusScope.of(context).unfocus();
 
-            _autoCopyJsonToClipboard();
-
             if (mounted && !_isDisposed) {
-              ScaffoldMessenger.of(context).showSnackBar(
+              AppSnackbar.showRaw(
+                context,
                 const SnackBar(
                   content: Text('Registrasi berhasil — mengarahkan ke login'),
                   backgroundColor: Colors.green,
@@ -369,7 +376,8 @@ class _RegisterFormPageState extends State<RegisterFormPage> {
             // Re-enable button so user can retry
             if (mounted && !_isDisposed) {
               setState(() => _isNavigating = false);
-              ScaffoldMessenger.of(context).showSnackBar(
+              AppSnackbar.showRaw(
+                context,
                 SnackBar(
                   content: Text(state.message),
                   backgroundColor: AppColors.primaryColor,

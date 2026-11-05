@@ -10,6 +10,8 @@ import 'package:ekaplus_ekatunggal/features/auth/domain/usecases/reset_password_
 import 'package:ekaplus_ekatunggal/features/auth/domain/usecases/save_login_user.dart';
 import 'package:ekaplus_ekatunggal/features/auth/domain/usecases/update_profile_picture.dart';
 import 'package:ekaplus_ekatunggal/features/auth/domain/usecases/update_full_name.dart';
+import 'package:ekaplus_ekatunggal/features/auth/domain/usecases/update_personal_profile.dart';
+import 'package:ekaplus_ekatunggal/features/auth/domain/usecases/update_username.dart';
 import 'package:ekaplus_ekatunggal/features/auth/domain/usecases/request_phone_change.dart';
 import 'package:ekaplus_ekatunggal/features/auth/domain/usecases/verify_old_password.dart';
 import 'package:ekaplus_ekatunggal/features/auth/domain/usecases/verify_phone_change.dart';
@@ -58,7 +60,9 @@ import 'package:ekaplus_ekatunggal/features/member/domain/usecases/delete_member
 import 'package:ekaplus_ekatunggal/features/member/domain/usecases/get_member_registrations_by_user_id.dart';
 import 'package:ekaplus_ekatunggal/features/member/domain/usecases/get_member_registrations_by_status.dart';
 import 'package:ekaplus_ekatunggal/features/member/domain/usecases/get_approved_gcids.dart';
+import 'package:ekaplus_ekatunggal/features/member/domain/usecases/get_active_member_companies_by_user_id.dart';
 import 'package:ekaplus_ekatunggal/features/member/presentation/cubit/member_registration_cubit.dart';
+import 'package:ekaplus_ekatunggal/features/member/presentation/cubit/active_company_cubit.dart';
 
 // CATEGORY
 import 'package:ekaplus_ekatunggal/features/category/data/datasources/category_remote_datasource.dart';
@@ -119,7 +123,12 @@ Future<void> init() async {
     () => AuthSessionCubit(
       saveLoginUser: myinjection(),
       getUserInfo: myinjection(),
+      getActiveMemberCompaniesByUserId: myinjection(),
     ),
+  );
+
+  myinjection.registerLazySingleton<ActiveCompanyCubit>(
+    () => ActiveCompanyCubit(getActiveMemberCompaniesByUserId: myinjection()),
   );
 
   // ProductBloc as Singleton
@@ -254,6 +263,8 @@ Future<void> init() async {
   myinjection.registerLazySingleton(() => CheckPassword(myinjection()));
   myinjection.registerLazySingleton(() => UpdateProfilePicture(myinjection()));
   myinjection.registerLazySingleton(() => UpdateFullName(myinjection()));
+  myinjection.registerLazySingleton(() => UpdatePersonalProfile(myinjection()));
+  myinjection.registerLazySingleton(() => UpdateUsername(myinjection()));
   myinjection.registerLazySingleton(() => RequestPhoneChange(myinjection()));
   myinjection.registerLazySingleton(() => VerifyPhoneChange(myinjection()));
   myinjection.registerLazySingleton(() => RequestEmailChange(myinjection()));
@@ -315,6 +326,9 @@ Future<void> init() async {
     () => GetMemberRegistrationsByStatus(myinjection()),
   );
   myinjection.registerLazySingleton(() => GetApprovedGCIDs(myinjection()));
+  myinjection.registerLazySingleton(
+    () => GetActiveMemberCompaniesByUserId(myinjection()),
+  );
 
   // ============================================
   // FACTORY BLOCS (Per Widget - Short-lived)
@@ -365,6 +379,8 @@ Future<void> init() async {
       updateMemberRegistration: myinjection(),
       getMemberRegistrationsByUserId: myinjection(),
       getApprovedGCIDs: myinjection(),
+      getActiveMemberCompaniesByUserId: myinjection(),
+      deleteMemberRegistration: myinjection(),
     ),
   );
 }

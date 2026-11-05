@@ -3,6 +3,7 @@
 import 'dart:io';
 
 import 'package:bloc/bloc.dart';
+import 'package:ekaplus_ekatunggal/features/member/domain/entities/active_member_company.dart';
 import 'package:ekaplus_ekatunggal/features/member/domain/entities/member_registration.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -22,6 +23,8 @@ import '../../domain/usecases/save_member_registration.dart';
 import '../../domain/usecases/update_member_registration.dart';
 import '../../domain/usecases/get_member_registrations_by_user_id.dart';
 import '../../domain/usecases/get_approved_gcids.dart';
+import '../../domain/usecases/get_active_member_companies_by_user_id.dart';
+import '../../domain/usecases/delete_member_registration.dart';
 
 part 'member_registration_state.dart';
 
@@ -31,6 +34,8 @@ class MemberRegistrationCubit extends Cubit<MemberRegistrationState> {
   final UpdateMemberRegistration updateMemberRegistration;
   final GetMemberRegistrationsByUserId getMemberRegistrationsByUserId;
   final GetApprovedGCIDs getApprovedGCIDs;
+  final GetActiveMemberCompaniesByUserId getActiveMemberCompaniesByUserId;
+  final DeleteMemberRegistration deleteMemberRegistration;
 
   MemberRegistrationCubit({
     required this.getAllMemberRegistrations,
@@ -38,9 +43,16 @@ class MemberRegistrationCubit extends Cubit<MemberRegistrationState> {
     required this.updateMemberRegistration,
     required this.getMemberRegistrationsByUserId,
     required this.getApprovedGCIDs,
+    required this.getActiveMemberCompaniesByUserId,
+    required this.deleteMemberRegistration,
   }) : super(const MemberRegistrationInitial());
 
   static const String _wilayahApiBase = 'https://wilayah.id/api';
+
+  void _emitSafe(MemberRegistrationState nextState) {
+    if (isClosed) return;
+    emit(nextState);
+  }
 
   /// Create HTTP client that handles SSL certificate issues
   http.Client _createHttpClient() {
@@ -54,7 +66,7 @@ class MemberRegistrationCubit extends Cubit<MemberRegistrationState> {
 
   Future<void> loadBranches() async {
     try {
-      emit(const MemberRegistrationLoading());
+      _emitSafe(const MemberRegistrationLoading());
 
       final response = await rootBundle.loadString('assets/data/branches.json');
       final List<dynamic> data = jsonDecode(response);
@@ -64,23 +76,23 @@ class MemberRegistrationCubit extends Cubit<MemberRegistrationState> {
           .map((e) => BranchModel.fromJson(e))
           .toList();
 
-      emit(MemberRegistrationBranchesLoaded(branches));
+      _emitSafe(MemberRegistrationBranchesLoaded(branches));
     } catch (e) {
-      emit(MemberRegistrationError('Gagal memuat data cabang: $e'));
+      _emitSafe(MemberRegistrationError('Gagal memuat data cabang: $e'));
     }
   }
 
   Future<void> loadProvinces() async {
     final client = _createHttpClient();
     try {
-      emit(const MemberRegistrationLoading());
+      _emitSafe(const MemberRegistrationLoading());
 
       final res = await client.get(
         Uri.parse('$_wilayahApiBase/provinces.json'),
       );
 
       if (res.statusCode != 200) {
-        emit(const MemberRegistrationError('Gagal memuat data provinsi'));
+        _emitSafe(const MemberRegistrationError('Gagal memuat data provinsi'));
         return;
       }
 
@@ -89,9 +101,9 @@ class MemberRegistrationCubit extends Cubit<MemberRegistrationState> {
           .map((e) => ProvinceModel.fromJson(e))
           .toList();
 
-      emit(MemberRegistrationProvincesLoaded(provinces));
+      _emitSafe(MemberRegistrationProvincesLoaded(provinces));
     } catch (e) {
-      emit(MemberRegistrationError('Error loading provinces: $e'));
+      _emitSafe(MemberRegistrationError('Error loading provinces: $e'));
     } finally {
       client.close();
     }
@@ -100,14 +112,14 @@ class MemberRegistrationCubit extends Cubit<MemberRegistrationState> {
   Future<void> loadRegencies(String provinceId) async {
     final client = _createHttpClient();
     try {
-      emit(const MemberRegistrationLoading());
+      _emitSafe(const MemberRegistrationLoading());
 
       final res = await client.get(
         Uri.parse('$_wilayahApiBase/regencies/$provinceId.json'),
       );
 
       if (res.statusCode != 200) {
-        emit(const MemberRegistrationError('Gagal memuat data kabupaten'));
+        _emitSafe(const MemberRegistrationError('Gagal memuat data kabupaten'));
         return;
       }
 
@@ -116,9 +128,9 @@ class MemberRegistrationCubit extends Cubit<MemberRegistrationState> {
           .map((e) => RegencyModel.fromJson(e))
           .toList();
 
-      emit(MemberRegistrationRegenciesLoaded(regencies));
+      _emitSafe(MemberRegistrationRegenciesLoaded(regencies));
     } catch (e) {
-      emit(MemberRegistrationError('Error loading regencies: $e'));
+      _emitSafe(MemberRegistrationError('Error loading regencies: $e'));
     } finally {
       client.close();
     }
@@ -127,14 +139,14 @@ class MemberRegistrationCubit extends Cubit<MemberRegistrationState> {
   Future<void> loadDistricts(String regencyId) async {
     final client = _createHttpClient();
     try {
-      emit(const MemberRegistrationLoading());
+      _emitSafe(const MemberRegistrationLoading());
 
       final res = await client.get(
         Uri.parse('$_wilayahApiBase/districts/$regencyId.json'),
       );
 
       if (res.statusCode != 200) {
-        emit(const MemberRegistrationError('Gagal memuat data kecamatan'));
+        _emitSafe(const MemberRegistrationError('Gagal memuat data kecamatan'));
         return;
       }
 
@@ -143,9 +155,9 @@ class MemberRegistrationCubit extends Cubit<MemberRegistrationState> {
           .map((e) => DistrictModel.fromJson(e))
           .toList();
 
-      emit(MemberRegistrationDistrictsLoaded(districts));
+      _emitSafe(MemberRegistrationDistrictsLoaded(districts));
     } catch (e) {
-      emit(MemberRegistrationError('Error loading districts: $e'));
+      _emitSafe(MemberRegistrationError('Error loading districts: $e'));
     } finally {
       client.close();
     }
@@ -154,14 +166,14 @@ class MemberRegistrationCubit extends Cubit<MemberRegistrationState> {
   Future<void> loadVillages(String districtId) async {
     final client = _createHttpClient();
     try {
-      emit(const MemberRegistrationLoading());
+      _emitSafe(const MemberRegistrationLoading());
 
       final res = await client.get(
         Uri.parse('$_wilayahApiBase/villages/$districtId.json'),
       );
 
       if (res.statusCode != 200) {
-        emit(const MemberRegistrationError('Gagal memuat data desa'));
+        _emitSafe(const MemberRegistrationError('Gagal memuat data desa'));
         return;
       }
 
@@ -170,9 +182,9 @@ class MemberRegistrationCubit extends Cubit<MemberRegistrationState> {
           .map((e) => VillageModel.fromJson(e))
           .toList();
 
-      emit(MemberRegistrationVillagesLoaded(villages));
+      _emitSafe(MemberRegistrationVillagesLoaded(villages));
     } catch (e) {
-      emit(MemberRegistrationError('Error loading villages: $e'));
+      _emitSafe(MemberRegistrationError('Error loading villages: $e'));
     } finally {
       client.close();
     }
@@ -183,71 +195,161 @@ class MemberRegistrationCubit extends Cubit<MemberRegistrationState> {
     required Map<String, File> files,
   }) async {
     try {
-      emit(const MemberRegistrationLoading());
+      _emitSafe(const MemberRegistrationLoading());
 
       final result = await saveMemberRegistration.execute(entity, files: files);
 
       result.fold(
-        (failure) => emit(
+        (failure) => _emitSafe(
           MemberRegistrationError(
             failure.message ?? 'Gagal menyimpan registrasi',
           ),
         ),
         (register) {
-          emit(const MemberRegistrationSuccess());
+          _emitSafe(const MemberRegistrationSuccess());
         },
       );
     } catch (e) {
-      emit(MemberRegistrationError('Gagal menyimpan data: $e'));
+      _emitSafe(MemberRegistrationError('Gagal menyimpan data: $e'));
     }
   }
 
   Future<void> getUserRegistrations() async {
     try {
-      emit(const MemberRegistrationLoading());
+      _emitSafe(const MemberRegistrationLoading());
 
       final result = await getMemberRegistrationsByUserId.execute();
 
       result.fold(
-        (failure) => emit(
+        (failure) => _emitSafe(
           MemberRegistrationError(
             failure.message ?? 'Gagal memuat data registrasi',
           ),
         ),
-        (data) => emit(MemberRegistrationUserRegistrationsLoaded(data)),
+        (data) => _emitSafe(MemberRegistrationUserRegistrationsLoaded(data)),
       );
     } catch (e) {
-      emit(MemberRegistrationError('Error loading registrations: $e'));
+      _emitSafe(MemberRegistrationError('Error loading registrations: $e'));
     }
   }
 
   Future<void> loadApprovedGCIDs(int userId) async {
     try {
-      emit(const MemberRegistrationLoading());
+      _emitSafe(const MemberRegistrationLoading());
 
       final result = await getApprovedGCIDs.execute(userId);
 
       result.fold(
-        (failure) => emit(MemberRegistrationError(failure.message ?? 'Gagal')),
-        (data) => emit(MemberRegistrationApprovedGCIDsLoaded(data)),
+        (failure) => _emitSafe(MemberRegistrationError(failure.message ?? 'Gagal')),
+        (data) => _emitSafe(MemberRegistrationApprovedGCIDsLoaded(data)),
       );
     } catch (e) {
-      emit(MemberRegistrationError('Error loading GCID: $e'));
+      _emitSafe(MemberRegistrationError('Error loading GCID: $e'));
     }
   }
 
   Future<void> refreshRegistrations() async {
     try {
-      emit(const MemberRegistrationLoading());
+      _emitSafe(const MemberRegistrationLoading());
 
       final result = await getAllMemberRegistrations.execute();
 
       result.fold(
-        (failure) => emit(MemberRegistrationError(failure.message ?? 'Gagal')),
-        (data) => emit(MemberRegistrationAllRegistrationsLoaded(data)),
+        (failure) => _emitSafe(MemberRegistrationError(failure.message ?? 'Gagal')),
+        (data) => _emitSafe(MemberRegistrationAllRegistrationsLoaded(data)),
       );
     } catch (e) {
-      emit(MemberRegistrationError('Error refreshing data: $e'));
+      _emitSafe(MemberRegistrationError('Error refreshing data: $e'));
+    }
+  }
+
+  Future<void> getActiveMemberCompanies() async {
+    try {
+      _emitSafe(const MemberRegistrationActiveCompaniesLoading());
+
+      final result = await getActiveMemberCompaniesByUserId.execute();
+      result.fold(
+        (failure) => _emitSafe(
+          MemberRegistrationActiveCompaniesError(
+            failure.message ?? 'Gagal memuat perusahaan aktif',
+          ),
+        ),
+        (data) => _emitSafe(MemberRegistrationActiveCompaniesLoaded(data)),
+      );
+    } catch (e) {
+      _emitSafe(MemberRegistrationActiveCompaniesError('Error loading active companies: $e'));
+    }
+  }
+
+  Future<MemberRegistration?> saveDraft(
+    Map<String, dynamic> entity, {
+    required Map<String, File> files,
+    bool showLoading = true,
+  }) async {
+    try {
+      if (showLoading) _emitSafe(const MemberRegistrationLoading());
+      final payload = <String, dynamic>{...entity, 'status': 'Draft'};
+      final result = await saveMemberRegistration.execute(payload, files: files);
+      return result.fold((failure) {
+        _emitSafe(
+          MemberRegistrationError(
+            failure.message ?? 'Gagal menyimpan draft pengajuan',
+          ),
+        );
+        return null;
+      }, (registration) {
+        _emitSafe(MemberRegistrationDraftSaved(registration));
+        return registration;
+      });
+    } catch (e) {
+      _emitSafe(MemberRegistrationError('Gagal menyimpan draft: $e'));
+      return null;
+    }
+  }
+
+  Future<MemberRegistration?> submitAsRequest(
+    Map<String, dynamic> entity, {
+    required Map<String, File> files,
+  }) async {
+    try {
+      _emitSafe(const MemberRegistrationLoading());
+      final payload = <String, dynamic>{...entity, 'status': 'Request'};
+      final result = await saveMemberRegistration.execute(payload, files: files);
+      return result.fold((failure) {
+        _emitSafe(
+          MemberRegistrationError(
+            failure.message ?? 'Gagal mengirim pengajuan',
+          ),
+        );
+        return null;
+      }, (registration) {
+        _emitSafe(const MemberRegistrationSuccess());
+        return registration;
+      });
+    } catch (e) {
+      _emitSafe(MemberRegistrationError('Gagal mengirim pengajuan: $e'));
+      return null;
+    }
+  }
+
+  Future<bool> deleteDraft(int registrationId) async {
+    try {
+      _emitSafe(const MemberRegistrationLoading());
+      final result = await deleteMemberRegistration.execute(registrationId);
+      return result.fold((failure) {
+        _emitSafe(
+          MemberRegistrationError(
+            failure.message ?? 'Gagal menghapus draft',
+          ),
+        );
+        return false;
+      }, (_) {
+        _emitSafe(MemberRegistrationDraftDeleted(registrationId));
+        return true;
+      });
+    } catch (e) {
+      _emitSafe(MemberRegistrationError('Gagal menghapus draft: $e'));
+      return false;
     }
   }
 
@@ -261,7 +363,7 @@ class MemberRegistrationCubit extends Cubit<MemberRegistrationState> {
       );
 
       if (res.statusCode != 200) {
-        emit(const MemberRegistrationError('Gagal memuat data provinsi'));
+        _emitSafe(const MemberRegistrationError('Gagal memuat data provinsi'));
         return;
       }
 
@@ -270,9 +372,9 @@ class MemberRegistrationCubit extends Cubit<MemberRegistrationState> {
           .map((e) => ProvinceModel.fromJson(e))
           .toList();
 
-      emit(MemberRegistrationShippingProvincesLoaded(addressId, provinces));
+      _emitSafe(MemberRegistrationShippingProvincesLoaded(addressId, provinces));
     } catch (e) {
-      emit(MemberRegistrationError('Error loading provinces: $e'));
+      _emitSafe(MemberRegistrationError('Error loading provinces: $e'));
     } finally {
       client.close();
     }
@@ -289,7 +391,7 @@ class MemberRegistrationCubit extends Cubit<MemberRegistrationState> {
       );
 
       if (res.statusCode != 200) {
-        emit(const MemberRegistrationError('Gagal memuat data kabupaten'));
+        _emitSafe(const MemberRegistrationError('Gagal memuat data kabupaten'));
         return;
       }
 
@@ -298,9 +400,9 @@ class MemberRegistrationCubit extends Cubit<MemberRegistrationState> {
           .map((e) => RegencyModel.fromJson(e))
           .toList();
 
-      emit(MemberRegistrationShippingRegenciesLoaded(addressId, regencies));
+      _emitSafe(MemberRegistrationShippingRegenciesLoaded(addressId, regencies));
     } catch (e) {
-      emit(MemberRegistrationError('Error loading regencies: $e'));
+      _emitSafe(MemberRegistrationError('Error loading regencies: $e'));
     } finally {
       client.close();
     }
@@ -314,7 +416,7 @@ class MemberRegistrationCubit extends Cubit<MemberRegistrationState> {
       );
 
       if (res.statusCode != 200) {
-        emit(const MemberRegistrationError('Gagal memuat data kecamatan'));
+        _emitSafe(const MemberRegistrationError('Gagal memuat data kecamatan'));
         return;
       }
 
@@ -323,11 +425,37 @@ class MemberRegistrationCubit extends Cubit<MemberRegistrationState> {
           .map((e) => DistrictModel.fromJson(e))
           .toList();
 
-      emit(MemberRegistrationShippingDistrictsLoaded(addressId, districts));
+      _emitSafe(MemberRegistrationShippingDistrictsLoaded(addressId, districts));
     } catch (e) {
-      emit(MemberRegistrationError('Error loading districts: $e'));
+      _emitSafe(MemberRegistrationError('Error loading districts: $e'));
+    } finally {
+      client.close();
+    }
+  }
+
+  Future<void> loadShippingVillages(String addressId, String districtId) async {
+    final client = _createHttpClient();
+    try {
+      final res = await client.get(
+        Uri.parse('$_wilayahApiBase/villages/$districtId.json'),
+      );
+
+      if (res.statusCode != 200) {
+        _emitSafe(const MemberRegistrationError('Gagal memuat data desa'));
+        return;
+      }
+
+      final json = jsonDecode(res.body);
+      final villages = (json['data'] as List)
+          .map((e) => VillageModel.fromJson(e))
+          .toList();
+
+      _emitSafe(MemberRegistrationShippingVillagesLoaded(addressId, villages));
+    } catch (e) {
+      _emitSafe(MemberRegistrationError('Error loading villages: $e'));
     } finally {
       client.close();
     }
   }
 }
+

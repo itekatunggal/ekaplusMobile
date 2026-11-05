@@ -354,7 +354,7 @@ class _SelectAvatarPageState extends State<SelectAvatarPage> {
 
   Future<void> _saveAvatar() async {
     if (selectedAvatar == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      AppSnackbar.showRaw(context, 
         SnackBar(
           content: Text(
             'Pilih avatar terlebih dahulu',
@@ -370,7 +370,6 @@ class _SelectAvatarPageState extends State<SelectAvatarPage> {
 
     // Save context references before async operations
     final navigator = Navigator.of(context);
-    final scaffoldMessenger = ScaffoldMessenger.of(context);
     final authSessionCubit = context.read<AuthSessionCubit>();
 
     try {
@@ -396,7 +395,7 @@ class _SelectAvatarPageState extends State<SelectAvatarPage> {
 
       if (!mounted) return;
 
-      scaffoldMessenger.showSnackBar(
+      AppSnackbar.showRaw(context, 
         SnackBar(
           content: Text(
             'Avatar berhasil diubah',
@@ -411,7 +410,7 @@ class _SelectAvatarPageState extends State<SelectAvatarPage> {
     } catch (e) {
       if (!mounted) return;
 
-      scaffoldMessenger.showSnackBar(
+      AppSnackbar.showRaw(context, 
         SnackBar(
           content: Text(
             'Gagal menyimpan avatar: $e',

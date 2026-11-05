@@ -1,6 +1,6 @@
-// lib/features/wishlist/data/repositories/wishlist_repository_implementation.dart
 import 'package:dartz/dartz.dart';
 import 'package:ekaplus_ekatunggal/core/error/failure.dart';
+import 'package:ekaplus_ekatunggal/core/error/failure_mapper.dart';
 import 'package:ekaplus_ekatunggal/features/wishlist/data/datasources/wishlist_remote_datasource.dart';
 import 'package:ekaplus_ekatunggal/features/wishlist/domain/entities/wishlist_item.dart';
 import 'package:ekaplus_ekatunggal/features/wishlist/domain/repositories/wishlist_repository.dart';
@@ -33,7 +33,9 @@ class WishlistRepositoryImpl implements WishlistRepository {
       );
       return Right(result);
     } catch (e) {
-      return Left(CacheFailure(message: e.toString()));
+      return Left(
+        mapExceptionToFailure(e, fallbackMessage: 'Gagal memuat wishlist'),
+      );
     }
   }
 
@@ -43,7 +45,9 @@ class WishlistRepositoryImpl implements WishlistRepository {
       await remoteDataSource.addToWishlist(userId, productId);
       return const Right(null);
     } catch (e) {
-      return Left(CacheFailure(message: e.toString()));
+      return Left(
+        mapExceptionToFailure(e, fallbackMessage: 'Gagal menambah wishlist'),
+      );
     }
   }
 
@@ -56,7 +60,9 @@ class WishlistRepositoryImpl implements WishlistRepository {
       await remoteDataSource.removeFromWishlist(userId, productId);
       return const Right(null);
     } catch (e) {
-      return Left(CacheFailure(message: e.toString()));
+      return Left(
+        mapExceptionToFailure(e, fallbackMessage: 'Gagal menghapus wishlist'),
+      );
     }
   }
 
@@ -66,7 +72,12 @@ class WishlistRepositoryImpl implements WishlistRepository {
       final result = await remoteDataSource.isInWishlist(userId, productId);
       return Right(result);
     } catch (e) {
-      return Left(CacheFailure(message: e.toString()));
+      return Left(
+        mapExceptionToFailure(
+          e,
+          fallbackMessage: 'Gagal memeriksa status wishlist',
+        ),
+      );
     }
   }
 
@@ -82,7 +93,12 @@ class WishlistRepositoryImpl implements WishlistRepository {
       );
       return Right(deletedCount);
     } catch (e) {
-      return Left(CacheFailure(message: e.toString()));
+      return Left(
+        mapExceptionToFailure(
+          e,
+          fallbackMessage: 'Gagal menghapus beberapa item wishlist',
+        ),
+      );
     }
   }
 }

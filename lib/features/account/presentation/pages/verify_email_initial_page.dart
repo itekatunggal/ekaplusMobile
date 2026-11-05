@@ -92,7 +92,7 @@ class _VerifyEmailInitialPageState extends State<VerifyEmailInitialPage> {
     if (_isDisposed || _isNavigating) return;
     if (_currentOtp.isEmpty || _currentOtp.length != 6) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        AppSnackbar.showRaw(context, 
           const SnackBar(
             content: Text('Silakan masukkan kode verifikasi 6 digit'),
             backgroundColor: AppColors.primaryColor,
@@ -134,7 +134,7 @@ class _VerifyEmailInitialPageState extends State<VerifyEmailInitialPage> {
     });
     _errorController?.add(ErrorAnimationType.shake);
 
-    ScaffoldMessenger.of(context).showSnackBar(
+    AppSnackbar.showRaw(context, 
       SnackBar(content: Text(message), backgroundColor: AppColors.primaryColor),
     );
 
@@ -182,7 +182,7 @@ class _VerifyEmailInitialPageState extends State<VerifyEmailInitialPage> {
             if (state is ProfileUpdateAwaitingVerification) {
               // Show OTP code in snackbar for testing
               if (mounted && !_isDisposed) {
-                ScaffoldMessenger.of(context).showSnackBar(
+                AppSnackbar.showRaw(context, 
                   SnackBar(
                     content: Text(state.message),
                     backgroundColor: Colors.blue,
@@ -195,7 +195,7 @@ class _VerifyEmailInitialPageState extends State<VerifyEmailInitialPage> {
               if (_isNavigating || _isDisposed) return;
               _isNavigating = true;
 
-              ScaffoldMessenger.of(context).showSnackBar(
+              AppSnackbar.showRaw(context, 
                 const SnackBar(
                   content: Text('✅ Email berhasil diverifikasi!'),
                   backgroundColor: Colors.green,

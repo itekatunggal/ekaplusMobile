@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../../../../constant.dart';
 import '../../../member/domain/entities/member_registration.dart';
 import 'package:intl/intl.dart';
+import '../utils/member_status_helper.dart';
 
 class MemberRegistrationCard extends StatelessWidget {
   final MemberRegistration registration;
@@ -17,12 +18,22 @@ class MemberRegistrationCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final normalizedStatus = MemberStatusHelper.normalize(registration.status);
+    final isDraft = MemberStatusHelper.isDraft(registration.status);
     final companyName = registration.businessName;
-    final branchName = registration.branch.branchName;
+    final branchName =
+        registration.branch.city != null &&
+            registration.branch.city!.trim().isNotEmpty
+        ? '${registration.branch.branchName} - ${registration.branch.city}'
+        : registration.branch.branchName;
+    final dateLabel = isDraft ? 'Diupdate' : 'Diajukan';
+    final displayDate = isDraft
+        ? registration.updatedAt
+        : registration.createdAt;
     final formattedDate = DateFormat(
       'dd MMM yyyy, HH:mm',
       'id_ID',
-    ).format(registration.createdAt.toLocal());
+    ).format(displayDate.toLocal());
 
     return GestureDetector(
       onTap: onTap,
@@ -57,7 +68,7 @@ class MemberRegistrationCard extends StatelessWidget {
                 children: [
                   Expanded(
                     child: Text(
-                      companyName,
+                      '$companyName - ${registration.branch.city}',
                       style: TextStyle(
                         fontFamily: AppFonts.primaryFont,
                         fontSize: 14,
@@ -69,7 +80,7 @@ class MemberRegistrationCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  _buildStatusBadge(registration),
+                  _buildStatusBadge(normalizedStatus),
                 ],
               ),
             ),
@@ -116,7 +127,7 @@ class MemberRegistrationCard extends StatelessWidget {
                       ),
                       const SizedBox(width: 6),
                       Text(
-                        'Diajukan: $formattedDate',
+                        '$dateLabel: $formattedDate',
                         style: TextStyle(
                           fontFamily: AppFonts.primaryFont,
                           fontSize: 11,
@@ -125,6 +136,25 @@ class MemberRegistrationCard extends StatelessWidget {
                       ),
                     ],
                   ),
+                  if (MemberStatusHelper.isRejected(registration.status) &&
+                      ((registration.rejectReason ?? '').trim().isNotEmpty ||
+                          (registration.rejectNotes ?? '')
+                              .trim()
+                              .isNotEmpty)) ...[
+                    const SizedBox(height: 8),
+                    if ((registration.rejectReason ?? '').trim().isNotEmpty)
+                      _buildRejectItem(
+                        'Alasan Reject',
+                        registration.rejectReason!,
+                      ),
+                    if ((registration.rejectNotes ?? '').trim().isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      _buildRejectItem(
+                        'Catatan Reject',
+                        registration.rejectNotes!,
+                      ),
+                    ],
+                  ],
                 ],
               ),
             ),
@@ -134,21 +164,25 @@ class MemberRegistrationCard extends StatelessWidget {
     );
   }
 
-  Widget _buildStatusBadge(MemberRegistration register) {
+  Widget _buildStatusBadge(String normalizedStatus) {
     Color backgroundColor;
     Color textColor;
-    // String text;
 
-    switch (register.docstatus) {
-      case 1:
+    switch (normalizedStatus.toLowerCase()) {
+      case 'approved':
         backgroundColor = Colors.green[50]!;
         textColor = Colors.green[700]!;
         break;
-      case 2:
+      case 'rejected':
         backgroundColor = Colors.red[50]!;
         textColor = Colors.red[700]!;
         break;
-      case 0:
+      case 'draft':
+        backgroundColor = Colors.grey[100]!;
+        textColor = Colors.grey[700]!;
+        break;
+      case 'request':
+      case 'in review':
       default:
         backgroundColor = Colors.orange[50]!;
         textColor = Colors.orange[700]!;
@@ -163,7 +197,7 @@ class MemberRegistrationCard extends StatelessWidget {
         border: Border.all(color: textColor.withOpacity(0.3)),
       ),
       child: Text(
-        register.status,
+        normalizedStatus,
         style: TextStyle(
           fontFamily: AppFonts.primaryFont,
           fontSize: 10,
@@ -171,6 +205,27 @@ class MemberRegistrationCard extends StatelessWidget {
           color: textColor,
         ),
       ),
+    );
+  }
+
+  Widget _buildRejectItem(String label, String value) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(Icons.report_problem_outlined, size: 16, color: Colors.red[700]),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Text(
+            '$label: $value',
+            style: TextStyle(
+              fontFamily: AppFonts.primaryFont,
+              fontSize: 11.5,
+              color: Colors.red[700],
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+      ],
     );
   }
 

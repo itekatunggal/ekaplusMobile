@@ -232,7 +232,7 @@ class _CategoryDetailPageState extends State<CategoryDetailPage> {
           pinned: true,
           backgroundColor: AppColors.primaryColor,
           leading: IconButton(
-            icon: const Icon(FontAwesomeIcons.arrowLeft, color: Colors.white),
+            icon: const FaIcon(FontAwesomeIcons.arrowLeft, color: Colors.white),
             onPressed: () => context.pop(),
           ),
           flexibleSpace: FlexibleSpaceBar(
@@ -259,8 +259,10 @@ class _CategoryDetailPageState extends State<CategoryDetailPage> {
                 ),
                 if (widget.category.image.isNotEmpty)
                   CachedNetworkImage(
-                    imageUrl:
-                        '${ApiConfig.baseImageUrl}/${widget.category.image}?format=rs:fit:500:500/q:80/ext:webp',
+                    imageUrl: ApiConfig.getImageUrl(
+                      widget.category.image,
+                      format: 'rs:fit:500:500/q:80/ext:webp',
+                    ),
                     fit: BoxFit.cover,
                   ),
               ],

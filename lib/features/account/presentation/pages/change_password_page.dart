@@ -52,7 +52,7 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
         listener: (context, state) {
           if (state is PasswordChangeSuccess) {
             context.read<AuthSessionCubit>().checkSession();
-            ScaffoldMessenger.of(context).showSnackBar(
+            AppSnackbar.showRaw(context, 
               const SnackBar(
                 content: Text('Password berhasil diubah'),
                 backgroundColor: Colors.green,
@@ -63,7 +63,7 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
           }
 
           if (state is PasswordChangeError) {
-            ScaffoldMessenger.of(context).showSnackBar(
+            AppSnackbar.showRaw(context, 
               SnackBar(
                 content: Text(state.message),
                 backgroundColor: Colors.red,

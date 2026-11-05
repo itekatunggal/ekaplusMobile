@@ -61,7 +61,7 @@ class _EditFullNamePageState extends State<EditFullNamePage> {
             // Update auth session with new user data
             context.read<AuthSessionCubit>().updateUser(state.user);
 
-            ScaffoldMessenger.of(context).showSnackBar(
+            AppSnackbar.showRaw(context, 
               SnackBar(
                 content: Text(state.message),
                 backgroundColor: Colors.green,
@@ -69,7 +69,7 @@ class _EditFullNamePageState extends State<EditFullNamePage> {
             );
             context.pop();
           } else if (state is ProfileUpdateError) {
-            ScaffoldMessenger.of(context).showSnackBar(
+            AppSnackbar.showRaw(context, 
               SnackBar(
                 content: Text(state.message),
                 backgroundColor: Colors.red,

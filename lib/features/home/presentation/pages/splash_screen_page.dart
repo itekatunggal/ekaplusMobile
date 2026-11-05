@@ -11,6 +11,9 @@ class SplashScreenPage extends StatefulWidget {
 
 class _SplashScreenPageState extends State<SplashScreenPage>
     with SingleTickerProviderStateMixin {
+  static const _backgroundColor = Colors.white;
+  static const _textColor = Color(0xFFBF0000);
+
   late AnimationController _controller;
 
   final String _mainText = 'EKA';
@@ -43,94 +46,76 @@ class _SplashScreenPageState extends State<SplashScreenPage>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Stack(
-        children: [
-          /// Background
-          Positioned.fill(
-            child: Image.asset('assets/images/splash.png', fit: BoxFit.cover),
-          ),
+      backgroundColor: _backgroundColor,
+      body: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Image.asset(
+              'assets/icons/icon_app.png',
+              width: 180,
+              height: 180,
+              fit: BoxFit.contain,
+            ),
+            const SizedBox(height: 2),
+            AnimatedBuilder(
+              animation: _controller,
+              builder: (context, child) {
+                const int totalChars = 4; // E K A +
 
-          /// Logo + Text
-          Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                /// LOGO
-                FadeTransition(
-                  opacity: _controller,
-                  child: Image.asset(
-                    'assets/icons/icon_app.png', // GANTI sesuai asset logo
-                    width: 180,
-                    height: 180,
-                    fit: BoxFit.contain,
-                  ),
-                ),
+                return Row(
+                  key: const ValueKey('splash-wordmark'),
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    ...List.generate(_mainText.length, (index) {
+                      final double start = index / totalChars;
+                      final double end = (index + 1) / totalChars;
+                      final double opacity =
+                          (_controller.value - start) / (end - start);
 
-                const SizedBox(height: 16),
+                      return Opacity(
+                        opacity: opacity.clamp(0.0, 1.0),
+                        child: Text(
+                          _mainText[index],
+                          style: const TextStyle(
+                            fontSize: 56,
+                            fontWeight: FontWeight.bold,
+                            color: _textColor,
+                          ),
+                        ),
+                      );
+                    }),
+                    Builder(
+                      builder: (context) {
+                        final int index = 3;
+                        final double start = index / totalChars;
+                        final double end = (index + 1) / totalChars;
+                        final double opacity =
+                            (_controller.value - start) / (end - start);
 
-                /// TEXT EKA+
-                AnimatedBuilder(
-                  animation: _controller,
-                  builder: (context, child) {
-                    const int totalChars = 4; // E K A +
-
-                    return Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        /// E K A
-                        ...List.generate(_mainText.length, (index) {
-                          final double start = index / totalChars;
-                          final double end = (index + 1) / totalChars;
-                          final double opacity =
-                              (_controller.value - start) / (end - start);
-
-                          return Opacity(
-                            opacity: opacity.clamp(0.0, 1.0),
-                            child: Text(
-                              _mainText[index],
-                              style: const TextStyle(
-                                fontSize: 56,
+                        return Opacity(
+                          opacity: opacity.clamp(0.0, 1.0),
+                          child: Transform.translate(
+                            offset: const Offset(1, -4),
+                            child: const Text(
+                              '+',
+                              style: TextStyle(
+                                fontSize: 32,
                                 fontWeight: FontWeight.bold,
-                                color: Color(0xFFfed7b0),
+                                color: _textColor,
                               ),
                             ),
-                          );
-                        }),
-
-                        /// + (superscript ikut animasi)
-                        Builder(
-                          builder: (context) {
-                            final int index = 3; // urutan ke-4
-                            final double start = index / totalChars;
-                            final double end = (index + 1) / totalChars;
-                            final double opacity =
-                                (_controller.value - start) / (end - start);
-
-                            return Opacity(
-                              opacity: opacity.clamp(0.0, 1.0),
-                              child: Transform.translate(
-                                offset: const Offset(1, -4),
-                                child: const Text(
-                                  '+',
-                                  style: TextStyle(
-                                    fontSize: 32,
-                                    fontWeight: FontWeight.bold,
-                                    color: Color(0xFFfed7b0),
-                                  ),
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                      ],
-                    );
-                  },
-                ),
-              ],
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+                );
+              },
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
