@@ -12,6 +12,6 @@ class AppColors {
 }
 
 class AppFonts {
-  static const primaryFont = "poppins";
-  static const secondaryFont = "lato";
+  static const primaryFont = "Poppins";
+  static const secondaryFont = "Lato";
 }

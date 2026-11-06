@@ -1,7 +1,7 @@
 # EKAPLUS Mobile Design System & UI Engineering Standard
 
 > **Status:** Canonical design reference untuk pengembangan halaman baru EKAPLUS Mobile.
-> **Tanggal baseline:** 22 Oktober 2026.
+> **Tanggal baseline:** 5 November 2026.
 > **Tujuan utama:** semua halaman baru harus terasa sebagai bagian dari aplikasi yang sama—warna, tipografi, spacing, card, header, state, loading, list, pagination, form, dialog, dan interaction tidak boleh dibuat dengan style sendiri-sendiri.
 
 ---
@@ -35,6 +35,7 @@ Design system ini diturunkan dari implementasi aktif berikut:
 - `lib/features/account/presentation/pages/account_page.dart`
 - `lib/features/account/presentation/widgets/account_logged_in_view.dart`
 - `lib/features/account/presentation/pages/edit_profile_page.dart`
+- `lib/features/auth/presentation/pages/login_page.dart`
 - `lib/features/wishlist/presentation/pages/wishlist_page.dart`
 - `lib/features/wishlist/presentation/widgets/wishlist_content.dart`
 - `lib/features/wishlist/presentation/widgets/wishlist_list_view.dart`
@@ -52,12 +53,13 @@ Dokumen ini **bukan hanya dokumentasi kondisi saat ini**. Beberapa nilai dinorma
 Karakter visual aplikasi:
 
 - Bersih dan ringan.
-- Dominan background abu sangat muda.
+- Dominan background abu muda `#F6F7F9` yang cukup kontras terhadap surface putih.
 - Surface/card putih.
 - Merah EKAPLUS sebagai warna brand dan primary action.
 - Kuning sebagai secondary/accent CTA tertentu.
 - Banyak menggunakan slate/neutral untuk hierarchy teks.
-- Card menggunakan radius cukup besar (`16dp`) dengan border tipis dan shadow halus.
+- Major card menggunakan radius `18dp`, border sangat tipis, dan shadow lembut
+  yang menyebar agar terpisah jelas dari background tanpa terlihat berat.
 - Header kuat secara brand tetapi body tetap tenang.
 - Spacing rapat namun tidak sesak.
 - Ukuran font mobile relatif compact.
@@ -129,14 +131,14 @@ Semua ukuran di bawah menggunakan logical pixel Flutter (`sp` secara konsep).
 
 ## 4.1 Heading H1–H6
 
-| Token | Penggunaan | Size | Weight | Color default | Line height | Letter spacing |
-|---|---|---:|---|---|---:|---:|
-| H1 | Page title / top-level heading | 18 Android / 19 iOS | 700 | `#0F172A`; pada header `#FFFFFF` | 1.20 | `-0.3` |
-| H2 | Dialog title / profile name besar / major section | 15–17 | 700 | `#1E293B` | 1.25 | `-0.2` s/d `0` |
-| H3 | Empty/error title / card title penting | 13–14 | 700 | `#1E293B` | 1.30 | `0` |
-| H4 | Row title / product title | 12 | 600–700 | `#1E293B` atau `#0F172A` | 1.32 | `-0.15` s/d `0` |
-| H5 | Secondary row title / compact heading | 11–11.5 | 600 | `#334155` | 1.35 | `0` |
-| H6 | Section eyebrow uppercase | 9.5 | 700 | `#94A3B8` | 1.30 | `0.45` |
+| Token | Penggunaan                                        |                Size | Weight  | Color default                    | Line height |  Letter spacing |
+| ----- | ------------------------------------------------- | ------------------: | ------- | -------------------------------- | ----------: | --------------: |
+| H1    | Page title / top-level heading                    | 18 Android / 19 iOS | 700     | `#0F172A`; pada header `#FFFFFF` |        1.20 |          `-0.3` |
+| H2    | Dialog title / profile name besar / major section |               15–17 | 700     | `#1E293B`                        |        1.25 |  `-0.2` s/d `0` |
+| H3    | Empty/error title / card title penting            |               13–14 | 700     | `#1E293B`                        |        1.30 |             `0` |
+| H4    | Row title / product title                         |                  12 | 600–700 | `#1E293B` atau `#0F172A`         |        1.32 | `-0.15` s/d `0` |
+| H5    | Secondary row title / compact heading             |             11–11.5 | 600     | `#334155`                        |        1.35 |             `0` |
+| H6    | Section eyebrow uppercase                         |                 9.5 | 700     | `#94A3B8`                        |        1.30 |          `0.45` |
 
 ### H6 / Section Eyebrow wajib
 
@@ -161,14 +163,14 @@ Teks ditampilkan uppercase.
 
 ## 4.2 Body & Caption
 
-| Token | Size | Weight | Color | Penggunaan |
-|---|---:|---|---|---|
-| Body L | 12 | 500–600 | `#334155` / `#1E293B` | row title, compact button |
-| Body M | 11.5 | 400–600 | `#475569` / `#64748B` | value, description |
-| Body S | 11 | 400–500 | `#64748B` / `#94A3B8` | helper, subtitle |
-| Caption | 10 | 400–600 | `#64748B` / `#94A3B8` | labels, info |
-| Micro | 9–9.5 | 600–700 | semantic | badge, count, small action |
-| Nano | 8–8.5 | 600–700 | semantic | tiny metadata badge |
+| Token   |  Size | Weight  | Color                 | Penggunaan                 |
+| ------- | ----: | ------- | --------------------- | -------------------------- |
+| Body L  |    12 | 500–600 | `#334155` / `#1E293B` | row title, compact button  |
+| Body M  |  11.5 | 400–600 | `#475569` / `#64748B` | value, description         |
+| Body S  |    11 | 400–500 | `#64748B` / `#94A3B8` | helper, subtitle           |
+| Caption |    10 | 400–600 | `#64748B` / `#94A3B8` | labels, info               |
+| Micro   | 9–9.5 | 600–700 | semantic              | badge, count, small action |
+| Nano    | 8–8.5 | 600–700 | semantic              | tiny metadata badge        |
 
 ## 4.3 Font Weight Standard
 
@@ -187,36 +189,36 @@ Hindari `800/900` kecuali benar-benar ada kebutuhan brand/display.
 
 ## 5.1 Brand Colors
 
-| Token | Hex | Penggunaan |
-|---|---|---|
-| Primary | `#B11F23` | brand utama, CTA, active, destructive brand |
-| Primary Gradient Top | `#D52A2F` | bagian atas header gradient |
-| Secondary | `#FDD100` | accent, notification dot, selected CTA tertentu |
-| White | `#FFFFFF` | surface/card |
-| Black | `#1A1A1A` | legacy black / button text tertentu |
+| Token                | Hex       | Penggunaan                                      |
+| -------------------- | --------- | ----------------------------------------------- |
+| Primary              | `#B11F23` | brand utama, CTA, active, destructive brand     |
+| Primary Gradient Top | `#D52A2F` | bagian atas header gradient                     |
+| Secondary            | `#FDD100` | accent, notification dot, selected CTA tertentu |
+| White                | `#FFFFFF` | surface/card                                    |
+| Black                | `#1A1A1A` | legacy black / button text tertentu             |
 
 Existing:
 
 ```dart
 AppColors.primaryColor   // #B11F23
 AppColors.secondaryColor // #FDD100
-AppColors.background     // #F8FAFC
+AppColors.background     // existing #F8FAFC; target canonical #F6F7F9
 ```
 
 ## 5.2 Neutral / Slate
 
-| Token | Hex | Fungsi |
-|---|---|---|
-| Text Strong | `#0F172A` | product title / strongest content |
-| Text Primary | `#1E293B` | heading, row title |
-| Text Secondary | `#475569` | secondary content |
-| Text Muted | `#64748B` | subtitle / value secondary |
-| Text Disabled | `#94A3B8` | hint, section title, inactive |
-| Icon/Border Mid | `#CBD5E1` | chevron, input/icon inactive |
-| Border | `#E2E8F0` | input, metadata, outlined button |
-| Divider / Card Border | `#F1F5F9` | divider dan canonical card border |
-| Surface Alt | `#F8FAFC` | input fill, image container, page background |
-| Page Alt | `#F6F7F9` | beberapa screen Account/Profile |
+| Token                 | Hex       | Fungsi                                                                |
+| --------------------- | --------- | --------------------------------------------------------------------- |
+| Text Strong           | `#0F172A` | product title / strongest content                                     |
+| Text Primary          | `#1E293B` | heading, row title                                                    |
+| Text Secondary        | `#475569` | secondary content                                                     |
+| Text Muted            | `#64748B` | subtitle / value secondary                                            |
+| Text Disabled         | `#94A3B8` | hint, section title, inactive                                         |
+| Icon/Border Mid       | `#CBD5E1` | chevron, input/icon inactive                                          |
+| Border                | `#E2E8F0` | input, metadata, outlined button                                      |
+| Divider / Card Border | `#F1F5F9` | divider dan canonical card border                                     |
+| Surface Alt           | `#F8FAFC` | input fill dan image container; bukan default page background baru    |
+| Page Background       | `#F6F7F9` | canonical page background; memberi kontras nyaman terhadap card putih |
 
 ## 5.3 Semantic Colors
 
@@ -263,20 +265,27 @@ Warna WhatsApp hanya untuk action yang benar-benar membuka WhatsApp.
 Canonical background halaman:
 
 ```dart
-const Color(0xFFF8FAFC)
+const Color(0xFFF6F7F9)
 ```
 
-Untuk halaman Account/Profile yang sudah memakai `#F6F7F9`, masih diterima.
+Nilai ini dipilih karena `#F8FAFC` terlalu dekat dengan putih ketika dipasangkan
+dengan card `#FFFFFF`. `#F6F7F9` memberi pemisahan surface yang lebih mudah
+terlihat dan tetap nyaman untuk penggunaan panjang.
 
-### Aturan baru
+### Kontrak implementasi
 
-Untuk screen baru, default gunakan:
+- Screen baru wajib memakai `#F6F7F9` sebagai default page background.
+- `#F8FAFC` tetap dipakai untuk fill input, image shell, atau surface internal.
+- Jangan memakai pure white sebagai seluruh page background jika halaman berisi
+  card putih.
+- Saat token global dimigrasikan, nilai final yang diharapkan adalah:
 
 ```dart
-AppColors.background // #F8FAFC
+AppColors.background // target #F6F7F9
 ```
 
-Jangan menggunakan pure white sebagai seluruh page background jika halaman berisi card putih, karena hierarchy surface akan hilang.
+Jangan membuat warna abu baru per halaman. Selama migrasi bertahap, halaman yang
+sedang disentuh harus mengikuti nilai canonical di atas.
 
 ---
 
@@ -292,10 +301,22 @@ Jangan membuat nilai seperti `17`, `19`, `23` tanpa alasan layout khusus.
 
 ## 7.1 Horizontal Page Padding
 
-- Standard content/list: `12dp`
-- Form/profile detail: `16dp`
+- Compact list/grid padat: `12dp`
+- Layar kecil `<360dp`: `16dp`
+- Standard phone/form/detail: `20dp`
+- Tablet atau lebar `>=600dp`: `24dp`, tetap dengan max content width
 - Modal/bottom sheet: `20dp`
 - Empty/error state: `24–32dp`
+
+Major card tidak boleh menempel ke tepi layar. Gunakan padding responsif:
+
+```dart
+final horizontalPadding = width >= 600
+    ? 24.0
+    : width < 360
+        ? 16.0
+        : 20.0;
+```
 
 ## 7.2 Vertical Section Gap
 
@@ -321,22 +342,22 @@ Konten harus di-center pada tablet/lebar besar.
 
 # 8. Radius System
 
-| Token | Radius | Penggunaan |
-|---|---:|---|
-| R4 | 4 | shimmer bar kecil |
-| R5 | 5 | micro badge / checkbox |
-| R6 | 6 | SKU badge |
-| R7 | 7 | compact button |
-| R8 | 8 | small controls |
-| R9 | 9 | icon container / retry button |
-| R10 | 10 | field value box / medium button |
-| R11 | 11 | image shell / search |
-| R12 | 12 | form input / primary button |
-| R16 | 16 | canonical card |
-| R18 | 18 | pill action tertentu |
-| R20 | 20 | filter chip/pill |
-| R24 | 24 | bottom sheet top radius |
-| R28 | 28 | branded header bottom radius |
+| Token | Radius | Penggunaan                             |
+| ----- | -----: | -------------------------------------- |
+| R4    |      4 | shimmer bar kecil                      |
+| R5    |      5 | micro badge / checkbox                 |
+| R6    |      6 | SKU badge                              |
+| R7    |      7 | compact button                         |
+| R8    |      8 | small controls                         |
+| R9    |      9 | icon container / retry button          |
+| R10   |     10 | field value box / medium button        |
+| R11   |     11 | image shell / search                   |
+| R12   |     12 | form input / primary button            |
+| R16   |     16 | compact list/product card              |
+| R18   |     18 | canonical major card / section surface |
+| R20   |     20 | filter chip/pill                       |
+| R24   |     24 | bottom sheet top radius                |
+| R28   |     28 | branded header bottom radius           |
 
 Jangan mencampur radius random pada komponen sejenis.
 
@@ -346,20 +367,21 @@ Jangan mencampur radius random pada komponen sejenis.
 
 ## 9.1 Canonical Card Decoration — WAJIB untuk halaman baru
 
-Standar final menggabungkan strength Account dan Wishlist:
+Standar final memakai kontras surface yang lebih terbaca dan elevation lembut
+seperti hasil audit halaman Login:
 
 ```dart
 const BoxDecoration(
   color: Colors.white,
-  borderRadius: BorderRadius.all(Radius.circular(16)),
+  borderRadius: BorderRadius.all(Radius.circular(18)),
   border: Border.fromBorderSide(
     BorderSide(color: Color(0xFFF1F5F9), width: 1),
   ),
   boxShadow: [
     BoxShadow(
-      color: Color(0x0D0F172A),
-      blurRadius: 10,
-      offset: Offset(0, 2),
+      color: Color(0x120F172A),
+      blurRadius: 20,
+      offset: Offset(0, 6),
     ),
   ],
 )
@@ -367,11 +389,28 @@ const BoxDecoration(
 
 ### Kenapa border ditambahkan?
 
-Account existing memakai shadow halus tetapi tanpa border. Pada background sangat terang card bisa terasa menyatu. Wishlist sudah memakai border `#F1F5F9` dan hasil separation lebih jelas.
+Background `#F6F7F9`, border `#F1F5F9`, dan shadow menyebar memiliki tugas yang
+berbeda: background memberi tonal contrast, border menjaga edge tetap bersih,
+dan shadow memberi depth. Shadow tidak boleh digelapkan untuk menggantikan
+background yang terlalu putih.
 
-**Mulai halaman baru:** gunakan **border + shadow**.
+**Mulai halaman baru:** gunakan kombinasi **page contrast + border + shadow**.
 
-## 9.2 List/Product Card
+## 9.2 Surface Composition
+
+Halaman harus terasa sebagai kumpulan surface yang terstruktur, bukan satu lembar
+putih panjang:
+
+- kelompokkan konten berdasarkan fungsi ke dalam major card;
+- pertahankan background abu terlihat di sekeliling dan di antara card;
+- hindari card tunggal setinggi hampir seluruh halaman jika konten dapat dibagi
+  menjadi section yang masuk akal;
+- jangan memecah form yang merupakan satu alur pendek hanya demi menambah card;
+- gunakan gap `14-16dp` antar-major card;
+- pada halaman dengan hero/header, major card pertama boleh overlap secara
+  terukur untuk menciptakan hierarchy dan depth.
+
+## 9.3 List/Product Card
 
 Wishlist-style card:
 
@@ -393,7 +432,7 @@ background  primary @ 5%
 border      primary 1.5px
 ```
 
-## 9.3 Divider
+## 9.4 Divider
 
 Default divider:
 
@@ -426,13 +465,19 @@ search akan berbeda dari header Wishlist.
 ### Default geometry
 
 ```text
-headerHeight  = 154
-contentTop    = 116
+headerHeight  = 160
+contentTop    = 124
 bottomRadius  = 28
-bodyPadding   = horizontal 12
+bodyPadding   = responsive 16 / 20 / 24
 ```
 
-Body overlap ke header sekitar `38dp`.
+Body overlap ke header sekitar `36dp`. Geometry ini menjadi default untuk
+halaman form/detail dengan major card pertama. Compact list yang tidak memakai
+overlap dapat mempertahankan geometry khusus existing jika sudah konsisten.
+
+Jika default `CustomHeaderScaffold` di source masih `154/116`, halaman yang
+sedang dimigrasikan harus mengirim `headerHeight: 160` dan `contentTop: 124`
+secara eksplisit sampai shared default diperbarui melalui task refactor terpisah.
 
 ## 10.2 Brand Header Gradient
 
@@ -662,10 +707,10 @@ Jika dibutuhkan variasi behavior, perluas parameter
 ## 12.1 Profile Summary / Identity Card
 
 ```text
-card radius       16
+card radius       18
 card bg           white
 canonical border  #F1F5F9
-shadow            subtle
+shadow            #120F172A / blur 20 / offset (0,6)
 padding           14–16
 avatar            62 Account / 84 Profile
 ```
@@ -718,9 +763,9 @@ Untuk grup menu atau data:
 
 ```text
 surface            white
-radius             16
+radius             18
 border             #F1F5F9
-shadow             subtle
+shadow             #120F172A / blur 20 / offset (0,6)
 clipBehavior       antiAlias
 ```
 
@@ -1855,11 +1900,14 @@ Untuk menjaga konsistensi jangka panjang, Codex sebaiknya secara bertahap memind
 ```dart
 class AppDesign {
   static const pagePadding = 12.0;
-  static const formPagePadding = 16.0;
+  static const smallScreenPadding = 16.0;
+  static const formPagePadding = 20.0;
+  static const tabletPagePadding = 24.0;
   static const sectionGap = 14.0;
   static const maxContentWidth = 680.0;
 
-  static const cardRadius = 16.0;
+  static const cardRadius = 18.0;
+  static const compactCardRadius = 16.0;
   static const inputRadius = 12.0;
   static const compactButtonRadius = 7.0;
 
@@ -1871,6 +1919,7 @@ class AppDesign {
 
   static const border = Color(0xFFE2E8F0);
   static const divider = Color(0xFFF1F5F9);
+  static const pageBackground = Color(0xFFF6F7F9);
   static const surfaceAlt = Color(0xFFF8FAFC);
 }
 ```
@@ -1896,10 +1945,11 @@ Sebelum dianggap selesai, cek semua poin berikut.
 
 ## Layout
 
-- [ ] Background `#F8FAFC` atau approved alt `#F6F7F9`.
-- [ ] Horizontal padding konsisten `12/16`.
+- [ ] Background canonical `#F6F7F9`; `#F8FAFC` hanya untuk internal surface/input.
+- [ ] Horizontal padding responsif `16/20/24` untuk major card/form.
 - [ ] Section gap `14/16`.
 - [ ] Wide screen menggunakan max width jika halaman form/detail.
+- [ ] Background abu tetap terlihat di sekeliling dan di antara major card.
 
 ## Typography
 
@@ -1911,10 +1961,11 @@ Sebelum dianggap selesai, cek semua poin berikut.
 ## Card
 
 - [ ] White surface.
-- [ ] Radius `16` untuk major card.
+- [ ] Radius `18` untuk major card; `16` untuk compact list card.
 - [ ] Border `#F1F5F9`.
-- [ ] Shadow halus.
+- [ ] Shadow major card memakai `#120F172A`, blur `20`, offset `(0,6)`.
 - [ ] Card tidak menyatu dengan background.
+- [ ] Halaman tidak menjadi satu lembar putih panjang tanpa hierarchy section.
 
 ## Form
 
@@ -1993,7 +2044,8 @@ maka Codex harus melakukan urutan berikut:
 3. Cari halaman existing yang paling mirip.
 4. Tentukan page blueprint: detail/form/list.
 5. Implementasikan dengan token di dokumen ini.
-6. Untuk card gunakan canonical card border + shadow.
+6. Gunakan background `#F6F7F9` dan canonical major card radius `18` dengan
+   border + shadow.
 7. Untuk header gunakan shared custom header; jika memiliki search, ikuti
    struktur canonical Wishlist pada bagian 11 dan gunakan
    `CustomHeaderSearchField`.
@@ -2012,7 +2064,8 @@ maka Codex harus melakukan urutan berikut:
 PRIMARY            #B11F23
 PRIMARY TOP        #D52A2F
 SECONDARY          #FDD100
-PAGE BG            #F8FAFC
+PAGE BG            #F6F7F9
+INTERNAL SURFACE   #F8FAFC
 SURFACE            #FFFFFF
 TEXT STRONG        #0F172A
 TEXT PRIMARY       #1E293B
@@ -2027,13 +2080,14 @@ SOFT RED BORDER    #FECACA
 PRIMARY FONT       Poppins
 SECONDARY FONT     Lato
 
-CARD RADIUS        16
+MAJOR CARD RADIUS  18
+COMPACT CARD       16
 INPUT RADIUS       12
 HEADER RADIUS      28
 BOTTOM SHEET       24
 
-PAGE PADDING       12
-FORM PADDING       16
+COMPACT PADDING    12
+PAGE/FORM PADDING  16 / 20 / 24 responsive
 SECTION GAP        14
 MAX CONTENT WIDTH  680
 
