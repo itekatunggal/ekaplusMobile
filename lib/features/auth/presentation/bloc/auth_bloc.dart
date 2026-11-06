@@ -1,4 +1,9 @@
 import 'package:ekaplus_ekatunggal/features/auth/data/datasources/google_auth_service.dart';
+import 'package:ekaplus_ekatunggal/features/auth/data/datasources/apple_auth_service.dart';
+import 'package:ekaplus_ekatunggal/features/auth/data/datasources/social_auth_exception.dart';
+import 'package:ekaplus_ekatunggal/features/auth/domain/entities/social_auth_result.dart';
+import 'package:ekaplus_ekatunggal/features/auth/domain/usecases/complete_social_registration.dart';
+import 'package:ekaplus_ekatunggal/features/auth/domain/usecases/login_with_apple.dart';
 import 'package:ekaplus_ekatunggal/features/auth/domain/usecases/change_password.dart';
 import 'package:ekaplus_ekatunggal/features/auth/domain/usecases/check_password.dart';
 import 'package:ekaplus_ekatunggal/features/auth/domain/usecases/register_otp.dart';
@@ -24,8 +29,11 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final RegisterUser registerUser;
   final LoginUser loginUser;
   final LoginWithGoogle loginWithGoogle;
+  final LoginWithApple loginWithApple;
+  final CompleteSocialRegistration completeSocialRegistration;
   final UpdateProfilePicture updateProfilePicture;
   final GoogleAuthService googleAuthService;
+  final AppleAuthService appleAuthService;
 
   AuthBloc({
     required this.checkPhoneExists,
@@ -36,9 +44,12 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     required this.registerOtp,
     required this.loginUser,
     required this.loginWithGoogle,
+    required this.loginWithApple,
+    required this.completeSocialRegistration,
     required this.changePassword,
     required this.updateProfilePicture,
     required this.googleAuthService,
+    required this.appleAuthService,
   }) : super(AuthInitial()) {
     on<CheckPhoneEvent>(_onCheckPhone);
     on<CheckPhoneExistsEvent>(_onCheckPhoneExists);
@@ -48,6 +59,8 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<RegisterUserEvent>(_onRegisterUser);
     on<LoginUserEvent>(_onLoginUser);
     on<LoginWithGoogleEvent>(_onLoginWithGoogle);
+    on<LoginWithAppleEvent>(_onLoginWithApple);
+    on<CompleteSocialRegistrationEvent>(_onCompleteSocialRegistration);
     on<UpdateProfilePictureEvent>(_onUpdateProfilePicture);
     on<ResetAuthEvent>(_onResetAuth);
     on<CheckPasswordEvent>(_onCheckPassword);
@@ -165,7 +178,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     LoginUserEvent event,
     Emitter<AuthState> emit,
   ) async {
-    emit(AuthLoading());
+    emit(const AuthLoading(AuthOperation.manualLogin));
 
     final result = await loginUser(event.identifier, event.password);
 
@@ -198,7 +211,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     LoginWithGoogleEvent event,
     Emitter<AuthState> emit,
   ) async {
-    emit(AuthLoading());
+    emit(const AuthLoading(AuthOperation.googleLogin));
 
     try {
       final idToken = await googleAuthService.loginAndGetIdToken();
@@ -207,16 +220,107 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
       result.fold(
         (f) {
-          emit(LoginWithGoogleError(f.message ?? 'Login Google gagal'));
+          emit(
+            LoginWithGoogleError(
+              f.message ?? 'Login Google gagal',
+              code: f.code,
+            ),
+          );
         },
-        (user) {
-          emit(LoginWithGoogleSuccess(user));
+        (result) {
+          _emitSocialResult(
+            result,
+            emit,
+            authenticatedProvider: SocialProvider.google,
+          );
         },
       );
-    } catch (e) {
+    } on SocialSignInCancelledException {
+      emit(AuthInitial());
+    } catch (_) {
       await googleAuthService.logout();
-      emit(LoginWithGoogleError('Login Google dibatalkan'));
+      emit(
+        const LoginWithGoogleError('Login Google gagal. Silakan coba lagi.'),
+      );
     }
+  }
+
+  Future<void> _onLoginWithApple(
+    LoginWithAppleEvent event,
+    Emitter<AuthState> emit,
+  ) async {
+    emit(const AuthLoading(AuthOperation.appleLogin));
+    try {
+      final identityToken = await appleAuthService.loginAndGetIdentityToken();
+      final result = await loginWithApple(identityToken);
+      result.fold(
+        (failure) => emit(
+          LoginWithAppleError(
+            failure.message ?? 'Login Apple gagal',
+            code: failure.code,
+          ),
+        ),
+        (socialResult) => _emitSocialResult(
+          socialResult,
+          emit,
+          authenticatedProvider: SocialProvider.apple,
+        ),
+      );
+    } on SocialSignInCancelledException {
+      emit(AuthInitial());
+    } catch (_) {
+      emit(const LoginWithAppleError('Login Apple gagal. Silakan coba lagi.'));
+    }
+  }
+
+  void _emitSocialResult(
+    SocialAuthResult result,
+    Emitter<AuthState> emit, {
+    required SocialProvider authenticatedProvider,
+  }) {
+    switch (result) {
+      case SocialLoginAuthenticated(:final user):
+        if (authenticatedProvider == SocialProvider.apple) {
+          emit(LoginWithAppleSuccess(user));
+        } else {
+          emit(LoginWithGoogleSuccess(user));
+        }
+      case SocialRegistrationPending(
+        :final registrationToken,
+        :final expiresIn,
+        :final prefill,
+        :final provider,
+      ):
+        emit(
+          SocialRegistrationRequired(
+            registrationToken: registrationToken,
+            expiresIn: expiresIn,
+            prefill: prefill,
+            provider: provider,
+          ),
+        );
+    }
+  }
+
+  Future<void> _onCompleteSocialRegistration(
+    CompleteSocialRegistrationEvent event,
+    Emitter<AuthState> emit,
+  ) async {
+    emit(const AuthLoading(AuthOperation.completion));
+    final result = await completeSocialRegistration(
+      ticket: event.ticket,
+      username: event.username,
+      password: event.password,
+    );
+    result.fold(
+      (failure) => emit(
+        SocialRegistrationError(
+          failure.message ?? 'Gagal menyelesaikan pendaftaran',
+          code: failure.code,
+        ),
+      ),
+      (user) => emit(SocialRegistrationCompleted(user)),
+    );
   }
 
   Future<void> _onUpdateProfilePicture(

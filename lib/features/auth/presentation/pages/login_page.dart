@@ -1,9 +1,12 @@
+import 'dart:io';
+
 import 'package:ekaplus_ekatunggal/constant.dart';
 import 'package:ekaplus_ekatunggal/core/shared_widgets/custom_header.dart';
 import 'package:ekaplus_ekatunggal/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:ekaplus_ekatunggal/features/auth/presentation/bloc/auth_event.dart';
 import 'package:ekaplus_ekatunggal/features/auth/presentation/bloc/auth_state.dart';
 import 'package:ekaplus_ekatunggal/features/auth/presentation/cubit/auth_session_cubit.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -16,12 +19,17 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
+  static const _showApplePreviewOnAndroid = bool.fromEnvironment(
+    'SHOW_APPLE_SIGN_IN_PREVIEW',
+  );
+
   final _identifierController = TextEditingController();
   final _passwordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   bool _isPasswordVisible = false;
   bool _isNavigating = false;
   bool _isGoogleSubmitting = false;
+  bool _isAppleSubmitting = false;
   String? _identifierError;
   String? _passwordError;
 
@@ -101,6 +109,7 @@ class _LoginPageState extends State<LoginPage> {
     }
     FocusScope.of(context).unfocus();
     _isGoogleSubmitting = false;
+    _isAppleSubmitting = false;
     context.read<AuthBloc>().add(
       LoginUserEvent(
         identifier: _identifierController.text.trim(),
@@ -139,15 +148,55 @@ class _LoginPageState extends State<LoginPage> {
     }
     setState(() {
       _isGoogleSubmitting = true;
+      _isAppleSubmitting = false;
     });
     context.read<AuthBloc>().add(const LoginWithGoogleEvent());
   }
 
+  void _onAppleLoginPressed() {
+    if (_isNavigating || context.read<AuthBloc>().state is AuthLoading) {
+      return;
+    }
+    if (!Platform.isIOS) {
+      AppSnackbar.show(
+        context,
+        message:
+            'Preview tombol Apple aktif. Login Apple native hanya dapat '
+            'dijalankan di perangkat atau simulator iOS.',
+        type: AppSnackbarType.info,
+      );
+      return;
+    }
+    setState(() {
+      _isAppleSubmitting = true;
+      _isGoogleSubmitting = false;
+    });
+    context.read<AuthBloc>().add(const LoginWithAppleEvent());
+  }
+
+  void _openSocialCompletion(SocialRegistrationRequired state) {
+    if (_isNavigating) return;
+    _isNavigating = true;
+    FocusScope.of(context).unfocus();
+    context.pushNamed('social-account-completion', extra: state).then((_) {
+      if (!mounted) return;
+      setState(() {
+        _isNavigating = false;
+        _isGoogleSubmitting = false;
+        _isAppleSubmitting = false;
+      });
+    });
+  }
+
   void _completeLogin(AuthState state) {
     if (_isNavigating) return;
-    final user = state is LoginSuccess
-        ? state.user
-        : (state as LoginWithGoogleSuccess).user;
+    final user = switch (state) {
+      LoginSuccess(:final user) => user,
+      LoginWithGoogleSuccess(:final user) => user,
+      LoginWithAppleSuccess(:final user) => user,
+      _ => null,
+    };
+    if (user == null) return;
     _isNavigating = true;
     TextInput.finishAutofillContext(shouldSave: true);
     context.read<AuthSessionCubit>().login(user);
@@ -177,15 +226,35 @@ class _LoginPageState extends State<LoginPage> {
       listener: (context, state) {
         if (state is LoginError) {
           _handleLoginError(state.message);
-        } else if (state is LoginSuccess || state is LoginWithGoogleSuccess) {
+        } else if (state is LoginSuccess ||
+            state is LoginWithGoogleSuccess ||
+            state is LoginWithAppleSuccess) {
           _completeLogin(state);
+        } else if (state is SocialRegistrationRequired) {
+          _openSocialCompletion(state);
         } else if (state is LoginWithGoogleError) {
           _isNavigating = false;
+          _isGoogleSubmitting = false;
           AppSnackbar.show(
             context,
             message: state.message,
             type: AppSnackbarType.error,
           );
+        } else if (state is LoginWithAppleError) {
+          _isNavigating = false;
+          _isAppleSubmitting = false;
+          AppSnackbar.show(
+            context,
+            message: state.message,
+            type: AppSnackbarType.error,
+          );
+        } else if (state is AuthInitial) {
+          if (_isGoogleSubmitting || _isAppleSubmitting) {
+            setState(() {
+              _isGoogleSubmitting = false;
+              _isAppleSubmitting = false;
+            });
+          }
         }
       },
       child: Stack(
@@ -269,7 +338,7 @@ class _LoginPageState extends State<LoginPage> {
                                   const SizedBox(height: 20),
                                   const _LoginDivider(),
                                   const SizedBox(height: 16),
-                                  _buildGoogleButton(),
+                                  _buildSocialButtons(),
                                   const SizedBox(height: 20),
                                   _buildRegisterLink(),
                                   // const SizedBox(height: 4),
@@ -312,8 +381,8 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                     icon: const Icon(Icons.close_rounded, size: 20),
                     constraints: const BoxConstraints.tightFor(
-                      width: 40,
-                      height: 40,
+                      width: 44,
+                      height: 44,
                     ),
                   ),
                 ),
@@ -405,7 +474,9 @@ class _LoginPageState extends State<LoginPage> {
   Widget _buildLoginButton() {
     return BlocBuilder<AuthBloc, AuthState>(
       builder: (context, state) {
-        final isLoading = state is AuthLoading && !_isGoogleSubmitting;
+        final isLoading =
+            state is AuthLoading &&
+            state.operation == AuthOperation.manualLogin;
         return SizedBox(
           width: double.infinity,
           height: 48,
@@ -450,7 +521,9 @@ class _LoginPageState extends State<LoginPage> {
   Widget _buildGoogleButton() {
     return BlocBuilder<AuthBloc, AuthState>(
       builder: (context, state) {
-        final isLoading = state is AuthLoading && _isGoogleSubmitting;
+        final isLoading =
+            state is AuthLoading &&
+            state.operation == AuthOperation.googleLogin;
         final disabled = state is AuthLoading || _isNavigating;
         return Center(
           child: Tooltip(
@@ -475,6 +548,7 @@ class _LoginPageState extends State<LoginPage> {
                   ],
                 ),
                 child: InkWell(
+                  key: const Key('google-sign-in-button'),
                   borderRadius: BorderRadius.circular(10),
                   onTap: disabled ? null : _onGoogleLoginPressed,
                   child: Center(
@@ -498,6 +572,59 @@ class _LoginPageState extends State<LoginPage> {
                             },
                           ),
                   ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildSocialButtons() {
+    final showApple =
+        Platform.isIOS || (kDebugMode && _showApplePreviewOnAndroid);
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        _buildGoogleButton(),
+        if (showApple) ...[const SizedBox(width: 12), _buildAppleButton()],
+      ],
+    );
+  }
+
+  Widget _buildAppleButton() {
+    return BlocBuilder<AuthBloc, AuthState>(
+      builder: (context, state) {
+        final isLoading =
+            state is AuthLoading && state.operation == AuthOperation.appleLogin;
+        final disabled = state is AuthLoading || _isNavigating;
+        return Tooltip(
+          message: 'Masuk dengan Apple',
+          child: Material(
+            color: Colors.black,
+            borderRadius: BorderRadius.circular(10),
+            child: Ink(
+              width: 56,
+              height: 48,
+              decoration: BoxDecoration(
+                color: Colors.black,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: InkWell(
+                key: const Key('apple-sign-in-button'),
+                borderRadius: BorderRadius.circular(10),
+                onTap: disabled ? null : _onAppleLoginPressed,
+                child: Center(
+                  child: isLoading
+                      ? const SizedBox.square(
+                          dimension: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Icon(Icons.apple, color: Colors.white, size: 26),
                 ),
               ),
             ),

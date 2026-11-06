@@ -2,6 +2,7 @@ import 'package:dartz/dartz.dart';
 import 'package:ekaplus_ekatunggal/core/error/failure.dart';
 import 'package:ekaplus_ekatunggal/features/auth/data/models/user_model.dart';
 import 'package:ekaplus_ekatunggal/features/auth/domain/entities/user.dart';
+import 'package:ekaplus_ekatunggal/features/auth/domain/entities/social_auth_result.dart';
 import 'package:ekaplus_ekatunggal/features/auth/domain/usecases/register_user.dart';
 
 abstract class AuthRepository {
@@ -24,7 +25,17 @@ abstract class AuthRepository {
 
   Future<Either<Failure, User>> loginUser(String identifier, String password);
 
-  Future<Either<Failure, User>> loginWithGoogle(String idToken);
+  Future<Either<Failure, SocialAuthResult>> loginWithGoogle(String idToken);
+
+  Future<Either<Failure, SocialAuthResult>> loginWithApple(
+    String identityToken,
+  );
+
+  Future<Either<Failure, User>> completeSocialRegistration({
+    required String ticket,
+    required String username,
+    required String password,
+  });
 
   Future<Either<Failure, User>> updateProfilePicture(
     String userId,

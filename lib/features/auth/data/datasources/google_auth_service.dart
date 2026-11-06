@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'social_auth_exception.dart';
 
 class GoogleAuthService {
   final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
@@ -29,13 +30,21 @@ class GoogleAuthService {
       }
 
       if (event is GoogleSignInAuthenticationEventSignOut) {
-        completer.completeError(Exception('Login dibatalkan'));
+        completer.completeError(const SocialSignInCancelledException());
         await _sub?.cancel();
       }
     });
 
     // 🔥 INI SATU-SATUNYA CARA LOGIN DI SDK BARU
-    await _googleSignIn.authenticate();
+    try {
+      await _googleSignIn.authenticate();
+    } on GoogleSignInException catch (error) {
+      await _sub?.cancel();
+      if (error.code == GoogleSignInExceptionCode.canceled) {
+        throw const SocialSignInCancelledException();
+      }
+      rethrow;
+    }
 
     return completer.future.timeout(
       const Duration(seconds: 30),

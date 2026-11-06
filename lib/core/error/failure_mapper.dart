@@ -10,6 +10,7 @@ Failure mapExceptionToFailure(Object error, {String? fallbackMessage}) {
     return UnauthorizedFailure(
       message: error.message,
       statusCode: error.statusCode,
+      code: error.code,
     );
   }
 
@@ -26,11 +27,19 @@ Failure mapExceptionToFailure(Object error, {String? fallbackMessage}) {
   }
 
   if (error is ServerException) {
-    return ServerFailure(message: error.message, statusCode: error.statusCode);
+    return ServerFailure(
+      message: error.message,
+      statusCode: error.statusCode,
+      code: error.code,
+    );
   }
 
   if (error is UnknownException) {
-    return UnknownFailure(message: error.message, statusCode: error.statusCode);
+    return UnknownFailure(
+      message: error.message,
+      statusCode: error.statusCode,
+      code: error.code,
+    );
   }
 
   return UnknownFailure(message: fallbackMessage ?? error.toString());

@@ -1,5 +1,6 @@
 import 'package:equatable/equatable.dart';
 import 'package:ekaplus_ekatunggal/features/auth/domain/entities/user.dart';
+import 'package:ekaplus_ekatunggal/features/auth/domain/entities/social_auth_result.dart';
 
 abstract class AuthState extends Equatable {
   const AuthState();
@@ -10,7 +11,16 @@ abstract class AuthState extends Equatable {
 
 class AuthInitial extends AuthState {}
 
-class AuthLoading extends AuthState {}
+enum AuthOperation { other, manualLogin, googleLogin, appleLogin, completion }
+
+class AuthLoading extends AuthState {
+  final AuthOperation operation;
+
+  const AuthLoading([this.operation = AuthOperation.other]);
+
+  @override
+  List<Object> get props => [operation];
+}
 
 class PhoneCheckSuccess extends AuthState {
   final bool exists;
@@ -127,10 +137,66 @@ class LoginWithGoogleSuccess extends AuthState {
 
 class LoginWithGoogleError extends AuthState {
   final String message;
-  const LoginWithGoogleError(this.message);
+  final String? code;
+  const LoginWithGoogleError(this.message, {this.code});
 
   @override
-  List<Object> get props => [message];
+  List<Object?> get props => [message, code];
+}
+
+class LoginWithAppleSuccess extends AuthState {
+  final User user;
+  const LoginWithAppleSuccess(this.user);
+
+  @override
+  List<Object> get props => [user];
+}
+
+class LoginWithAppleError extends AuthState {
+  final String message;
+  final String? code;
+  const LoginWithAppleError(this.message, {this.code});
+
+  @override
+  List<Object?> get props => [message, code];
+}
+
+class SocialRegistrationRequired extends AuthState {
+  final String registrationToken;
+  final int expiresIn;
+  final SocialPrefill prefill;
+  final SocialProvider provider;
+
+  const SocialRegistrationRequired({
+    required this.registrationToken,
+    required this.expiresIn,
+    required this.prefill,
+    required this.provider,
+  });
+
+  @override
+  List<Object?> get props => [expiresIn, prefill.email, provider];
+
+  @override
+  String toString() =>
+      'SocialRegistrationRequired(provider: $provider, expiresIn: $expiresIn)';
+}
+
+class SocialRegistrationCompleted extends AuthState {
+  final User user;
+  const SocialRegistrationCompleted(this.user);
+
+  @override
+  List<Object> get props => [user];
+}
+
+class SocialRegistrationError extends AuthState {
+  final String message;
+  final String? code;
+  const SocialRegistrationError(this.message, {this.code});
+
+  @override
+  List<Object?> get props => [message, code];
 }
 
 class ProfilePictureUpdateSuccess extends AuthState {

@@ -4,6 +4,7 @@ import 'package:ekaplus_ekatunggal/core/error/failure_mapper.dart';
 import 'package:ekaplus_ekatunggal/features/auth/data/datasources/auth_remote_datasource.dart';
 import 'package:ekaplus_ekatunggal/features/auth/data/models/user_model.dart';
 import 'package:ekaplus_ekatunggal/features/auth/domain/entities/user.dart';
+import 'package:ekaplus_ekatunggal/features/auth/domain/entities/social_auth_result.dart';
 import 'package:ekaplus_ekatunggal/features/auth/domain/repositories/auth_repository.dart';
 import 'package:ekaplus_ekatunggal/features/auth/domain/usecases/register_user.dart';
 
@@ -143,7 +144,9 @@ class AuthRepositoryImplementation implements AuthRepository {
   }
 
   @override
-  Future<Either<Failure, User>> loginWithGoogle(String idToken) async {
+  Future<Either<Failure, SocialAuthResult>> loginWithGoogle(
+    String idToken,
+  ) async {
     try {
       final user = await localDataSource.loginWithGoogle(idToken);
       return Right(user);
@@ -154,6 +157,50 @@ class AuthRepositoryImplementation implements AuthRepository {
         mapExceptionToFailure(
           e,
           fallbackMessage: 'Terjadi kesalahan saat login Google',
+        ),
+      );
+    }
+  }
+
+  @override
+  Future<Either<Failure, SocialAuthResult>> loginWithApple(
+    String identityToken,
+  ) async {
+    try {
+      final result = await localDataSource.loginWithApple(identityToken);
+      return Right(result);
+    } on Failure catch (failure) {
+      return Left(failure);
+    } catch (error) {
+      return Left(
+        mapExceptionToFailure(
+          error,
+          fallbackMessage: 'Terjadi kesalahan saat login Apple',
+        ),
+      );
+    }
+  }
+
+  @override
+  Future<Either<Failure, User>> completeSocialRegistration({
+    required String ticket,
+    required String username,
+    required String password,
+  }) async {
+    try {
+      final user = await localDataSource.completeSocialRegistration(
+        ticket: ticket,
+        username: username,
+        password: password,
+      );
+      return Right(user);
+    } on Failure catch (failure) {
+      return Left(failure);
+    } catch (error) {
+      return Left(
+        mapExceptionToFailure(
+          error,
+          fallbackMessage: 'Gagal menyelesaikan pendaftaran',
         ),
       );
     }

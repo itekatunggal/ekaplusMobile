@@ -1,6 +1,10 @@
 // lib/injection.dart
 import 'package:ekaplus_ekatunggal/core/constants.dart'; // Import Constants
 import 'package:ekaplus_ekatunggal/features/auth/data/datasources/google_auth_service.dart';
+import 'package:ekaplus_ekatunggal/features/auth/data/datasources/apple_auth_service.dart';
+import 'package:ekaplus_ekatunggal/core/services/device_id_service.dart';
+import 'package:ekaplus_ekatunggal/features/auth/domain/usecases/complete_social_registration.dart';
+import 'package:ekaplus_ekatunggal/features/auth/domain/usecases/login_with_apple.dart';
 import 'package:ekaplus_ekatunggal/features/auth/domain/usecases/change_password.dart';
 import 'package:ekaplus_ekatunggal/features/auth/domain/usecases/check_password.dart';
 import 'package:ekaplus_ekatunggal/features/auth/domain/usecases/get_user_info.dart';
@@ -113,6 +117,7 @@ Future<void> init() async {
   final googleAuthService = GoogleAuthService();
   await googleAuthService.init(serverClientId: Constants.googleServerClientId);
   myinjection.registerLazySingleton<GoogleAuthService>(() => googleAuthService);
+  myinjection.registerLazySingleton<AppleAuthService>(() => AppleAuthService());
 
   // ============================================
   // SINGLETONS (Global State - Persists Across Navigation)
@@ -159,6 +164,10 @@ Future<void> init() async {
     () => const FlutterSecureStorage(),
   );
 
+  myinjection.registerLazySingleton<DeviceIdService>(
+    () => DeviceIdService(myinjection<FlutterSecureStorage>()),
+  );
+
   myinjection.registerLazySingleton<Box>(() => Hive.box('auth_user_box'));
 
   // ============================================
@@ -168,6 +177,11 @@ Future<void> init() async {
     () => AuthLocalDataSourceImpl(
       myinjection<FlutterSecureStorage>(),
       myinjection<Box>(),
+      myinjection<DeviceIdService>(),
+      appleIdentityTokenField:
+          const String.fromEnvironment('APPLE_IDENTITY_TOKEN_FIELD').isEmpty
+          ? null
+          : const String.fromEnvironment('APPLE_IDENTITY_TOKEN_FIELD'),
     ),
   );
 
@@ -260,6 +274,10 @@ Future<void> init() async {
   myinjection.registerLazySingleton(() => RegisterUser(myinjection()));
   myinjection.registerLazySingleton(() => LoginUser(myinjection()));
   myinjection.registerLazySingleton(() => LoginWithGoogle(myinjection()));
+  myinjection.registerLazySingleton(() => LoginWithApple(myinjection()));
+  myinjection.registerLazySingleton(
+    () => CompleteSocialRegistration(myinjection()),
+  );
   myinjection.registerLazySingleton(() => CheckPassword(myinjection()));
   myinjection.registerLazySingleton(() => UpdateProfilePicture(myinjection()));
   myinjection.registerLazySingleton(() => UpdateFullName(myinjection()));
@@ -344,7 +362,10 @@ Future<void> init() async {
       registerUser: myinjection(),
       loginUser: myinjection(),
       loginWithGoogle: myinjection(),
+      loginWithApple: myinjection(),
+      completeSocialRegistration: myinjection(),
       updateProfilePicture: myinjection(),
+      appleAuthService: myinjection(),
       googleAuthService: myinjection(), // ✅ Sekarang sudah terdaftar di atas
       registerOtp: myinjection(), // ✅ Sekarang sudah terdaftar di atas
     ),

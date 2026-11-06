@@ -36,6 +36,8 @@ import 'package:ekaplus_ekatunggal/features/auth/presentation/bloc/otp_timer/otp
 import 'package:ekaplus_ekatunggal/features/auth/presentation/bloc/otp_timer/otp_timer_event.dart';
 import 'package:ekaplus_ekatunggal/features/auth/presentation/pages/forgot_password_phone_page.dart';
 import 'package:ekaplus_ekatunggal/features/auth/presentation/pages/login_page.dart';
+import 'package:ekaplus_ekatunggal/features/auth/presentation/pages/social_account_completion_page.dart';
+import 'package:ekaplus_ekatunggal/features/auth/presentation/bloc/auth_state.dart';
 import 'package:ekaplus_ekatunggal/features/auth/presentation/pages/otp_verification_page.dart';
 import 'package:ekaplus_ekatunggal/features/auth/presentation/pages/register_form_page.dart';
 import 'package:ekaplus_ekatunggal/features/auth/presentation/pages/register_page.dart';
@@ -381,6 +383,18 @@ class MyRouter {
         path: '/login',
         builder: (context, state) {
           return LoginPage();
+        },
+      ),
+
+      GoRoute(
+        name: 'social-account-completion',
+        path: '/social-account-completion',
+        builder: (context, state) {
+          final registration = state.extra;
+          if (registration is! SocialRegistrationRequired) {
+            return const LoginPage();
+          }
+          return SocialAccountCompletionPage(registration: registration);
         },
       ),
 

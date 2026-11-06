@@ -3,9 +3,11 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:ekaplus_ekatunggal/core/utils/session_manager.dart';
+import 'package:ekaplus_ekatunggal/core/services/device_id_service.dart';
 import 'package:ekaplus_ekatunggal/core/network/http_request_handler.dart';
 import 'package:ekaplus_ekatunggal/core/network/network_exceptions.dart';
 import 'package:ekaplus_ekatunggal/features/auth/domain/entities/user.dart';
+import 'package:ekaplus_ekatunggal/features/auth/domain/entities/social_auth_result.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:hive/hive.dart';
 import 'package:http/http.dart' as http;
@@ -13,6 +15,7 @@ import 'package:http_parser/http_parser.dart';
 import 'package:mime/mime.dart';
 import '../../../../core/config/api_config.dart';
 import '../models/user_model.dart';
+import '../models/social_auth_response_parser.dart';
 
 abstract class AuthRemoteDataSource {
   Future<bool> checkPhoneExists(String phone);
@@ -27,7 +30,13 @@ abstract class AuthRemoteDataSource {
   Future<User> changePhone(String newPhone, String otp);
 
   Future<UserModel> login(String identifier, String password);
-  Future<UserModel> loginWithGoogle(String idToken);
+  Future<SocialAuthResult> loginWithGoogle(String idToken);
+  Future<SocialAuthResult> loginWithApple(String identityToken);
+  Future<UserModel> completeSocialRegistration({
+    required String ticket,
+    required String username,
+    required String password,
+  });
 
   Future<void> saveToken(String token);
   Future<String?> getToken();
@@ -54,8 +63,15 @@ class AuthLocalDataSourceImpl implements AuthRemoteDataSource {
 
   final FlutterSecureStorage secureStorage;
   final Box box;
+  final DeviceIdService deviceIdService;
+  final String? appleIdentityTokenField;
 
-  AuthLocalDataSourceImpl(this.secureStorage, this.box);
+  AuthLocalDataSourceImpl(
+    this.secureStorage,
+    this.box,
+    this.deviceIdService, {
+    this.appleIdentityTokenField,
+  });
 
   // ============================================================
   // PRIVATE HELPERS
@@ -325,18 +341,18 @@ class AuthLocalDataSourceImpl implements AuthRemoteDataSource {
     }
 
     final data = body['data'];
-    final token = data['access_token'];
+    final accessToken = data['access_token'];
     final refreshToken = data['refresh_token'];
 
     final userJson = data['user'];
 
-    if (token == null || userJson == null) {
+    if (accessToken == null || userJson == null) {
       throw const UnknownException(message: 'Invalid login response');
     }
 
     final user = UserModel.fromApiJson(userJson);
 
-    await saveToken(token);
+    await saveToken(accessToken);
     await saveLoginUser(user);
     await saveRefreshToken(refreshToken);
 
@@ -344,38 +360,100 @@ class AuthLocalDataSourceImpl implements AuthRemoteDataSource {
   }
 
   @override
-  Future<UserModel> loginWithGoogle(String idToken) async {
+  Future<SocialAuthResult> loginWithGoogle(String idToken) {
+    return _loginWithSocialProvider(
+      endpoint: '/api/user/google/mobile',
+      tokenField: 'id_token',
+      token: idToken,
+      provider: SocialProvider.google,
+      defaultErrorMessage: 'Login Google gagal',
+    );
+  }
+
+  @override
+  Future<SocialAuthResult> loginWithApple(String identityToken) async {
+    final tokenField = appleIdentityTokenField?.trim();
+    if (tokenField == null || tokenField.isEmpty) {
+      throw const UnknownException(
+        message:
+            'Kontrak field identity token Apple belum tersedia. '
+            'Tambahkan README_APPLE_LOGIN.md.',
+      );
+    }
+    return _loginWithSocialProvider(
+      endpoint: '/api/user/apple/mobile',
+      tokenField: tokenField,
+      token: identityToken,
+      provider: SocialProvider.apple,
+      defaultErrorMessage: 'Login Apple gagal',
+    );
+  }
+
+  Future<SocialAuthResult> _loginWithSocialProvider({
+    required String endpoint,
+    required String tokenField,
+    required String token,
+    required SocialProvider provider,
+    required String defaultErrorMessage,
+  }) async {
+    final deviceId = await deviceIdService.getDeviceId();
+    final platform = Platform.isIOS ? 'ios' : 'android';
     final response = await HttpRequestHandler.send(
       () => http.post(
-        Uri.parse('${ApiConfig.baseUrl}/api/user/google/mobile'),
+        Uri.parse('${ApiConfig.baseUrl}$endpoint'),
         headers: ApiConfig.headers,
-        body: jsonEncode({'id_token': idToken}),
+        body: jsonEncode({
+          tokenField: token,
+          'device_id': deviceId,
+          'platform': platform,
+        }),
       ),
-      defaultServerMessage: 'Login Google gagal',
+      defaultServerMessage: defaultErrorMessage,
     );
 
-    final body = jsonDecode(response.body);
+    final body = jsonDecode(response.body) as Map<String, dynamic>;
 
-    if (body['data'] == null) {
-      throw const UnknownException(message: 'Response tidak valid');
-    }
+    final parsed = SocialAuthResponseParser.parseLogin(
+      body,
+      provider: provider,
+    );
+    if (parsed.result is SocialRegistrationPending) return parsed.result;
 
-    final data = body['data'];
-    final token = data['access_token'];
-    final refreshToken = data['refresh_token'];
-    final userJson = data['user'];
+    final authenticated = parsed.result as SocialLoginAuthenticated;
+    await saveToken(parsed.accessToken!);
+    await saveRefreshToken(parsed.refreshToken!);
+    await saveLoginUser(authenticated.user as UserModel);
+    return authenticated;
+  }
 
-    if (token == null || userJson == null) {
-      throw const UnknownException(message: 'Invalid login response');
-    }
+  @override
+  Future<UserModel> completeSocialRegistration({
+    required String ticket,
+    required String username,
+    required String password,
+  }) async {
+    final deviceId = await deviceIdService.getDeviceId();
+    final response = await HttpRequestHandler.send(
+      () => http.post(
+        Uri.parse('${ApiConfig.baseUrl}/api/user/auth/social/complete'),
+        headers: ApiConfig.headers,
+        body: jsonEncode({
+          'ticket': ticket,
+          'username': username.trim(),
+          'password': password,
+          'device_id': deviceId,
+          'platform': Platform.isIOS ? 'ios' : 'android',
+        }),
+      ),
+      defaultServerMessage: 'Gagal menyelesaikan pendaftaran',
+    );
 
-    final user = UserModel.fromApiJson(userJson);
-
-    await saveToken(token);
-    await saveRefreshToken(refreshToken);
-    await saveLoginUser(user);
-
-    return user;
+    final body = jsonDecode(response.body) as Map<String, dynamic>;
+    final parsed = SocialAuthResponseParser.parseCompletion(body);
+    await saveToken(parsed.accessToken);
+    await saveRefreshToken(parsed.refreshToken);
+    await saveLoginUser(parsed.user);
+    return parsed.user;
   }
 
   @override

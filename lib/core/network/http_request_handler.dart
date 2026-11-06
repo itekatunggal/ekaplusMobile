@@ -105,15 +105,21 @@ class HttpRequestHandler {
         extractMessage(response.body) ??
         defaultServerMessage ??
         'Permintaan ke server gagal';
+    final code = extractCode(response.body);
 
     if (response.statusCode == 401) {
-      throw UnauthorizedException(message: message, body: response.body);
+      throw UnauthorizedException(
+        message: message,
+        body: response.body,
+        code: code,
+      );
     }
 
     throw ServerException(
       message: message,
       statusCode: response.statusCode,
       body: response.body,
+      code: code,
     );
   }
 
@@ -137,5 +143,19 @@ class HttpRequestHandler {
     }
 
     return responseBody.trim().isEmpty ? null : responseBody;
+  }
+
+  static String? extractCode(String? responseBody) {
+    if (responseBody == null || responseBody.trim().isEmpty) return null;
+    try {
+      final decoded = jsonDecode(responseBody);
+      if (decoded is Map<String, dynamic>) {
+        final code = decoded['code']?.toString().trim();
+        return code == null || code.isEmpty ? null : code;
+      }
+    } catch (_) {
+      return null;
+    }
+    return null;
   }
 }

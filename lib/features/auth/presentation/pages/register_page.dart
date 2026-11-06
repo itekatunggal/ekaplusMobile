@@ -285,6 +285,16 @@ class _RegisterPageState extends State<RegisterPage>
               if (!mounted) return;
               context.go('/');
             });
+          } else if (state is SocialRegistrationRequired) {
+            if (_isNavigating) return;
+            _isNavigating = true;
+            FocusScope.of(context).unfocus();
+            context.pushNamed('social-account-completion', extra: state).then((
+              _,
+            ) {
+              if (!mounted) return;
+              setState(() => _isNavigating = false);
+            });
           } else if (state is LoginWithGoogleError) {
             setState(() {
               _isNavigating = false;

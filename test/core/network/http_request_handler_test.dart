@@ -6,6 +6,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 
 void main() {
+  test('extractCode membaca code backend', () {
+    expect(
+      HttpRequestHandler.extractCode(
+        '{"status":"error","code":"INVALID_REGISTRATION_TOKEN"}',
+      ),
+      'INVALID_REGISTRATION_TOKEN',
+    );
+  });
   group('HttpRequestHandler.send', () {
     test('maps socket failures to NetworkException', () async {
       expect(
