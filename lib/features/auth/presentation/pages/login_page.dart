@@ -518,14 +518,15 @@ class _LoginPageState extends State<LoginPage> {
   // GOOGLE LOGIN
   // ================================
 
-  Widget _buildGoogleButton() {
+  Widget _buildGoogleButton({required bool compact}) {
     return BlocBuilder<AuthBloc, AuthState>(
       builder: (context, state) {
         final isLoading =
             state is AuthLoading &&
             state.operation == AuthOperation.googleLogin;
         final disabled = state is AuthLoading || _isNavigating;
-        return Center(
+        return SizedBox(
+          width: compact ? 56 : double.infinity,
           child: Tooltip(
             message: 'Masuk dengan Google',
             child: Material(
@@ -533,7 +534,6 @@ class _LoginPageState extends State<LoginPage> {
               borderRadius: BorderRadius.circular(10),
               elevation: 0,
               child: Ink(
-                width: 56,
                 height: 48,
                 decoration: BoxDecoration(
                   color: Colors.white,
@@ -560,16 +560,33 @@ class _LoginPageState extends State<LoginPage> {
                               color: AppColors.primaryColor,
                             ),
                           )
-                        : Image.asset(
-                            'assets/icons/google.png',
-                            width: 24,
-                            height: 24,
-                            errorBuilder: (context, error, stackTrace) {
-                              return const Icon(
-                                Icons.g_mobiledata_rounded,
-                                size: 26,
-                              );
-                            },
+                        : Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Image.asset(
+                                'assets/icons/google.png',
+                                width: compact ? 24 : 21,
+                                height: compact ? 24 : 21,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return Icon(
+                                    Icons.g_mobiledata_rounded,
+                                    size: compact ? 26 : 25,
+                                  );
+                                },
+                              ),
+                              if (!compact) ...[
+                                const SizedBox(width: 10),
+                                const Text(
+                                  'Masuk dengan Google',
+                                  style: TextStyle(
+                                    fontFamily: AppFonts.primaryFont,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFF334155),
+                                  ),
+                                ),
+                              ],
+                            ],
                           ),
                   ),
                 ),
@@ -584,11 +601,16 @@ class _LoginPageState extends State<LoginPage> {
   Widget _buildSocialButtons() {
     final showApple =
         Platform.isIOS || (kDebugMode && _showApplePreviewOnAndroid);
+    if (!showApple) {
+      return _buildGoogleButton(compact: false);
+    }
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        _buildGoogleButton(),
-        if (showApple) ...[const SizedBox(width: 12), _buildAppleButton()],
+        _buildGoogleButton(compact: true),
+        const SizedBox(width: 12),
+        _buildAppleButton(),
       ],
     );
   }

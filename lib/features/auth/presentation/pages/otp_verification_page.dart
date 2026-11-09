@@ -177,12 +177,16 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
         _handleBack();
         return false;
       },
-      child: Scaffold(
+      child: CustomHeaderScaffold(
+        title: widget.title ?? 'Verifikasi OTP',
+        subtitle: 'Masukkan kode OTP yang telah dikirim',
+        showBackButton: true,
+        onBackPressed: _handleBack,
+        headerHeight: 160,
+        contentTop: 124,
+        backgroundColor: const Color(0xFFF6F7F9),
+        bodyPadding: EdgeInsets.zero,
         resizeToAvoidBottomInset: false,
-        appBar: CustomHeaderAppBar(
-          title: widget.title ?? 'Verifikasi OTP',
-          subtitle: 'Masukkan kode OTP yang telah dikirim',
-        ),
         body: BlocListener<AuthBloc, AuthState>(
           listener: (context, state) {
             if (state is OtpVerificationSuccess) {
@@ -223,96 +227,142 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
 
   Widget _buildOtpBody() {
     final screenWidth = MediaQuery.of(context).size.width;
-    final availableWidth = screenWidth - (10 * 2) - (4 * 2 * 6);
-    final fieldSize = (availableWidth / 6).clamp(44.0, 64.0);
+    final horizontal = screenWidth < 360 ? 16.0 : 20.0;
+    final availableWidth = screenWidth - (horizontal * 2) - 36 - (4 * 2 * 6);
+    final fieldSize = (availableWidth / 6).clamp(38.0, 52.0);
     final fontSize = (fieldSize * 0.4).clamp(20.0, 28.0);
 
     return Column(
       children: [
         Expanded(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(vertical: 20),
-            child: Column(
-              children: [
-                const SizedBox(height: 24),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 10),
-                  child: PinCodeTextField(
-                    appContext: context,
-                    length: 6,
-                    controller: _otpController!,
-                    focusNode: _pinFocusNode!,
-                    keyboardType: TextInputType.number,
-                    enableActiveFill: true,
-                    errorAnimationController: _errorController!,
-                    textStyle: TextStyle(
-                      fontSize: fontSize,
-                      fontWeight: FontWeight.bold,
-                      fontFamily: AppFonts.primaryFont,
+            padding: EdgeInsets.fromLTRB(horizontal, 0, horizontal, 20),
+            child: Center(
+              child: Container(
+                constraints: const BoxConstraints(maxWidth: 680),
+                padding: const EdgeInsets.fromLTRB(18, 20, 18, 18),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: const Color(0xFFF1F5F9)),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0x120F172A),
+                      blurRadius: 20,
+                      offset: Offset(0, 6),
                     ),
-                    pinTheme: PinTheme(
-                      shape: PinCodeFieldShape.box,
-                      borderRadius: BorderRadius.circular(10),
-                      fieldHeight: fieldSize,
-                      fieldWidth: fieldSize,
-                      fieldOuterPadding: const EdgeInsets.symmetric(
-                        horizontal: 4,
-                      ),
-                      activeFillColor: Colors.white,
-                      selectedFillColor: Colors.white,
-                      inactiveFillColor: Colors.grey[100],
-                      activeColor: const Color(0xFF2196F3),
-                      selectedColor: const Color(0xFF2196F3),
-                      inactiveColor: AppColors.grayColor.withOpacity(0.3),
-                      errorBorderColor: AppColors.primaryColor,
-                    ),
-                    onChanged: (value) {
-                      if (_hasError && value.isNotEmpty) {
-                        setState(() => _hasError = false);
-                      }
-                      _currentOtp = value;
-                    },
-
-                    onCompleted: (value) {
-                      if (_isDisposed || _isNavigating) return;
-
-                      _currentOtp = value;
-
-                      Future.microtask(() {
-                        if (mounted && !_isDisposed) {
-                          _verifyOtp();
-                        }
-                      });
-                    },
-                  ),
+                  ],
                 ),
-                const SizedBox(height: 12),
-                AnimatedOpacity(
-                  opacity: _hasError ? 1 : 0,
-                  duration: const Duration(milliseconds: 300),
-                  child: const Text(
-                    'OTP tidak valid',
-                    style: TextStyle(
+                child: Column(
+                  children: [
+                    const Icon(
+                      Icons.mark_chat_unread_outlined,
+                      size: 28,
                       color: AppColors.primaryColor,
-                      fontWeight: FontWeight.w500,
                     ),
-                  ),
+                    const SizedBox(height: 10),
+                    Text(
+                      'Kode dikirim ke ${widget.phoneNumber}',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontFamily: AppFonts.primaryFont,
+                        fontSize: 10.5,
+                        color: Color(0xFF64748B),
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    Padding(
+                      padding: EdgeInsets.zero,
+                      child: PinCodeTextField(
+                        appContext: context,
+                        length: 6,
+                        controller: _otpController!,
+                        focusNode: _pinFocusNode!,
+                        keyboardType: TextInputType.number,
+                        enableActiveFill: true,
+                        errorAnimationController: _errorController!,
+                        textStyle: TextStyle(
+                          fontSize: fontSize,
+                          fontWeight: FontWeight.bold,
+                          fontFamily: AppFonts.primaryFont,
+                        ),
+                        pinTheme: PinTheme(
+                          shape: PinCodeFieldShape.box,
+                          borderRadius: BorderRadius.circular(10),
+                          fieldHeight: fieldSize,
+                          fieldWidth: fieldSize,
+                          fieldOuterPadding: const EdgeInsets.symmetric(
+                            horizontal: 4,
+                          ),
+                          activeFillColor: const Color(0xFFF8FAFC),
+                          selectedFillColor: const Color(0xFFFFF1F2),
+                          inactiveFillColor: const Color(0xFFF8FAFC),
+                          activeColor: const Color(0xFFE2E8F0),
+                          selectedColor: AppColors.primaryColor,
+                          inactiveColor: const Color(0xFFE2E8F0),
+                          errorBorderColor: AppColors.primaryColor,
+                        ),
+                        onChanged: (value) {
+                          if (_hasError && value.isNotEmpty) {
+                            setState(() => _hasError = false);
+                          }
+                          _currentOtp = value;
+                        },
+
+                        onCompleted: (value) {
+                          if (_isDisposed || _isNavigating) return;
+
+                          _currentOtp = value;
+
+                          Future.microtask(() {
+                            if (mounted && !_isDisposed) {
+                              _verifyOtp();
+                            }
+                          });
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    AnimatedOpacity(
+                      opacity: _hasError ? 1 : 0,
+                      duration: const Duration(milliseconds: 300),
+                      child: const Text(
+                        'OTP tidak valid',
+                        style: TextStyle(
+                          color: AppColors.primaryColor,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    _buildResendSection(),
+                  ],
                 ),
-                const SizedBox(height: 8),
-                _buildResendSection(),
-              ],
+              ),
             ),
           ),
         ),
         Padding(
-          padding: const EdgeInsets.all(20),
+          padding: EdgeInsets.fromLTRB(horizontal, 12, horizontal, 20),
           child: ElevatedButton(
             onPressed: (_isNavigating || _isDisposed) ? null : _verifyOtp,
             style: ElevatedButton.styleFrom(
-              minimumSize: const Size(double.infinity, 56),
-              backgroundColor: AppColors.secondaryColor,
+              minimumSize: const Size(double.infinity, 48),
+              backgroundColor: AppColors.primaryColor,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
-            child: const Text('Selanjutnya'),
+            child: const Text(
+              'Verifikasi & Lanjutkan',
+              style: TextStyle(
+                fontFamily: AppFonts.primaryFont,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
           ),
         ),
       ],

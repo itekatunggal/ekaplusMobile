@@ -1,16 +1,7 @@
-// lib/features/auth/presentation/widgets/birth_info_section_widget.dart
-
 import 'package:ekaplus_ekatunggal/constant.dart';
 import 'package:flutter/material.dart';
 
 class BirthInfoSectionWidget extends StatelessWidget {
-  final TextEditingController birthPlaceController;
-  final TextEditingController birthDateController;
-  final String? selectedGender;
-  final Function(String?) onGenderChanged;
-  final Function() onSelectBirthDate;
-  final String? Function(String?, String)? validateRequired;
-
   const BirthInfoSectionWidget({
     super.key,
     required this.birthPlaceController,
@@ -21,37 +12,68 @@ class BirthInfoSectionWidget extends StatelessWidget {
     this.validateRequired,
   });
 
+  final TextEditingController birthPlaceController;
+  final TextEditingController birthDateController;
+  final String? selectedGender;
+  final ValueChanged<String?> onGenderChanged;
+  final VoidCallback onSelectBirthDate;
+  final String? Function(String?, String)? validateRequired;
+
+  static const _fieldFill = Color(0xFFF8FAFC);
+  static const _fieldBorder = Color(0xFFE2E8F0);
+
   @override
   Widget build(BuildContext context) {
     return Card(
       elevation: 0,
-      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      margin: const EdgeInsets.only(bottom: 14),
       color: AppColors.whiteColor,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(18),
+        side: const BorderSide(color: Color(0xFFF1F5F9)),
+      ),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(18),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Section Title
             const Text(
               'Informasi Kelahiran',
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-            ),
-            const SizedBox(height: 12),
-
-            _buildGenderDropdown(),
-            const SizedBox(height: 12),
-
-            _buildResponsivePair(
-              _buildTextField(
-                controller: birthPlaceController,
-                label: 'Tempat Lahir',
-                hint: 'Masukkan tempat lahir',
-                textCapitalization: TextCapitalization.words,
-                validator: (value) => validateRequired?.call(value, 'Tempat lahir'),
-                icon: Icons.location_on_outlined,
+              style: TextStyle(
+                fontFamily: AppFonts.primaryFont,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF0F172A),
               ),
-              _buildDateField(context),
+            ),
+            const SizedBox(height: 14),
+            _buildGenderDropdown(),
+            const SizedBox(height: 14),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final place = _buildTextField(
+                  controller: birthPlaceController,
+                  label: 'Tempat Lahir',
+                  hint: 'Masukkan tempat lahir',
+                  icon: Icons.location_on_outlined,
+                  validator: (value) =>
+                      validateRequired?.call(value, 'Tempat lahir'),
+                );
+                final date = _buildDateField();
+                if (constraints.maxWidth >= 440) {
+                  return Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(child: place),
+                      const SizedBox(width: 12),
+                      Expanded(child: date),
+                    ],
+                  );
+                }
+                return Column(
+                  children: [place, const SizedBox(height: 14), date],
+                );
+              },
             ),
           ],
         ),
@@ -59,257 +81,122 @@ class BirthInfoSectionWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildResponsivePair(Widget left, Widget right, {double spacing = 12}) {
-    return LayoutBuilder(builder: (context, constraints) {
-      const double breakpoint = 440;
-      if (constraints.maxWidth >= breakpoint) {
-        return Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(child: left),
-            SizedBox(width: spacing),
-            Expanded(child: right),
-          ],
-        );
-      } else {
-        return Column(children: [left, const SizedBox(height: 12), right]);
-      }
-    });
-  }
-
   Widget _buildTextField({
     required TextEditingController controller,
     required String label,
-    String? hint,
-    TextCapitalization? textCapitalization,
-    TextInputType? keyboardType,
-    String? Function(String?)? validator,
-    bool readOnly = false,
-    bool enabled = true,
+    required String hint,
     required IconData icon,
+    String? Function(String?)? validator,
   }) {
+    return _FieldShell(
+      label: label,
+      child: TextFormField(
+        controller: controller,
+        validator: validator,
+        textCapitalization: TextCapitalization.words,
+        style: _textStyle,
+        decoration: _decoration(hint: hint, icon: icon),
+      ),
+    );
+  }
+
+  Widget _buildDateField() {
+    return _FieldShell(
+      label: 'Tanggal Lahir',
+      child: TextFormField(
+        controller: birthDateController,
+        readOnly: true,
+        onTap: onSelectBirthDate,
+        validator: (value) => validateRequired?.call(value, 'Tanggal lahir'),
+        style: _textStyle,
+        decoration: _decoration(
+          hint: 'Pilih tanggal lahir',
+          icon: Icons.calendar_today_outlined,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGenderDropdown() {
+    return _FieldShell(
+      label: 'Jenis Kelamin',
+      child: DropdownButtonFormField<String>(
+        initialValue: selectedGender,
+        isExpanded: true,
+        menuMaxHeight: 220,
+        borderRadius: BorderRadius.circular(12),
+        dropdownColor: Colors.white,
+        style: _textStyle,
+        decoration: _decoration(
+          hint: 'Pilih jenis kelamin',
+          icon: Icons.wc_outlined,
+        ),
+        items: const [
+          DropdownMenuItem(value: 'Laki-laki', child: Text('Laki-laki')),
+          DropdownMenuItem(value: 'Perempuan', child: Text('Perempuan')),
+        ],
+        onChanged: onGenderChanged,
+        validator: (value) =>
+            value == null ? 'Jenis kelamin tidak boleh kosong' : null,
+      ),
+    );
+  }
+
+  TextStyle get _textStyle => const TextStyle(
+    fontFamily: AppFonts.primaryFont,
+    color: Color(0xFF0F172A),
+    fontWeight: FontWeight.w400,
+    fontSize: 12,
+  );
+
+  InputDecoration _decoration({required String hint, required IconData icon}) {
+    OutlineInputBorder border(Color color, [double width = 1]) =>
+        OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: color, width: width),
+        );
+    return InputDecoration(
+      prefixIcon: Icon(icon, size: 19, color: const Color(0xFF64748B)),
+      hintText: hint,
+      hintStyle: const TextStyle(
+        fontFamily: AppFonts.primaryFont,
+        fontSize: 11,
+        color: Color(0xFF94A3B8),
+      ),
+      filled: true,
+      fillColor: _fieldFill,
+      border: border(_fieldBorder),
+      enabledBorder: border(_fieldBorder),
+      focusedBorder: border(AppColors.primaryColor, 1.4),
+      errorBorder: border(AppColors.primaryColor, 1.2),
+      focusedErrorBorder: border(AppColors.primaryColor, 1.4),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+    );
+  }
+}
+
+class _FieldShell extends StatelessWidget {
+  const _FieldShell({required this.label, required this.child});
+
+  final String label;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           label,
           style: const TextStyle(
-            fontSize: 12,
-            color: Colors.black54,
-            fontWeight: FontWeight.w500,
+            fontFamily: AppFonts.primaryFont,
+            fontSize: 10.5,
+            color: Color(0xFF475569),
+            fontWeight: FontWeight.w600,
           ),
         ),
-        const SizedBox(height: 6),
-        TextFormField(
-          controller: controller,
-          keyboardType: keyboardType,
-          validator: validator,
-          textCapitalization: textCapitalization ?? TextCapitalization.none,
-          readOnly: readOnly,
-          enabled: enabled,
-          decoration: InputDecoration(
-            prefixIcon: Icon(icon, size: 20),
-            hintText: hint,
-            hintStyle: const TextStyle(fontSize: 14, color: Colors.grey),
-            filled: true,
-            fillColor: enabled ? AppColors.whiteColor : Colors.grey[100],
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(color: AppColors.blackColor),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(color: AppColors.blackColor),
-            ),
-            disabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(color: Colors.grey[300]!),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(
-                color: AppColors.primaryColor,
-                width: 2,
-              ),
-            ),
-            errorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(
-                color: AppColors.primaryColor,
-                width: 2,
-              ),
-            ),
-            focusedErrorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(
-                color: AppColors.primaryColor,
-                width: 2,
-              ),
-            ),
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: 14,
-            ),
-          ),
-          style: const TextStyle(
-            color: Colors.black87,
-            fontWeight: FontWeight.w400,
-            fontSize: 14,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildDateField(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Tanggal Lahir',
-          style: TextStyle(
-            fontSize: 12,
-            color: Colors.black54,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        const SizedBox(height: 6),
-        TextFormField(
-          controller: birthDateController,
-          readOnly: true,
-          onTap: onSelectBirthDate,
-          validator: (value) => validateRequired?.call(value, 'Tanggal lahir'),
-          decoration: InputDecoration(
-            prefixIcon: const Icon(Icons.calendar_today, size: 20),
-            hintText: 'Pilih tanggal lahir',
-            hintStyle: const TextStyle(fontSize: 14, color: Colors.grey),
-            filled: true,
-            fillColor: AppColors.whiteColor,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(color: AppColors.blackColor),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(color: AppColors.blackColor),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(
-                color: AppColors.primaryColor,
-                width: 2,
-              ),
-            ),
-            errorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(
-                color: AppColors.primaryColor,
-                width: 2,
-              ),
-            ),
-            focusedErrorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(
-                color: AppColors.primaryColor,
-                width: 2,
-              ),
-            ),
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: 14,
-            ),
-          ),
-          style: const TextStyle(
-            color: Colors.black87,
-            fontWeight: FontWeight.w400,
-            fontSize: 14,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildGenderDropdown() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Jenis Kelamin',
-          style: TextStyle(
-            fontSize: 12,
-            color: Colors.black54,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        const SizedBox(height: 6),
-        DropdownButtonFormField<String>(
-          initialValue: selectedGender,
-          isExpanded: true,
-          menuMaxHeight: 200,
-          dropdownColor: AppColors.whiteColor,
-          borderRadius: BorderRadius.circular(8),
-          decoration: InputDecoration(
-            prefixIcon: const Icon(Icons.wc_outlined, size: 20),
-            hintText: 'Pilih jenis kelamin',
-            hintStyle: const TextStyle(fontSize: 14, color: Colors.grey),
-            filled: true,
-            fillColor: AppColors.whiteColor,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(color: AppColors.blackColor),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(color: AppColors.blackColor),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(
-                color: AppColors.primaryColor,
-                width: 2,
-              ),
-            ),
-            errorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(
-                color: AppColors.primaryColor,
-                width: 2,
-              ),
-            ),
-            focusedErrorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(
-                color: AppColors.primaryColor,
-                width: 2,
-              ),
-            ),
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: 14,
-            ),
-          ),
-          items: const [
-            DropdownMenuItem(
-              value: 'Laki-laki',
-              child: Padding(
-                padding: EdgeInsets.symmetric(horizontal: 8),
-                child: Text('Laki-laki', style: TextStyle(fontSize: 14)),
-              ),
-            ),
-            DropdownMenuItem(
-              value: 'Perempuan',
-              child: Padding(
-                padding: EdgeInsets.symmetric(horizontal: 8),
-                child: Text('Perempuan', style: TextStyle(fontSize: 14)),
-              ),
-            ),
-          ],
-          onChanged: onGenderChanged,
-          validator: (value) {
-            if (value == null) return 'Jenis kelamin tidak boleh kosong';
-            return null;
-          },
-        ),
+        const SizedBox(height: 7),
+        child,
       ],
     );
   }

@@ -324,133 +324,139 @@ class _RegisterFormPageState extends State<RegisterFormPage> {
 
   @override
   Widget build(BuildContext context) {
-    // final primaryColor = AppColors.primaryColor;
-    final yellowColor = const Color(0xFFFDD100);
+    return BlocListener<AuthBloc, AuthState>(
+      listener: (context, state) async {
+        if (!mounted || _isDisposed) return;
 
-    return Scaffold(
-      backgroundColor: AppColors.whiteColor,
-      appBar: const CustomHeaderAppBar(
-        title: 'Daftar',
-        subtitle: 'Lengkapi Profil Anda',
-      ),
-      body: BlocListener<AuthBloc, AuthState>(
-        listener: (context, state) async {
-          if (!mounted || _isDisposed) return;
+        if (state is RegisterSuccess) {
+          debugPrint('✅ RegisterSuccess (listener)');
+          // 1. Tutup keyboard/hapus fokus secara paksa sebelum navigasi
+          FocusScope.of(context).unfocus();
 
-          if (state is RegisterSuccess) {
-            debugPrint('✅ RegisterSuccess (listener)');
-            // 1. Tutup keyboard/hapus fokus secara paksa sebelum navigasi
-            FocusScope.of(context).unfocus();
-
-            if (mounted && !_isDisposed) {
-              AppSnackbar.showRaw(
-                context,
-                const SnackBar(
-                  content: Text('Registrasi berhasil — mengarahkan ke login'),
-                  backgroundColor: Colors.green,
-                  duration: Duration(milliseconds: 900),
-                ),
-              );
-            }
-
-            // 2. 🔥 PENTING: Reset state AuthBloc sebelum navigasi
-            WidgetsBinding.instance.addPostFrameCallback((_) async {
-              if (!mounted || _isDisposed) return;
-
-              // Reset state dulu
-              context.read<AuthBloc>().add(ResetAuthEvent());
-
-              // Kasih jeda kecil untuk state reset
-              await Future.delayed(const Duration(milliseconds: 100));
-
-              if (!mounted || _isDisposed) return;
-              // Baru navigasi
-              context.go('/login');
-            });
-
-            return;
+          if (mounted && !_isDisposed) {
+            AppSnackbar.showRaw(
+              context,
+              const SnackBar(
+                content: Text('Registrasi berhasil — mengarahkan ke login'),
+                backgroundColor: Colors.green,
+                duration: Duration(milliseconds: 900),
+              ),
+            );
           }
 
-          if (state is RegisterError) {
-            debugPrint('❌ Registration Error: ${state.message}');
-            // Re-enable button so user can retry
-            if (mounted && !_isDisposed) {
-              setState(() => _isNavigating = false);
-              AppSnackbar.showRaw(
-                context,
-                SnackBar(
-                  content: Text(state.message),
-                  backgroundColor: AppColors.primaryColor,
-                ),
-              );
-            }
-            return;
+          // 2. 🔥 PENTING: Reset state AuthBloc sebelum navigasi
+          WidgetsBinding.instance.addPostFrameCallback((_) async {
+            if (!mounted || _isDisposed) return;
+
+            // Reset state dulu
+            context.read<AuthBloc>().add(ResetAuthEvent());
+
+            // Kasih jeda kecil untuk state reset
+            await Future.delayed(const Duration(milliseconds: 100));
+
+            if (!mounted || _isDisposed) return;
+            // Baru navigasi
+            context.go('/login');
+          });
+
+          return;
+        }
+
+        if (state is RegisterError) {
+          debugPrint('❌ Registration Error: ${state.message}');
+          // Re-enable button so user can retry
+          if (mounted && !_isDisposed) {
+            setState(() => _isNavigating = false);
+            AppSnackbar.showRaw(
+              context,
+              SnackBar(
+                content: Text(state.message),
+                backgroundColor: AppColors.primaryColor,
+              ),
+            );
           }
-        },
-        child: Column(
-          children: [
-            Expanded(
-              child: SingleChildScrollView(
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    children: [
-                      const SizedBox(height: 16),
+          return;
+        }
+      },
+      child: CustomHeaderScaffold(
+        title: 'Lengkapi Data Diri',
+        subtitle: 'Satu langkah lagi untuk membuat akun Anda',
+        showBackButton: true,
+        headerHeight: 160,
+        contentTop: 124,
+        backgroundColor: const Color(0xFFF6F7F9),
+        bodyPadding: EdgeInsets.zero,
+        resizeToAvoidBottomInset: true,
+        body: LayoutBuilder(
+          builder: (context, constraints) {
+            final horizontal = constraints.maxWidth >= 600
+                ? 24.0
+                : constraints.maxWidth < 360
+                ? 16.0
+                : 20.0;
+            return SingleChildScrollView(
+              padding: EdgeInsets.fromLTRB(horizontal, 0, horizontal, 28),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 680),
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      children: [
+                        // 1. Personal Info Section
+                        PersonalInfoSectionWidget(
+                          firstNameController: _firstNameController,
+                          lastNameController: _lastNameController,
+                          fullNameController: _fullNameController,
+                          usernameController: _usernameController,
+                          validateName: _validateName,
+                        ),
 
-                      // 1. Personal Info Section
-                      PersonalInfoSectionWidget(
-                        firstNameController: _firstNameController,
-                        lastNameController: _lastNameController,
-                        fullNameController: _fullNameController,
-                        usernameController: _usernameController,
-                        validateName: _validateName,
-                      ),
+                        // 2. Birth Info Section
+                        BirthInfoSectionWidget(
+                          birthPlaceController: _birthPlaceController,
+                          birthDateController: _birthDateController,
+                          selectedGender: _selectedGender,
+                          onGenderChanged: (value) {
+                            setState(() {
+                              _selectedGender = value;
+                            });
+                          },
+                          onSelectBirthDate: _selectBirthDate,
+                          validateRequired: _validateRequired,
+                        ),
 
-                      // 2. Birth Info Section
-                      BirthInfoSectionWidget(
-                        birthPlaceController: _birthPlaceController,
-                        birthDateController: _birthDateController,
-                        selectedGender: _selectedGender,
-                        onGenderChanged: (value) {
-                          setState(() {
-                            _selectedGender = value;
-                          });
-                        },
-                        onSelectBirthDate: _selectBirthDate,
-                        validateRequired: _validateRequired,
-                      ),
+                        // 3. Contact Info Section
+                        ContactInfoSectionWidget(
+                          emailController: _emailController,
+                          phoneController: _phoneController,
+                          validateEmail: _validateEmail,
+                        ),
 
-                      // 3. Contact Info Section
-                      ContactInfoSectionWidget(
-                        emailController: _emailController,
-                        phoneController: _phoneController,
-                        validateEmail: _validateEmail,
-                      ),
+                        // 4. Password Section
+                        PasswordSectionWidget(
+                          passwordController: _passwordController,
+                          confirmPasswordController: _confirmPasswordController,
+                          obscurePassword: _obscurePassword,
+                          obscureConfirmPassword: _obscureConfirmPassword,
+                          onTogglePassword: () {
+                            setState(
+                              () => _obscurePassword = !_obscurePassword,
+                            );
+                          },
+                          onToggleConfirmPassword: () {
+                            setState(
+                              () => _obscureConfirmPassword =
+                                  !_obscureConfirmPassword,
+                            );
+                          },
+                          validatePassword: _validatePassword,
+                          validateConfirmPassword: _validateConfirmPassword,
+                        ),
 
-                      // 4. Password Section
-                      PasswordSectionWidget(
-                        passwordController: _passwordController,
-                        confirmPasswordController: _confirmPasswordController,
-                        obscurePassword: _obscurePassword,
-                        obscureConfirmPassword: _obscureConfirmPassword,
-                        onTogglePassword: () {
-                          setState(() => _obscurePassword = !_obscurePassword);
-                        },
-                        onToggleConfirmPassword: () {
-                          setState(
-                            () => _obscureConfirmPassword =
-                                !_obscureConfirmPassword,
-                          );
-                        },
-                        validatePassword: _validatePassword,
-                        validateConfirmPassword: _validateConfirmPassword,
-                      ),
-
-                      const SizedBox(height: 16),
-                      // Submit Button
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: BlocBuilder<AuthBloc, AuthState>(
+                        const SizedBox(height: 8),
+                        // Submit Button
+                        BlocBuilder<AuthBloc, AuthState>(
                           builder: (context, state) {
                             final isLoading = state is AuthLoading;
                             return SizedBox(
@@ -461,12 +467,14 @@ class _RegisterFormPageState extends State<RegisterFormPage> {
                                     ? null
                                     : _submitForm,
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: yellowColor,
-                                  foregroundColor: AppColors.blackColor,
-                                  disabledBackgroundColor: Colors.grey[300],
+                                  backgroundColor: AppColors.primaryColor,
+                                  foregroundColor: AppColors.whiteColor,
+                                  disabledBackgroundColor: AppColors
+                                      .primaryColor
+                                      .withOpacity(.45),
                                   elevation: 0,
                                   shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(8),
+                                    borderRadius: BorderRadius.circular(12),
                                   ),
                                 ),
                                 child: isLoading
@@ -475,28 +483,29 @@ class _RegisterFormPageState extends State<RegisterFormPage> {
                                         width: 20,
                                         child: CircularProgressIndicator(
                                           strokeWidth: 2,
-                                          color: AppColors.blackColor,
+                                          color: AppColors.whiteColor,
                                         ),
                                       )
                                     : const Text(
                                         'Simpan & Daftar',
                                         style: TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.w600,
+                                          fontFamily: AppFonts.primaryFont,
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w700,
                                         ),
                                       ),
                               ),
                             );
                           },
                         ),
-                      ),
-                      const SizedBox(height: 32),
-                    ],
+                        const SizedBox(height: 32),
+                      ],
+                    ),
                   ),
                 ),
               ),
-            ),
-          ],
+            );
+          },
         ),
       ),
     );
