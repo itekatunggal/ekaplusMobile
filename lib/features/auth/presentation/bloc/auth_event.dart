@@ -21,7 +21,10 @@ class CheckPasswordEvent extends AuthEvent {
   const CheckPasswordEvent(this.password);
 
   @override
-  List<Object> get props => [password];
+  List<Object> get props => const [];
+
+  @override
+  String toString() => 'CheckPasswordEvent()';
 }
 
 class ChangePasswordEvent extends AuthEvent {
@@ -34,7 +37,10 @@ class ChangePasswordEvent extends AuthEvent {
   });
 
   @override
-  List<Object> get props => [oldPassword, newPassword];
+  List<Object> get props => const [];
+
+  @override
+  String toString() => 'ChangePasswordEvent()';
 }
 
 class CheckPhoneExistsEvent extends AuthEvent {
@@ -105,7 +111,6 @@ class RegisterUserEvent extends AuthEvent {
     lastName,
     username,
     email,
-    password,
     gender,
     dateOfBirth,
     birthPlace,
@@ -119,7 +124,10 @@ class LoginUserEvent extends AuthEvent {
   const LoginUserEvent({required this.identifier, required this.password});
 
   @override
-  List<Object> get props => [identifier, password];
+  List<Object> get props => [identifier];
+
+  @override
+  String toString() => 'LoginUserEvent(identifier: $identifier)';
 }
 
 class LoginWithGoogleEvent extends AuthEvent {
@@ -127,6 +135,28 @@ class LoginWithGoogleEvent extends AuthEvent {
 
   @override
   List<Object> get props => [];
+}
+
+class LoginWithAppleEvent extends AuthEvent {
+  const LoginWithAppleEvent();
+}
+
+class CompleteSocialRegistrationEvent extends AuthEvent {
+  final String ticket;
+  final String username;
+  final String password;
+
+  const CompleteSocialRegistrationEvent({
+    required this.ticket,
+    required this.username,
+    required this.password,
+  });
+
+  @override
+  List<Object> get props => [username];
+
+  @override
+  String toString() => 'CompleteSocialRegistrationEvent(username: $username)';
 }
 
 class UpdateProfilePictureEvent extends AuthEvent {

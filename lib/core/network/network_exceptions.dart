@@ -2,11 +2,13 @@ abstract class AppNetworkException implements Exception {
   final String message;
   final int? statusCode;
   final String? body;
+  final String? code;
 
   const AppNetworkException({
     required this.message,
     this.statusCode,
     this.body,
+    this.code,
   });
 
   @override
@@ -32,6 +34,7 @@ class ServerException extends AppNetworkException {
     super.message = 'Terjadi kesalahan pada server',
     super.statusCode,
     super.body,
+    super.code,
   });
 }
 
@@ -40,6 +43,7 @@ class UnauthorizedException extends AppNetworkException {
     super.message = 'Sesi login berakhir',
     super.statusCode = 401,
     super.body,
+    super.code,
   });
 }
 
@@ -55,5 +59,6 @@ class UnknownException extends AppNetworkException {
     super.message = 'Terjadi kesalahan yang tidak diketahui',
     super.statusCode,
     super.body,
+    super.code,
   });
 }

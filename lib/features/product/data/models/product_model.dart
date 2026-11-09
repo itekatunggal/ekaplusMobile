@@ -18,7 +18,18 @@ class VariantModel extends VariantEntity {
     required super.name,
     required super.description,
     required super.image,
+    super.length,
+    super.width,
+    super.height,
+    super.weight,
+    super.standardCollyItem,
+    super.uom,
   });
+
+  static num? _toNum(dynamic value) {
+    if (value is num) return value;
+    return num.tryParse(value?.toString() ?? '');
+  }
 
   factory VariantModel.fromJson(Map<String, dynamic> json) {
     final item = json['item'] as Map<String, dynamic>?;
@@ -29,6 +40,12 @@ class VariantModel extends VariantEntity {
       name: item?['item_name'] ?? '',
       description: item?['item_desc'] ?? '',
       image: item?['image'] ?? '',
+      length: _toNum(item?['length']),
+      width: _toNum(item?['width']),
+      height: _toNum(item?['height']),
+      weight: _toNum(item?['weight']),
+      standardCollyItem: _toNum(item?['standard_colly_item']),
+      uom: item?['uom']?.toString(),
     );
   }
 }

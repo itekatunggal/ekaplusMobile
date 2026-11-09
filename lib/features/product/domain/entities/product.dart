@@ -16,6 +16,12 @@ class VariantEntity extends Equatable {
   final String name;
   final String description;
   final String image;
+  final num? length;
+  final num? width;
+  final num? height;
+  final num? weight;
+  final num? standardCollyItem;
+  final String? uom;
 
   const VariantEntity({
     required this.id,
@@ -23,10 +29,28 @@ class VariantEntity extends Equatable {
     required this.name,
     required this.description,
     required this.image,
+    this.length,
+    this.width,
+    this.height,
+    this.weight,
+    this.standardCollyItem,
+    this.uom,
   });
 
   @override
-  List<Object?> get props => [id, code, name, description, image];
+  List<Object?> get props => [
+    id,
+    code,
+    name,
+    description,
+    image,
+    length,
+    width,
+    height,
+    weight,
+    standardCollyItem,
+    uom,
+  ];
 }
 
 class Product extends Equatable {

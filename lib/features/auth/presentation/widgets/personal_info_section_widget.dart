@@ -23,17 +23,26 @@ class PersonalInfoSectionWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       elevation: 0,
-      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      margin: const EdgeInsets.only(bottom: 14),
       color: AppColors.whiteColor,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(18),
+        side: const BorderSide(color: Color(0xFFF1F5F9)),
+      ),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
+        padding: const EdgeInsets.all(18),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Section Title
             const Text(
               'Informasi Personal',
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+              style: TextStyle(
+                fontFamily: AppFonts.primaryFont,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF0F172A),
+              ),
             ),
             const SizedBox(height: 12),
 
@@ -79,22 +88,28 @@ class PersonalInfoSectionWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildResponsivePair(Widget left, Widget right, {double spacing = 12}) {
-    return LayoutBuilder(builder: (context, constraints) {
-      const double breakpoint = 440;
-      if (constraints.maxWidth >= breakpoint) {
-        return Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(child: left),
-            SizedBox(width: spacing),
-            Expanded(child: right),
-          ],
-        );
-      } else {
-        return Column(children: [left, const SizedBox(height: 12), right]);
-      }
-    });
+  Widget _buildResponsivePair(
+    Widget left,
+    Widget right, {
+    double spacing = 12,
+  }) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const double breakpoint = 440;
+        if (constraints.maxWidth >= breakpoint) {
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(child: left),
+              SizedBox(width: spacing),
+              Expanded(child: right),
+            ],
+          );
+        } else {
+          return Column(children: [left, const SizedBox(height: 12), right]);
+        }
+      },
+    );
   }
 
   Widget _buildTextField({
@@ -114,9 +129,10 @@ class PersonalInfoSectionWidget extends StatelessWidget {
         Text(
           label,
           style: const TextStyle(
-            fontSize: 12,
-            color: Colors.black54,
-            fontWeight: FontWeight.w500,
+            fontFamily: AppFonts.primaryFont,
+            fontSize: 10.5,
+            color: Color(0xFF475569),
+            fontWeight: FontWeight.w600,
           ),
         ),
         const SizedBox(height: 6),
@@ -130,51 +146,52 @@ class PersonalInfoSectionWidget extends StatelessWidget {
           decoration: InputDecoration(
             prefixIcon: Icon(icon, size: 20),
             hintText: hint,
-            hintStyle: const TextStyle(fontSize: 14, color: Colors.grey),
+            hintStyle: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
             filled: true,
-            fillColor: enabled ? AppColors.whiteColor : Colors.grey[100],
+            fillColor: const Color(0xFFF8FAFC),
             border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(color: AppColors.blackColor),
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
             ),
             enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(color: AppColors.blackColor),
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
             ),
             disabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(color: Colors.grey[300]!),
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
             ),
             focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(12),
               borderSide: const BorderSide(
                 color: AppColors.primaryColor,
                 width: 2,
               ),
             ),
             errorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(12),
               borderSide: const BorderSide(
                 color: AppColors.primaryColor,
                 width: 2,
               ),
             ),
             focusedErrorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(12),
               borderSide: const BorderSide(
                 color: AppColors.primaryColor,
                 width: 2,
               ),
             ),
             contentPadding: const EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: 14,
+              horizontal: 14,
+              vertical: 13,
             ),
           ),
           style: const TextStyle(
             color: Colors.black87,
             fontWeight: FontWeight.w400,
-            fontSize: 14,
+            fontFamily: AppFonts.primaryFont,
+            fontSize: 12,
           ),
         ),
         const SizedBox(height: 12),

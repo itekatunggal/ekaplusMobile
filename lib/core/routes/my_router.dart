@@ -36,6 +36,10 @@ import 'package:ekaplus_ekatunggal/features/auth/presentation/bloc/otp_timer/otp
 import 'package:ekaplus_ekatunggal/features/auth/presentation/bloc/otp_timer/otp_timer_event.dart';
 import 'package:ekaplus_ekatunggal/features/auth/presentation/pages/forgot_password_phone_page.dart';
 import 'package:ekaplus_ekatunggal/features/auth/presentation/pages/login_page.dart';
+import 'package:ekaplus_ekatunggal/features/auth/presentation/pages/social_account_completion_page.dart';
+import 'package:ekaplus_ekatunggal/features/auth/presentation/bloc/auth_state.dart';
+import 'package:ekaplus_ekatunggal/features/auth/domain/entities/social_auth_result.dart';
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:ekaplus_ekatunggal/features/auth/presentation/pages/otp_verification_page.dart';
 import 'package:ekaplus_ekatunggal/features/auth/presentation/pages/register_form_page.dart';
 import 'package:ekaplus_ekatunggal/features/auth/presentation/pages/register_page.dart';
@@ -117,8 +121,7 @@ class MyRouter {
   GoRouter get router => GoRouter(
     navigatorKey: globalNavigatorKey,
     // initialLocation: "/splash",
-    initialLocation: "/customer",
-    // initialLocation: "/account",
+    initialLocation: "/",
     routes: [
       // ********** Splash Screen (tanpa bottom nav) **********
       GoRoute(
@@ -381,6 +384,33 @@ class MyRouter {
         path: '/login',
         builder: (context, state) {
           return LoginPage();
+        },
+      ),
+
+      GoRoute(
+        name: 'social-account-completion',
+        path: '/social-account-completion',
+        builder: (context, state) {
+          final registration = state.extra;
+          if (registration is! SocialRegistrationRequired) {
+            if (kDebugMode) {
+              return const SocialAccountCompletionPage(
+                registration: SocialRegistrationRequired(
+                  registrationToken: 'debug-preview-token',
+                  expiresIn: 3600,
+                  prefill: SocialPrefill(
+                    email: 'budi@example.com',
+                    firstName: 'Budi',
+                    lastName: 'Santoso',
+                    fullName: 'Budi Santoso',
+                  ),
+                  provider: SocialProvider.google,
+                ),
+              );
+            }
+            return const LoginPage();
+          }
+          return SocialAccountCompletionPage(registration: registration);
         },
       ),
 

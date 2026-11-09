@@ -2,6 +2,7 @@
 // ignore_for_file: use_build_context_synchronously
 
 import 'dart:io' as io;
+
 import 'package:ekaplus_ekatunggal/constant.dart';
 import 'package:ekaplus_ekatunggal/core/shared_widgets/custom_header.dart';
 import 'package:ekaplus_ekatunggal/features/auth/presentation/bloc/auth_bloc.dart';
@@ -127,6 +128,16 @@ class _RegisterPageState extends State<RegisterPage>
     }
   }
 
+  void _closeRegister() {
+    if (_isNavigating) return;
+    FocusScope.of(context).unfocus();
+    if (context.canPop()) {
+      context.pop();
+    } else {
+      context.go('/');
+    }
+  }
+
   void _showSuccessSnackBar(String message) {
     final bool isIOS = io.Platform.isIOS;
 
@@ -214,199 +225,252 @@ class _RegisterPageState extends State<RegisterPage>
 
   @override
   Widget build(BuildContext context) {
-    final bool isIOS = io.Platform.isIOS;
-    final size = MediaQuery.of(context).size;
-    final isSmallScreen = size.width < 360;
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final isSmallScreen = screenWidth < 360;
+    final sheetHorizontalPadding = screenWidth >= 600
+        ? 24.0
+        : isSmallScreen
+        ? 16.0
+        : 20.0;
+    final isIOS = io.Platform.isIOS;
 
-    return Scaffold(
-      resizeToAvoidBottomInset: true,
-      backgroundColor: AppColors.whiteColor,
-      appBar: const CustomHeaderAppBar(title: 'Daftar'),
-      body: BlocListener<AuthBloc, AuthState>(
-        listener: (context, state) {
-          if (state is AuthInitial) {
-            _resetNavigationState();
+    return BlocListener<AuthBloc, AuthState>(
+      listener: (context, state) {
+        if (state is AuthInitial) {
+          _resetNavigationState();
+        }
+
+        if (state is PhoneCheckSuccess) {
+          if (state.exists) {
+            setState(() {
+              _phoneErrorMessage =
+                  'Nomor ini sudah terdaftar. Silakan login atau gunakan nomor lain.';
+              _isNavigating = false;
+            });
+            _formKey.currentState!.validate();
+            _triggerShake();
+          } else {
+            final normalizedPhone = _normalizePhone(_phoneController.text);
+            context.read<AuthBloc>().add(RegisterOtpEvent(normalizedPhone));
           }
+        } else if (state is PhoneCheckError) {
+          setState(() {
+            _phoneErrorMessage = state.message;
+            _isNavigating = false;
+          });
+          _formKey.currentState!.validate();
+          _triggerShake();
+        } else if (state is OtpRequestSuccess) {
+          if (_isNavigating) return;
+          _isNavigating = true;
 
-          if (state is PhoneCheckSuccess) {
-            if (state.exists) {
+          _showSuccessSnackBar(
+            'Kode verifikasi 6 digit telah dikirim ke WhatsApp Anda',
+          );
+
+          Future.microtask(() {
+            if (!mounted) return;
+            context.push('/otp', extra: state.phone).then((_) {
+              if (!mounted) return;
               setState(() {
-                _phoneErrorMessage =
-                    'Nomor ini sudah terdaftar. Silakan login atau gunakan nomor lain.';
                 _isNavigating = false;
               });
-              _formKey.currentState!.validate();
-              _triggerShake();
-            } else {
-              final normalizedPhone = _normalizePhone(_phoneController.text);
-              context.read<AuthBloc>().add(RegisterOtpEvent(normalizedPhone));
-            }
-          } else if (state is PhoneCheckError) {
-            setState(() {
-              _phoneErrorMessage = state.message;
-              _isNavigating = false;
             });
-            _formKey.currentState!.validate();
-            _triggerShake();
-          } else if (state is OtpRequestSuccess) {
-            if (_isNavigating) return;
-            _isNavigating = true;
+          });
+        } else if (state is OtpRequestError) {
+          setState(() {
+            _phoneErrorMessage = state.message;
+            _isNavigating = false;
+          });
+          _formKey.currentState!.validate();
+          _triggerShake();
+        } else if (state is LoginWithGoogleSuccess ||
+            state is LoginWithAppleSuccess) {
+          if (_isNavigating) return;
+          _isNavigating = true;
 
-            _showSuccessSnackBar(
-              '📱 Kode verifikasi 6 digit telah dikirim ke WhatsApp Anda',
-            );
+          FocusScope.of(context).unfocus();
+          final user = switch (state) {
+            LoginWithGoogleSuccess(:final user) => user,
+            LoginWithAppleSuccess(:final user) => user,
+            _ => throw StateError('State login sosial tidak didukung'),
+          };
+          context.read<AuthSessionCubit>().login(user);
 
-            Future.microtask(() {
-              if (!mounted) return;
-              context.push('/otp', extra: state.phone).then((_) {
-                if (!mounted) return;
-                setState(() {
-                  _isNavigating = false;
-                });
-              });
-            });
-          } else if (state is OtpRequestError) {
-            setState(() {
-              _phoneErrorMessage = state.message;
-              _isNavigating = false;
-            });
-            _formKey.currentState!.validate();
-            _triggerShake();
-          } else if (state is LoginWithGoogleSuccess) {
-            if (_isNavigating) return;
-            _isNavigating = true;
+          _showSuccessSnackBar('Selamat datang, ${user.fullName}!');
 
-            FocusScope.of(context).unfocus();
-            context.read<AuthSessionCubit>().login(state.user);
-
-            _showSuccessSnackBar('Selamat datang, ${state.user.fullName}! 👋');
-
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (!mounted) return;
-              context.go('/');
-            });
-          } else if (state is LoginWithGoogleError) {
-            setState(() {
-              _isNavigating = false;
-            });
-            _showErrorSnackBar(state.message);
-          }
-        },
-        child: Column(
-          children: [
-            Expanded(
-              child: SingleChildScrollView(
-                physics: const ClampingScrollPhysics(),
-                padding: EdgeInsets.fromLTRB(
-                  20,
-                  isSmallScreen ? 16 : 24,
-                  20,
-                  20,
-                ),
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      // Info Card
-                      _buildInfoCard(isSmallScreen, isIOS),
-
-                      SizedBox(height: isSmallScreen ? 24 : 32),
-
-                      // Phone Input
-                      _buildPhoneInput(isSmallScreen, isIOS),
-
-                      SizedBox(height: isSmallScreen ? 12 : 16),
-
-                      // Helper Text
-                      _buildHelperText(isSmallScreen, isIOS),
-
-                      SizedBox(height: isSmallScreen ? 32 : 40),
-
-                      // Divider
-                      _buildDivider(isSmallScreen, isIOS),
-
-                      SizedBox(height: isSmallScreen ? 32 : 40),
-
-                      // Google Sign In Button
-                      _buildGoogleButton(isSmallScreen, isIOS),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-
-            // Bottom Section
-            _buildBottomSection(isSmallScreen, isIOS),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildInfoCard(bool isSmallScreen, bool isIOS) {
-    return Container(
-      padding: EdgeInsets.all(isSmallScreen ? 14 : 16),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            AppColors.secondaryColor.withOpacity(0.1),
-            AppColors.secondaryColor.withOpacity(0.05),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: AppColors.secondaryColor.withOpacity(0.2),
-          width: 1,
-        ),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: AppColors.secondaryColor.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(
-              Icons.info_outline_rounded,
-              color: AppColors.secondaryColor,
-              size: isSmallScreen ? 22 : 24,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Verifikasi WhatsApp',
-                  style: TextStyle(
-                    fontFamily: AppFonts.primaryFont,
-                    fontSize: isSmallScreen
-                        ? (isIOS ? 13 : 12)
-                        : (isIOS ? 14 : 13),
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.blackColor,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Kode OTP akan dikirim via WhatsApp',
-                  style: TextStyle(
-                    fontSize: isSmallScreen
-                        ? (isIOS ? 11 : 10)
-                        : (isIOS ? 12 : 11),
-                    color: AppColors.grayColor,
-                    height: 1.3,
-                  ),
-                ),
-              ],
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
+            context.go('/');
+          });
+        } else if (state is SocialRegistrationRequired) {
+          if (_isNavigating) return;
+          _isNavigating = true;
+          FocusScope.of(context).unfocus();
+          context.pushNamed('social-account-completion', extra: state).then((
+            _,
+          ) {
+            if (!mounted) return;
+            setState(() => _isNavigating = false);
+          });
+        } else if (state is LoginWithGoogleError ||
+            state is LoginWithAppleError) {
+          setState(() {
+            _isNavigating = false;
+          });
+          final message = switch (state) {
+            LoginWithGoogleError(:final message) => message,
+            LoginWithAppleError(:final message) => message,
+            _ => 'Login sosial gagal. Silakan coba lagi.',
+          };
+          _showErrorSnackBar(message);
+        }
+      },
+      child: CustomHeaderScaffold(
+        title: 'Buat akun baru',
+        subtitle:
+            'Lihat daftar katalog Ekatunggal dan rincian pembelian produk.',
+        showBackButton: false,
+        headerHeight: 200,
+        contentTop: 150,
+        backgroundColor: const Color(0xFFF6F7F9),
+        bodyPadding: EdgeInsets.zero,
+        resizeToAvoidBottomInset: true,
+        actions: [
+          CustomHeaderActionButton(
+            tooltip: 'Tutup',
+            onPressed: _closeRegister,
+            icon: const Icon(
+              Icons.close_rounded,
+              color: Colors.white,
+              size: 20,
             ),
           ),
         ],
+        body: LayoutBuilder(
+          builder: (context, constraints) {
+            return SingleChildScrollView(
+              physics: const ClampingScrollPhysics(),
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                child: Container(
+                  width: double.infinity,
+                  padding: EdgeInsets.fromLTRB(
+                    sheetHorizontalPadding,
+                    20,
+                    sheetHorizontalPadding,
+                    32,
+                  ),
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFF6F7F9),
+                    borderRadius: BorderRadius.vertical(
+                      top: Radius.circular(28),
+                    ),
+                  ),
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 680),
+                      child: Form(
+                        key: _formKey,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: const BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.all(
+                                  Radius.circular(18),
+                                ),
+                                border: Border.fromBorderSide(
+                                  BorderSide(
+                                    color: Color(0xFFF1F5F9),
+                                    width: 1,
+                                  ),
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Color(0x120F172A),
+                                    blurRadius: 20,
+                                    offset: Offset(0, 6),
+                                  ),
+                                ],
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const _RegistrationStepBadge(),
+                                  const SizedBox(height: 16),
+                                  const Text(
+                                    'Daftar dengan nomor WhatsApp',
+                                    style: TextStyle(
+                                      fontFamily: AppFonts.primaryFont,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w700,
+                                      color: Color(0xFF1E293B),
+                                      height: 1.25,
+                                      letterSpacing: -0.3,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  const Text(
+                                    'Kami akan mengirim kode verifikasi untuk memastikan nomor ini milik Anda.',
+                                    style: TextStyle(
+                                      fontFamily: AppFonts.primaryFont,
+                                      fontSize: 10,
+                                      color: Color(0xFF64748B),
+                                      height: 1.5,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 20),
+                                  const Text(
+                                    'Nomor WhatsApp',
+                                    style: TextStyle(
+                                      fontFamily: AppFonts.primaryFont,
+                                      fontSize: 11.5,
+                                      fontWeight: FontWeight.w600,
+                                      color: Color(0xFF334155),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  _buildPhoneInput(isSmallScreen, isIOS),
+                                  const SizedBox(height: 10),
+                                  _buildHelperText(isSmallScreen, isIOS),
+                                  const SizedBox(height: 20),
+                                  _buildRegisterButton(isSmallScreen, isIOS),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            _buildDivider(isSmallScreen, isIOS),
+                            const SizedBox(height: 14),
+                            _buildSocialButtons(isIOS),
+                            const SizedBox(height: 16),
+                            _buildLoginLink(isSmallScreen, isIOS),
+                            const SizedBox(height: 8),
+                            const Center(
+                              child: Text(
+                                'Dengan mendaftar, Anda menyetujui ketentuan dan kebijakan privasi EKAPLUS.',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontFamily: AppFonts.primaryFont,
+                                  fontSize: 9.5,
+                                  color: Color(0xFF94A3B8),
+                                  height: 1.45,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
       ),
     );
   }
@@ -422,124 +486,111 @@ class _RegisterPageState extends State<RegisterPage>
           child: child,
         );
       },
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Nomor Handphone',
-            style: TextStyle(
-              fontFamily: AppFonts.primaryFont,
-              fontSize: isSmallScreen ? (isIOS ? 13 : 12) : (isIOS ? 14 : 12),
-              fontWeight: FontWeight.w600,
-              color: AppColors.blackColor,
-            ),
+      child: TextFormField(
+        controller: _phoneController,
+        keyboardType: TextInputType.phone,
+        textInputAction: TextInputAction.done,
+        autofillHints: const [AutofillHints.telephoneNumber],
+        onFieldSubmitted: (_) => _onNextPressed(),
+        style: const TextStyle(
+          fontFamily: AppFonts.primaryFont,
+          fontSize: 12.5,
+          fontWeight: FontWeight.w500,
+          color: Color(0xFF1E293B),
+        ),
+        inputFormatters: [
+          FilteringTextInputFormatter.digitsOnly,
+          LengthLimitingTextInputFormatter(13),
+        ],
+        decoration: InputDecoration(
+          hintText: 'Contoh: 0812 3456 7890',
+          hintStyle: const TextStyle(
+            fontFamily: AppFonts.primaryFont,
+            color: Color(0xFF94A3B8),
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
           ),
-          const SizedBox(height: 8),
-          TextFormField(
-            controller: _phoneController,
-            keyboardType: TextInputType.phone,
-            style: TextStyle(
-              fontSize: isSmallScreen ? (isIOS ? 14 : 12) : (isIOS ? 15 : 13),
-              fontWeight: FontWeight.w500,
-            ),
-            inputFormatters: [
-              FilteringTextInputFormatter.digitsOnly,
-              LengthLimitingTextInputFormatter(13),
-            ],
-            decoration: InputDecoration(
-              hintText: 'Contoh: 0812xxx atau 62812xxxx',
-              hintStyle: TextStyle(
-                color: AppColors.grayColor.withOpacity(0.6),
-                fontWeight: FontWeight.w400,
-                fontSize: isSmallScreen ? (isIOS ? 14 : 12) : (isIOS ? 15 : 13),
+          prefixIcon: Padding(
+            padding: const EdgeInsets.only(left: 14, right: 10),
+            child: Container(
+              width: 38,
+              height: 30,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: hasError
+                    ? const Color(0xFFFFF1F2)
+                    : const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(8),
               ),
-              prefixIcon: Icon(
-                Icons.phone_android_rounded,
-                color: hasError ? AppColors.primaryColor : AppColors.grayColor,
-                size: isSmallScreen ? 20 : 22,
-              ),
-              filled: true,
-              fillColor: hasError
-                  ? AppColors.primaryColor.withOpacity(0.03)
-                  : Colors.grey.shade50,
-              contentPadding: EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: isSmallScreen ? 14 : 16,
-              ),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide.none,
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(
-                  color: hasError
-                      ? AppColors.primaryColor.withOpacity(0.3)
-                      : Colors.grey.shade200,
-                  width: 1.5,
-                ),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(
+              child: Text(
+                'ID',
+                style: TextStyle(
+                  fontFamily: AppFonts.primaryFont,
                   color: hasError
                       ? AppColors.primaryColor
-                      : AppColors.secondaryColor,
-                  width: 2,
+                      : const Color(0xFF475569),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
                 ),
-              ),
-              errorBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(
-                  color: AppColors.primaryColor,
-                  width: 1.5,
-                ),
-              ),
-              focusedErrorBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(
-                  color: AppColors.primaryColor,
-                  width: 2,
-                ),
-              ),
-              errorStyle: TextStyle(
-                color: AppColors.primaryColor,
-                fontSize: isSmallScreen ? (isIOS ? 11 : 9) : (isIOS ? 12 : 10),
-                fontWeight: FontWeight.w500,
-                height: 1.3,
               ),
             ),
-            validator: _validatePhone,
-            onChanged: (value) {
-              if (_phoneErrorMessage != null) {
-                setState(() {
-                  _phoneErrorMessage = null;
-                });
-                _formKey.currentState?.validate();
-              }
-            },
           ),
-        ],
+          prefixIconConstraints: const BoxConstraints(minWidth: 62),
+          filled: true,
+          fillColor: const Color(0xFFF8FAFC),
+          contentPadding: const EdgeInsets.only(top: 13, right: 14, bottom: 13),
+          border: _phoneBorder(const Color(0xFFE2E8F0)),
+          enabledBorder: _phoneBorder(const Color(0xFFE2E8F0)),
+          focusedBorder: _phoneBorder(AppColors.primaryColor, width: 1.5),
+          errorBorder: _phoneBorder(AppColors.primaryColor),
+          focusedErrorBorder: _phoneBorder(AppColors.primaryColor, width: 1.5),
+          errorStyle: const TextStyle(
+            fontFamily: AppFonts.primaryFont,
+            color: AppColors.primaryColor,
+            fontSize: 10,
+            fontWeight: FontWeight.w500,
+            height: 1.4,
+          ),
+        ),
+        validator: _validatePhone,
+        onChanged: (value) {
+          if (_phoneErrorMessage != null) {
+            setState(() => _phoneErrorMessage = null);
+            _formKey.currentState?.validate();
+          }
+        },
       ),
     );
   }
 
+  OutlineInputBorder _phoneBorder(Color color, {double width = 1}) {
+    return OutlineInputBorder(
+      borderRadius: BorderRadius.circular(12),
+      borderSide: BorderSide(color: color, width: width),
+    );
+  }
+
   Widget _buildHelperText(bool isSmallScreen, bool isIOS) {
-    return Row(
+    return const Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(
-          Icons.check_circle_outline,
-          size: isSmallScreen ? 14 : 16,
-          color: Colors.green.shade600,
+        Padding(
+          padding: EdgeInsets.only(top: 1),
+          child: Icon(
+            Icons.lock_outline_rounded,
+            size: 14,
+            color: Color(0xFF64748B),
+          ),
         ),
-        const SizedBox(width: 8),
+        SizedBox(width: 6),
         Expanded(
           child: Text(
-            'Nomor Anda akan digunakan untuk login dan verifikasi',
+            'Nomor Anda aman dan hanya digunakan untuk verifikasi akun.',
             style: TextStyle(
-              fontSize: isSmallScreen ? (isIOS ? 11 : 10) : (isIOS ? 12 : 11),
-              color: AppColors.grayColor,
-              height: 1.3,
+              fontFamily: AppFonts.primaryFont,
+              fontSize: 10.5,
+              color: Color(0xFF64748B),
+              height: 1.4,
             ),
           ),
         ),
@@ -548,212 +599,272 @@ class _RegisterPageState extends State<RegisterPage>
   }
 
   Widget _buildDivider(bool isSmallScreen, bool isIOS) {
-    return Row(
+    return const Row(
       children: [
-        const Expanded(child: Divider(thickness: 1, color: Color(0xFFE0E0E0))),
+        Expanded(child: Divider(color: Color(0xFFF1F5F9))),
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
+          padding: EdgeInsets.symmetric(horizontal: 12),
           child: Text(
-            'atau',
+            'atau lanjutkan dengan',
             style: TextStyle(
-              fontSize: isSmallScreen ? (isIOS ? 12 : 11) : (isIOS ? 13 : 12),
-              color: AppColors.grayColor,
+              fontFamily: AppFonts.primaryFont,
+              fontSize: 10.5,
+              color: Color(0xFF64748B),
               fontWeight: FontWeight.w500,
             ),
           ),
         ),
-        const Expanded(child: Divider(thickness: 1, color: Color(0xFFE0E0E0))),
+        Expanded(child: Divider(color: Color(0xFFF1F5F9))),
       ],
     );
   }
 
-  Widget _buildGoogleButton(bool isSmallScreen, bool isIOS) {
+  Widget _buildGoogleButton({required bool compact}) {
     return BlocBuilder<AuthBloc, AuthState>(
       builder: (context, state) {
-        final isLoading = state is AuthLoading;
-
-        return OutlinedButton(
-          onPressed: (isLoading || _isNavigating)
-              ? null
-              : () {
-                  context.read<AuthBloc>().add(LoginWithGoogleEvent());
-                },
-          style: OutlinedButton.styleFrom(
-            minimumSize: Size(double.infinity, isSmallScreen ? 50 : 56),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            side: BorderSide(color: Colors.grey.shade300, width: 1.5),
-            backgroundColor: AppColors.whiteColor,
-            foregroundColor: AppColors.blackColor,
-          ),
-          child: isLoading
-              ? SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: AppColors.grayColor,
-                  ),
-                )
-              : Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Image.asset(
-                      'assets/icons/google.png',
-                      width: isSmallScreen ? 20 : 24,
-                      height: isSmallScreen ? 20 : 24,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Icon(
-                          Icons.g_mobiledata,
-                          size: isSmallScreen ? 20 : 24,
-                        );
-                      },
-                    ),
-                    const SizedBox(width: 12),
-                    Text(
-                      'Daftar dengan Google',
-                      style: TextStyle(
-                        fontFamily: AppFonts.primaryFont,
-                        fontSize: isSmallScreen
-                            ? (isIOS ? 14 : 12)
-                            : (isIOS ? 15 : 13),
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.blackColor,
-                      ),
-                    ),
-                  ],
+        final isLoading =
+            state is AuthLoading &&
+            state.operation == AuthOperation.googleLogin;
+        final disabled = state is AuthLoading || _isNavigating;
+        return SizedBox(
+          width: compact ? 56 : double.infinity,
+          child: Tooltip(
+            message: 'Daftar dengan Google',
+            child: Material(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(10),
+              child: Ink(
+                height: 48,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
                 ),
+                child: InkWell(
+                  key: const Key('register-google-button'),
+                  borderRadius: BorderRadius.circular(10),
+                  onTap: disabled
+                      ? null
+                      : () => context.read<AuthBloc>().add(
+                          const LoginWithGoogleEvent(),
+                        ),
+                  child: Center(
+                    child: isLoading
+                        ? const SizedBox.square(
+                            dimension: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: AppColors.primaryColor,
+                            ),
+                          )
+                        : Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Image.asset(
+                                'assets/icons/google.png',
+                                width: compact ? 24 : 21,
+                                height: compact ? 24 : 21,
+                                errorBuilder: (_, __, ___) => Icon(
+                                  Icons.g_mobiledata_rounded,
+                                  size: compact ? 26 : 25,
+                                ),
+                              ),
+                              if (!compact) ...[
+                                const SizedBox(width: 10),
+                                const Text(
+                                  'Daftar dengan Google',
+                                  style: TextStyle(
+                                    fontFamily: AppFonts.primaryFont,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFF334155),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                  ),
+                ),
+              ),
+            ),
+          ),
         );
       },
     );
   }
 
-  Widget _buildBottomSection(bool isSmallScreen, bool isIOS) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.whiteColor,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, -2),
+  Widget _buildSocialButtons(bool isIOS) {
+    if (!isIOS) {
+      return _buildGoogleButton(compact: false);
+    }
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        _buildGoogleButton(compact: true),
+        const SizedBox(width: 12),
+        _buildAppleButton(),
+      ],
+    );
+  }
+
+  Widget _buildAppleButton() {
+    return BlocBuilder<AuthBloc, AuthState>(
+      builder: (context, state) {
+        final isLoading =
+            state is AuthLoading && state.operation == AuthOperation.appleLogin;
+        final disabled = state is AuthLoading || _isNavigating;
+        return Tooltip(
+          message: 'Daftar dengan Apple',
+          child: Material(
+            color: Colors.black,
+            borderRadius: BorderRadius.circular(10),
+            child: Ink(
+              width: 56,
+              height: 48,
+              decoration: BoxDecoration(
+                color: Colors.black,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: InkWell(
+                key: const Key('register-apple-button'),
+                borderRadius: BorderRadius.circular(10),
+                onTap: disabled
+                    ? null
+                    : () => context.read<AuthBloc>().add(
+                        const LoginWithAppleEvent(),
+                      ),
+                child: Center(
+                  child: isLoading
+                      ? const SizedBox.square(
+                          dimension: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Icon(Icons.apple, color: Colors.white, size: 26),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildRegisterButton(bool isSmallScreen, bool isIOS) {
+    return BlocBuilder<AuthBloc, AuthState>(
+      builder: (context, state) {
+        final isLoading = state is AuthLoading;
+        return SizedBox(
+          width: double.infinity,
+          height: 48,
+          child: ElevatedButton(
+            onPressed: (isLoading || _isNavigating) ? null : _onNextPressed,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primaryColor,
+              foregroundColor: Colors.white,
+              disabledBackgroundColor: const Color(0xFFFECACA),
+              disabledForegroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              textStyle: const TextStyle(
+                fontFamily: AppFonts.primaryFont,
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            child: isLoading
+                ? const SizedBox.square(
+                    dimension: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.2,
+                      color: Colors.white,
+                    ),
+                  )
+                : const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text('Kirim Kode Verifikasi'),
+                      SizedBox(width: 8),
+                      Icon(Icons.arrow_forward_rounded, size: 18),
+                    ],
+                  ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildLoginLink(bool isSmallScreen, bool isIOS) {
+    return Center(
+      child: Wrap(
+        alignment: WrapAlignment.center,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          const Text(
+            'Sudah punya akun?',
+            style: TextStyle(
+              fontFamily: AppFonts.primaryFont,
+              fontSize: 11.5,
+              color: Color(0xFF64748B),
+            ),
+          ),
+          TextButton(
+            onPressed: _isNavigating ? null : () => context.push('/login'),
+            style: TextButton.styleFrom(
+              foregroundColor: AppColors.primaryColor,
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+              minimumSize: const Size(44, 36),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              textStyle: const TextStyle(
+                fontFamily: AppFonts.primaryFont,
+                fontSize: 11.5,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            child: const Text('Masuk sekarang'),
           ),
         ],
       ),
-      child: SafeArea(
-        top: false,
-        child: Padding(
-          padding: EdgeInsets.fromLTRB(
-            20,
-            isSmallScreen ? 16 : 20,
-            20,
-            isSmallScreen ? 16 : 20,
+    );
+  }
+}
+
+class _RegistrationStepBadge extends StatelessWidget {
+  const _RegistrationStepBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF1F2),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: const Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.verified_user_outlined,
+            size: 14,
+            color: AppColors.primaryColor,
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Next Button
-              BlocBuilder<AuthBloc, AuthState>(
-                builder: (context, state) {
-                  final isLoading = state is AuthLoading;
-
-                  return ElevatedButton(
-                    onPressed: (isLoading || _isNavigating)
-                        ? null
-                        : _onNextPressed,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.secondaryColor,
-                      foregroundColor: AppColors.blackColor,
-                      disabledBackgroundColor: AppColors.secondaryColor
-                          .withOpacity(0.5),
-                      minimumSize: Size(
-                        double.infinity,
-                        isSmallScreen ? 50 : 56,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      elevation: 0,
-                      shadowColor: Colors.transparent,
-                    ),
-                    child: isLoading
-                        ? SizedBox(
-                            width: 22,
-                            height: 22,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2.5,
-                              color: AppColors.blackColor,
-                            ),
-                          )
-                        : Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(
-                                'Selanjutnya',
-                                style: TextStyle(
-                                  fontFamily: AppFonts.primaryFont,
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: isSmallScreen
-                                      ? (isIOS ? 15 : 13)
-                                      : (isIOS ? 16 : 14),
-                                  letterSpacing: 0.3,
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              const Icon(Icons.arrow_forward_rounded, size: 20),
-                            ],
-                          ),
-                  );
-                },
-              ),
-
-              SizedBox(height: isSmallScreen ? 12 : 16),
-
-              // Login Link
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    'Sudah punya akun?  ',
-                    style: TextStyle(
-                      fontSize: isSmallScreen
-                          ? (isIOS ? 13 : 11)
-                          : (isIOS ? 14 : 12),
-                      color: AppColors.grayColor,
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: () {
-                      if (!_isNavigating) {
-                        context.push('/login');
-                      }
-                    },
-                    style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 4,
-                        vertical: 0,
-                      ),
-                      minimumSize: const Size(0, 0),
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    ),
-                    child: Text(
-                      'Masuk Sekarang',
-                      style: TextStyle(
-                        fontFamily: AppFonts.primaryFont,
-                        color: AppColors.primaryColor,
-                        fontWeight: FontWeight.w700,
-                        fontSize: isSmallScreen
-                            ? (isIOS ? 13 : 11)
-                            : (isIOS ? 14 : 12),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
+          SizedBox(width: 6),
+          Text(
+            'LANGKAH 1 · VERIFIKASI NOMOR',
+            style: TextStyle(
+              fontFamily: AppFonts.primaryFont,
+              fontSize: 9.5,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.45,
+              color: AppColors.primaryColor,
+            ),
           ),
-        ),
+        ],
       ),
     );
   }
