@@ -8,7 +8,7 @@ class ApiConfig {
   };
 
   // Base URL - Ganti sesuai dengan server Anda
-  static const String baseUrl = 'https://api-ekaplusdev.ekatunggal.com';
+  static const String baseUrl = 'https://api-ekaplus.ekatunggal.com';
   static const String baseImageUrl = 'https://api-ekaplus.ekatunggal.com/files';
   static const String baseTransaksiUrl = 'https://etm-bogor.ekatunggal.com';
 

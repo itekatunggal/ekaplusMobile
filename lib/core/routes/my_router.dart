@@ -121,7 +121,7 @@ class MyRouter {
   GoRouter get router => GoRouter(
     navigatorKey: globalNavigatorKey,
     // initialLocation: "/splash",
-    initialLocation: "/register",
+    initialLocation: "/",
     routes: [
       // ********** Splash Screen (tanpa bottom nav) **********
       GoRoute(

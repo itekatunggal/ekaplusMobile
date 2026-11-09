@@ -571,38 +571,6 @@ class _FullScreenGalleryViewerState extends State<_FullScreenGalleryViewer> {
             ),
           ),
 
-          // // Page Counter - Hide when zoomed
-          // AnimatedOpacity(
-          //   opacity: _isZoomed ? 0.0 : 1.0,
-          //   duration: const Duration(milliseconds: 200),
-          //   child: SafeArea(
-          //     child: Align(
-          //       alignment: Alignment.topCenter,
-          //       child: Padding(
-          //         padding: const EdgeInsets.all(16.0),
-          //         child: Container(
-          //           padding: const EdgeInsets.symmetric(
-          //             horizontal: 16,
-          //             vertical: 8,
-          //           ),
-          //           decoration: BoxDecoration(
-          //             color: Colors.black.withOpacity(0.6),
-          //             borderRadius: BorderRadius.circular(20),
-          //           ),
-          //           child: Text(
-          //             '${_currentIndex + 1} / ${widget.variants.length}',
-          //             style: const TextStyle(
-          //               color: Colors.white,
-          //               fontSize: 14,
-          //               fontWeight: FontWeight.w600,
-          //             ),
-          //           ),
-          //         ),
-          //       ),
-          //     ),
-          //   ),
-          // ),
-
           // Bottom Thumbnail Gallery - Hide when zoomed
           if (widget.variants.length > 1)
             AnimatedPositioned(
@@ -1435,9 +1403,34 @@ class _ProductInfoSection extends StatelessWidget {
 
   const _ProductInfoSection({required this.variant, required this.product});
 
+  String _formatNumber(num? value) {
+    if (value == null) return '-';
+    return value % 1 == 0 ? value.toInt().toString() : value.toString();
+  }
+
+  String _formatMeasurement(num? value, String unit) {
+    if (value == null) return '-';
+    return '${_formatNumber(value)} $unit';
+  }
+
   @override
   Widget build(BuildContext context) {
     final bool isIOS = io.Platform.isIOS;
+
+    final num? length = variant.length;
+    final num? width = variant.width;
+    final num? height = variant.height;
+    final bool hasDimension = length != null || width != null || height != null;
+
+    final String uom = variant.uom?.trim().isNotEmpty == true
+        ? variant.uom!.trim()
+        : '-';
+    final String standardColly = variant.standardCollyItem == null
+        ? '-'
+        : '${_formatNumber(variant.standardCollyItem)}${uom == '-' ? '' : ' $uom'}';
+
+    // Aman kalau description null dari API
+    final String description = (variant.description ?? '').toString().trim();
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -1491,28 +1484,70 @@ class _ProductInfoSection extends StatelessWidget {
             ),
           ],
 
+          const SizedBox(height: 20),
+
+          // Product Code (tap to copy)
+          _CodeCard(code: variant.code),
+
           const SizedBox(height: 24),
 
-          // Info Cards
-          _InfoCard(
-            icon: Icons.qr_code_rounded,
-            iconColor: AppColors.primaryColor,
-            label: 'PRODUCT CODE',
-            value: variant.code,
+          // Section title
+          Text(
+            'Spesifikasi',
+            style: TextStyle(
+              fontFamily: AppFonts.primaryFont,
+              fontSize: isIOS ? 16 : 14,
+              fontWeight: FontWeight.w700,
+              color: Colors.black87,
+            ),
           ),
-
           const SizedBox(height: 12),
 
-          if (product.itemCategory != null)
-            _InfoCard(
-              icon: Icons.category_rounded,
-              iconColor: Colors.orange,
-              label: 'CATEGORY',
-              value: product.itemCategory!.name,
+          // Dimensi: Panjang x Lebar x Tinggi dalam satu kartu
+          if (hasDimension) ...[
+            _DimensionCard(
+              length: _formatNumber(length),
+              width: _formatNumber(width),
+              height: _formatNumber(height),
             ),
+            const SizedBox(height: 12),
+          ],
+
+          // Berat, Colly, UOM dalam satu baris
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: _StatTile(
+                  icon: Icons.scale_rounded,
+                  iconColor: Colors.brown,
+                  label: 'BERAT',
+                  value: _formatMeasurement(variant.weight, 'kg'),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _StatTile(
+                  icon: Icons.inventory_2_rounded,
+                  iconColor: Colors.deepPurple,
+                  label: 'STD. COLLY',
+                  value: standardColly,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _StatTile(
+                  icon: Icons.sell_rounded,
+                  iconColor: Colors.green,
+                  label: 'UOM',
+                  value: uom,
+                ),
+              ),
+            ],
+          ),
 
           // Description Section
-          if (variant.description.isNotEmpty) ...[
+          if (description.isNotEmpty) ...[
             const SizedBox(height: 24),
             Text(
               'Deskripsi',
@@ -1525,7 +1560,7 @@ class _ProductInfoSection extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             Text(
-              variant.description,
+              description,
               style: TextStyle(
                 fontFamily: AppFonts.primaryFont,
                 fontSize: isIOS ? 14 : 12,
@@ -1540,7 +1575,286 @@ class _ProductInfoSection extends StatelessWidget {
   }
 }
 
-// ==================== INFO CARD ====================
+// ==================== CODE CARD ====================
+class _CodeCard extends StatelessWidget {
+  final String code;
+
+  const _CodeCard({required this.code});
+
+  @override
+  Widget build(BuildContext context) {
+    final bool isIOS = io.Platform.isIOS;
+
+    return GestureDetector(
+      onTap: () async {
+        await Clipboard.setData(ClipboardData(text: code));
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(
+            SnackBar(
+              content: Text(
+                'Kode produk disalin',
+                style: TextStyle(fontSize: isIOS ? 14 : 12),
+              ),
+              duration: const Duration(milliseconds: 1000),
+              backgroundColor: AppColors.primaryColor,
+              behavior: SnackBarBehavior.floating,
+              margin: const EdgeInsets.all(16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+          );
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: Colors.grey.shade50,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: AppColors.primaryColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(
+                Icons.qr_code_rounded,
+                size: 20,
+                color: AppColors.primaryColor,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'PRODUCT CODE',
+                    style: TextStyle(
+                      fontFamily: AppFonts.primaryFont,
+                      fontSize: isIOS ? 10 : 9,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.grey.shade500,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    code,
+                    style: TextStyle(
+                      fontFamily: AppFonts.primaryFont,
+                      fontSize: isIOS ? 14 : 12,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black87,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.copy_rounded, size: 18, color: Colors.grey.shade400),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ==================== DIMENSION CARD ====================
+class _DimensionCard extends StatelessWidget {
+  final String length;
+  final String width;
+  final String height;
+
+  const _DimensionCard({
+    required this.length,
+    required this.width,
+    required this.height,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final bool isIOS = io.Platform.isIOS;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
+                  color: Colors.blue.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.straighten_rounded,
+                  size: 16,
+                  color: Colors.blue,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'DIMENSI (CM)',
+                style: TextStyle(
+                  fontFamily: AppFonts.primaryFont,
+                  fontSize: isIOS ? 10 : 9,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey.shade500,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          IntrinsicHeight(
+            child: Row(
+              children: [
+                Expanded(
+                  child: _DimensionCell(label: 'Panjang', value: length),
+                ),
+                VerticalDivider(
+                  width: 1,
+                  thickness: 1,
+                  color: Colors.grey.shade200,
+                ),
+                Expanded(
+                  child: _DimensionCell(label: 'Lebar', value: width),
+                ),
+                VerticalDivider(
+                  width: 1,
+                  thickness: 1,
+                  color: Colors.grey.shade200,
+                ),
+                Expanded(
+                  child: _DimensionCell(label: 'Tinggi', value: height),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DimensionCell extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _DimensionCell({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    final bool isIOS = io.Platform.isIOS;
+
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Text(
+          value,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            fontFamily: AppFonts.primaryFont,
+            fontSize: isIOS ? 18 : 16,
+            fontWeight: FontWeight.w700,
+            color: Colors.black87,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          label,
+          style: TextStyle(
+            fontFamily: AppFonts.primaryFont,
+            fontSize: isIOS ? 11 : 10,
+            color: Colors.grey.shade600,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ==================== STAT TILE ====================
+class _StatTile extends StatelessWidget {
+  final IconData icon;
+  final Color iconColor;
+  final String label;
+  final String value;
+
+  const _StatTile({
+    required this.icon,
+    required this.iconColor,
+    required this.label,
+    required this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final bool isIOS = io.Platform.isIOS;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 28,
+            height: 28,
+            decoration: BoxDecoration(
+              color: iconColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, size: 16, color: iconColor),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontFamily: AppFonts.primaryFont,
+              fontSize: isIOS ? 10 : 9,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey.shade500,
+              letterSpacing: 0.5,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontFamily: AppFonts.primaryFont,
+              fontSize: isIOS ? 14 : 12,
+              fontWeight: FontWeight.w600,
+              color: Colors.black87,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ==================== INFO CARD (dipertahankan, tidak dipakai lagi) ====================
 class _InfoCard extends StatelessWidget {
   final IconData icon;
   final Color iconColor;

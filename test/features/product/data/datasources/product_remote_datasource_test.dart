@@ -1,10 +1,44 @@
 import 'dart:convert';
 
 import 'package:ekaplus_ekatunggal/features/product/data/datasources/product_remote_datasource.dart';
+import 'package:ekaplus_ekatunggal/features/product/data/models/product_model.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 
 void main() {
+  group('ProductModel', () {
+    test('maps item dimensions, weight, and standard colly', () {
+      final product = ProductModel.fromJson({
+        'id': 1,
+        'product_name': 'Test Product',
+        'variants': [
+          {
+            'item': {
+              'id': 1009,
+              'item_code': 'ITEM-001',
+              'item_name': 'Test Item',
+              'length': 200,
+              'width': '120.5',
+              'height': 30,
+              'weight': '12.25',
+              'standard_colly_item': 4,
+              'uom': 'MTR',
+            },
+          },
+        ],
+      });
+
+      final variant = product.variants.single;
+
+      expect(variant.length, 200);
+      expect(variant.width, 120.5);
+      expect(variant.height, 30);
+      expect(variant.weight, 12.25);
+      expect(variant.standardCollyItem, 4);
+      expect(variant.uom, 'MTR');
+    });
+  });
+
   group('ProductRemoteDatasourceImplementation.getAllProduct', () {
     test(
       'keeps a visible variant when the newest variant is disabled',
