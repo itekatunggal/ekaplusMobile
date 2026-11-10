@@ -1,5 +1,6 @@
 import 'package:ekaplus_ekatunggal/constant.dart';
 import 'package:ekaplus_ekatunggal/core/shared_widgets/custom_header.dart';
+import 'package:ekaplus_ekatunggal/core/theme/app_card_styles.dart';
 import 'package:ekaplus_ekatunggal/features/category/presentation/widgets/category_icon_image.dart';
 import 'package:ekaplus_ekatunggal/features/loyalty/data/services/loyalty_service.dart';
 import 'package:ekaplus_ekatunggal/features/loyalty/domain/entities/loyalty_models.dart';
@@ -23,105 +24,117 @@ class LoyaltyCalculationDetailPage extends StatelessWidget {
   final String? groupParentName;
 
   @override
-  Widget build(BuildContext context) => CustomHeaderScaffold(
-    title: 'Rincian Poin',
-    showBackButton: true,
-    body: Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 680),
-        child: BlocBuilder<LoyaltyCalculationCubit, LoyaltyCalculationState>(
-          builder: (context, state) => RefreshIndicator(
-            color: AppColors.primaryColor,
-            onRefresh: context.read<LoyaltyCalculationCubit>().load,
-            child: ListView(
-              padding: EdgeInsets.zero,
-              physics: const AlwaysScrollableScrollPhysics(
-                parent: BouncingScrollPhysics(),
-              ),
-              children: [
-                if (state.status == LoyaltyCalculationStatus.initial ||
-                    state.status == LoyaltyCalculationStatus.loading)
-                  const _CalculationSkeleton()
-                else if (state.status == LoyaltyCalculationStatus.failure)
-                  _ErrorCard(
-                    message: 'Rincian poin belum dapat dimuat.',
-                    onRetry: context
-                        .read<LoyaltyCalculationCubit>()
-                        .loadCalculation,
-                  )
-                else ...[
-                  _LedgerSummary(
-                    ledger: state.ledger,
-                    groupParentCode: groupParentCode,
-                    groupParentName: groupParentName,
-                  ),
-                  const SizedBox(height: 16),
-                  _SectionHeading(title: 'Perolehan Berdasarkan Kategori'),
-                  const SizedBox(height: 8),
-                  if (state.details.isEmpty)
-                    const _EmptyCard(
-                      icon: Icons.add_chart_rounded,
-                      title: 'Belum Ada Perolehan Poin',
-                      message:
-                          'Rincian pembelian yang masuk dalam perhitungan poin akan tampil di sini.',
+  Widget build(BuildContext context) {
+    return CustomHeaderScaffold(
+      title: 'Rincian Poin',
+      showBackButton: true,
+      backgroundColor: const Color(0xFFF6F7F9),
+      headerHeight: 160,
+      contentTop: 124,
+      bodyPadding: const EdgeInsets.symmetric(horizontal: 12),
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 680),
+          child: BlocBuilder<LoyaltyCalculationCubit, LoyaltyCalculationState>(
+            builder: (context, state) => RefreshIndicator(
+              color: AppColors.primaryColor,
+              onRefresh: context.read<LoyaltyCalculationCubit>().load,
+              child: ListView(
+                padding: EdgeInsets.zero,
+                physics: const AlwaysScrollableScrollPhysics(
+                  parent: BouncingScrollPhysics(),
+                ),
+                children: [
+                  if (state.status == LoyaltyCalculationStatus.initial ||
+                      state.status == LoyaltyCalculationStatus.loading)
+                    const _CalculationSkeleton()
+                  else if (state.status == LoyaltyCalculationStatus.failure)
+                    _ErrorCard(
+                      message: 'Rincian poin belum dapat dimuat.',
+                      onRetry: context
+                          .read<LoyaltyCalculationCubit>()
+                          .loadCalculation,
                     )
-                  else
-                    ...state.details.map(
-                      (item) => Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
-                        child: _CategoryTicket(
-                          item: item,
-                          categoryIcon: _findCategoryIcon(
-                            state.categoryIcons,
-                            item.category,
-                          ),
-                          onTap: state.ledger == null
-                              ? null
-                              : () =>
-                                    _openCategory(context, state.ledger!, item),
-                        ),
-                      ),
+                  else ...[
+                    _LedgerSummary(
+                      ledger: state.ledger,
+                      groupParentCode: groupParentCode,
+                      groupParentName: groupParentName,
                     ),
-                  const SizedBox(height: 8),
-                  _SectionHeading(
-                    title: 'Riwayat Penukaran',
-                    trailing: 'Aktivitas Terbaru',
-                  ),
-                  const SizedBox(height: 8),
-                  _HistoryPreview(state: state),
-                  if (state.history.isNotEmpty &&
-                      context.read<LoyaltyCalculationCubit>().bcid != null)
-                    Center(
-                      child: TextButton.icon(
-                        onPressed: () => context.pushNamed(
-                          'loyalty-history',
-                          extra: {
-                            'bcid': context
-                                .read<LoyaltyCalculationCubit>()
-                                .bcid,
-                          },
-                        ),
-                        label: const Text('Lihat Semua Riwayat'),
-                        iconAlignment: IconAlignment.end,
-                        icon: const Icon(Icons.chevron_right_rounded, size: 17),
-                        style: TextButton.styleFrom(
-                          foregroundColor: AppColors.primaryColor,
-                          textStyle: const TextStyle(
-                            fontSize: 9.5,
-                            fontWeight: FontWeight.w600,
+                    const SizedBox(height: 16),
+                    _SectionHeading(title: 'Perolehan Berdasarkan Kategori'),
+                    const SizedBox(height: 8),
+                    if (state.details.isEmpty)
+                      const _EmptyCard(
+                        icon: Icons.add_chart_rounded,
+                        title: 'Belum Ada Perolehan Poin',
+                        message:
+                            'Rincian pembelian yang masuk dalam perhitungan poin akan tampil di sini.',
+                      )
+                    else
+                      ...state.details.map(
+                        (item) => Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: _CategoryTicket(
+                            item: item,
+                            categoryIcon: _findCategoryIcon(
+                              state.categoryIcons,
+                              item.category,
+                            ),
+                            onTap: state.ledger == null
+                                ? null
+                                : () => _openCategory(
+                                    context,
+                                    state.ledger!,
+                                    item,
+                                  ),
                           ),
                         ),
                       ),
+                    const SizedBox(height: 8),
+                    _SectionHeading(
+                      title: 'Riwayat Penukaran',
+                      trailing: 'Aktivitas Terbaru',
                     ),
+                    const SizedBox(height: 8),
+                    _HistoryPreview(state: state),
+                    if (state.history.isNotEmpty &&
+                        context.read<LoyaltyCalculationCubit>().bcid != null)
+                      Center(
+                        child: TextButton.icon(
+                          onPressed: () => context.pushNamed(
+                            'loyalty-history',
+                            extra: {
+                              'bcid': context
+                                  .read<LoyaltyCalculationCubit>()
+                                  .bcid,
+                            },
+                          ),
+                          label: const Text('Lihat Semua Riwayat'),
+                          iconAlignment: IconAlignment.end,
+                          icon: const Icon(
+                            Icons.chevron_right_rounded,
+                            size: 17,
+                          ),
+                          style: TextButton.styleFrom(
+                            foregroundColor: AppColors.primaryColor,
+                            textStyle: const TextStyle(
+                              fontSize: 9.5,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                  const SizedBox(height: 24),
                 ],
-                const SizedBox(height: 24),
-              ],
+              ),
             ),
           ),
         ),
       ),
-    ),
-  );
+    );
+  }
 
   String? _findCategoryIcon(Map<String, String> categoryIcons, String name) {
     final target = _normalizeCategoryName(name);
@@ -244,18 +257,7 @@ class _LedgerSummary extends StatelessWidget {
 
     return Container(
       padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFF1F5F9)),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x0D0F172A),
-            blurRadius: 10,
-            offset: Offset(0, 2),
-          ),
-        ],
-      ),
+      decoration: AppCardStyles.major,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -965,18 +967,7 @@ class _HistoryCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         child: Container(
           padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFFF1F5F9)),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x0D0F172A),
-                blurRadius: 10,
-                offset: Offset(0, 2),
-              ),
-            ],
-          ),
+          decoration: AppCardStyles.compact,
           child: Row(
             children: [
               Container(
@@ -1069,18 +1060,7 @@ class _ErrorCard extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     width: double.infinity,
     padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
-    decoration: BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(16),
-      border: Border.all(color: const Color(0xFFF1F5F9)),
-      boxShadow: const [
-        BoxShadow(
-          color: Color(0x0D0F172A),
-          blurRadius: 10,
-          offset: Offset(0, 2),
-        ),
-      ],
-    ),
+    decoration: AppCardStyles.major,
     child: Column(
       children: [
         Container(
@@ -1150,18 +1130,7 @@ class _EmptyCard extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     width: double.infinity,
     padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
-    decoration: BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(16),
-      border: Border.all(color: const Color(0xFFF1F5F9)),
-      boxShadow: const [
-        BoxShadow(
-          color: Color(0x0D0F172A),
-          blurRadius: 10,
-          offset: Offset(0, 2),
-        ),
-      ],
-    ),
+    decoration: AppCardStyles.major,
     child: Column(
       children: [
         Container(

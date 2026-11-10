@@ -47,8 +47,9 @@ import 'package:ekaplus_ekatunggal/features/search/presentation/bloc/search_bloc
 import 'package:ekaplus_ekatunggal/features/search/presentation/pages/search_page.dart';
 import 'package:ekaplus_ekatunggal/features/wishlist/presentation/pages/wishlist_page.dart';
 import 'package:ekaplus_ekatunggal/features/report/presentation/pages/penjualan_page.dart';
-import 'package:ekaplus_ekatunggal/features/transaksi/transaksi.dart';
 import 'package:ekaplus_ekatunggal/features/customer/presentation/pages/customer_page.dart';
+import 'package:ekaplus_ekatunggal/features/invoice/presentation/cubit/invoice_cubit.dart';
+import 'package:ekaplus_ekatunggal/features/invoice/presentation/pages/invoice_page.dart';
 import 'package:ekaplus_ekatunggal/features/loyalty/data/services/loyalty_service.dart';
 import 'package:ekaplus_ekatunggal/features/loyalty/domain/entities/loyalty_models.dart';
 import 'package:ekaplus_ekatunggal/features/loyalty/presentation/cubit/loyalty_point_cubit.dart';
@@ -121,7 +122,7 @@ class MyRouter {
   GoRouter get router => GoRouter(
     navigatorKey: globalNavigatorKey,
     // initialLocation: "/splash",
-    initialLocation: "/",
+    initialLocation: "/customer",
     routes: [
       // ********** Splash Screen (tanpa bottom nav) **********
       GoRoute(
@@ -164,13 +165,16 @@ class MyRouter {
           // GoRoute(
           //   name: 'invoice',
           //   path: '/invoice',
-          //   builder: (context, state) => const InvoicePage(),
+          //   builder: (context, state) => BlocProvider(
+          //     create: (_) => InvoiceCubit(),
+          //     child: const InvoicePage(),
+          //   ),
           // ),
-          GoRoute(
-            name: 'transaksi',
-            path: '/transaksi',
-            builder: (context, state) => const TransaksiPage(),
-          ),
+          // GoRoute(
+          //   name: 'transaksi',
+          //   path: '/transaksi',
+          //   builder: (context, state) => const TransaksiPage(),
+          // ),
           GoRoute(
             name: 'account',
             path: '/account',

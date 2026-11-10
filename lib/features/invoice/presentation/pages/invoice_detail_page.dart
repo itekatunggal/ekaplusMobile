@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:ekaplus_ekatunggal/constant.dart';
+import 'package:ekaplus_ekatunggal/core/shared_widgets/custom_header.dart';
+import 'package:ekaplus_ekatunggal/core/theme/app_card_styles.dart';
 import 'package:ekaplus_ekatunggal/features/invoice/data/services/payment_entry_service.dart';
 import 'package:ekaplus_ekatunggal/features/member/presentation/cubit/active_company_cubit.dart';
 import 'package:ekaplus_ekatunggal/features/salesOrder/data/services/branch_credential_service.dart';
@@ -27,23 +30,27 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage>
   bool _isLoadingPayment = false;
   List<Map<String, dynamic>> _paymentList = [];
   bool _paymentLoaded = false;
+  String? _paymentError;
 
   bool _isLoadingSales = false;
   List<Map<String, dynamic>> _salesList = [];
   bool _salesLoaded = false;
+  String? _salesError;
 
   bool _isLoadingDelivery = false;
   List<Map<String, dynamic>> _deliveryNoteList = [];
   bool _deliveryLoaded = false;
+  String? _deliveryError;
 
   static const Color kRed = AppColors.primaryColor;
   static const Color kGreen = Color(0xFF059669);
-  static const Color kBg = AppColors.background;
+  static const Color kBg = Color(0xFFF6F7F9);
 
   static const Color kInk = Color(0xFF0F172A);
   static const Color kMuted = Color(0xFF64748B);
   static const Color kFaint = Color(0xFF94A3B8);
   static const Color kLine = Color(0xFFF1F5F9);
+  static const Color kOrange = Color(0xFFF57C00);
 
   // ── Null-safe helpers ─────────────────────────────────────────────────────
   String _s(String key, [String fallback = '-']) =>
@@ -89,6 +96,10 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage>
     return n == null ? '-' : _rupiah(n.toInt());
   }
 
+  String _rupiahDigits(int value) {
+    return _rupiah(value).replaceFirst('-Rp ', '-').replaceFirst('Rp ', '');
+  }
+
   bool _isPaidLike(String status) {
     final l = status.toLowerCase();
     if (l.contains('unpaid') || l.contains('belum') || l.contains('overdue')) {
@@ -112,6 +123,75 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage>
         .replaceAll(RegExp(r'<[^>]*>'), '')
         .trim();
     return out.isEmpty ? fallback : out;
+  }
+
+  /// '2026-10-07' → '07 Okt 2026'. Jika gagal parse, kembalikan teks asli.
+  String _fmtDate(String raw) {
+    final d = DateTime.tryParse(raw);
+    if (d == null) return raw;
+    const bulan = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'Mei',
+      'Jun',
+      'Jul',
+      'Agu',
+      'Sep',
+      'Okt',
+      'Nov',
+      'Des',
+    ];
+    return '${d.day.toString().padLeft(2, '0')} ${bulan[d.month - 1]} ${d.year}';
+  }
+
+  /// Ubah teks KAPITAL jadi Title Case, singkatan umum tetap kapital.
+  String _titleCase(String input) {
+    const keep = {'PT', 'CV', 'KM', 'RT', 'RW', 'NO', 'UD', 'TBK'};
+    return input
+        .split(' ')
+        .map((word) {
+          if (word.isEmpty) return word;
+          final letters = word.toUpperCase().replaceAll(RegExp(r'[^A-Z]'), '');
+          if (keep.contains(letters)) return word.toUpperCase();
+          return word.toLowerCase().replaceAllMapped(
+            RegExp(r'(^|[\/\.\-\(])([a-z])'),
+            (m) => '${m[1]}${m[2]!.toUpperCase()}',
+          );
+        })
+        .join(' ');
+  }
+
+  /// Rapikan alamat: buang baris kosong & baris yang sudah termuat di baris lain.
+  List<String> _tidyAddress(String? html) {
+    final raw = _stripHtml(html, '');
+    if (raw.isEmpty) return [];
+    final parts = raw
+        .split('\n')
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toList();
+    final result = <String>[];
+    for (final p in parts) {
+      final lower = p.toLowerCase();
+      if (result.any((r) => r.toLowerCase().contains(lower))) continue;
+      result.add(p);
+    }
+    return result.map(_titleCase).toList();
+  }
+
+  void _copy(String text, String label) {
+    Clipboard.setData(ClipboardData(text: text));
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text('$label disalin'),
+          duration: const Duration(seconds: 1),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
   }
   // ─────────────────────────────────────────────────────────────────────────
 
@@ -152,31 +232,39 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage>
           context,
         ).textTheme.apply(fontFamily: AppFonts.primaryFont),
       ),
-      child: Scaffold(
+      child: CustomHeaderScaffold(
+        title: _headerTitle,
+        showBackButton: true,
+        onBackPressed: _handleBack,
         backgroundColor: kBg,
-        body: Column(
-          children: [
-            _buildHeader(context, isBelumBayar),
-            _buildTabs(),
-            Expanded(
-              child: TabBarView(
-                controller: _tabController,
-                physics:
-                    (_selectedPayment != null ||
-                        _selectedDelivery != null ||
-                        _selectedSales != null)
-                    ? const NeverScrollableScrollPhysics()
-                    : null,
-                children: [
-                  _tabDetail(),
-                  _tabItem(),
-                  _tabPembayaran(),
-                  _tabDelivery(),
-                  _tabSales(),
-                ],
-              ),
+        body: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 680),
+            child: Column(
+              children: [
+                _buildSummarySection(isBelumBayar),
+                _buildTabs(),
+                Expanded(
+                  child: TabBarView(
+                    controller: _tabController,
+                    physics:
+                        (_selectedPayment != null ||
+                            _selectedDelivery != null ||
+                            _selectedSales != null)
+                        ? const NeverScrollableScrollPhysics()
+                        : null,
+                    children: [
+                      _tabDetail(),
+                      _tabItem(),
+                      _tabPembayaran(),
+                      _tabDelivery(),
+                      _tabSales(),
+                    ],
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -198,7 +286,10 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage>
   Future<void> _loadPaymentEntry() async {
     if (_paymentLoaded) return;
 
-    setState(() => _isLoadingPayment = true);
+    setState(() {
+      _isLoadingPayment = true;
+      _paymentError = null;
+    });
 
     final soName = _s('series');
     final invoiceName = _s('name');
@@ -219,8 +310,12 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage>
       branchName,
     );
 
-    if (credential == null || !mounted) {
-      setState(() => _isLoadingPayment = false);
+    if (!mounted) return;
+    if (credential == null) {
+      setState(() {
+        _isLoadingPayment = false;
+        _paymentError = 'Credential cabang tidak tersedia.';
+      });
       return;
     }
 
@@ -237,14 +332,20 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage>
     setState(() {
       _paymentList = results ?? [];
       _isLoadingPayment = false;
-      _paymentLoaded = true;
+      _paymentLoaded = results != null;
+      _paymentError = results == null
+          ? 'Data payment belum dapat dimuat.'
+          : null;
     });
   }
 
   Future<void> _loadDeliveryNotes() async {
     if (_deliveryLoaded) return;
 
-    setState(() => _isLoadingDelivery = true);
+    setState(() {
+      _isLoadingDelivery = true;
+      _deliveryError = null;
+    });
 
     final soName = _s('series');
     final invoiceName = _s('name');
@@ -265,8 +366,12 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage>
       branchName,
     );
 
-    if (credential == null || !mounted) {
-      setState(() => _isLoadingDelivery = false);
+    if (!mounted) return;
+    if (credential == null) {
+      setState(() {
+        _isLoadingDelivery = false;
+        _deliveryError = 'Credential cabang tidak tersedia.';
+      });
       return;
     }
 
@@ -284,14 +389,20 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage>
     setState(() {
       _deliveryNoteList = results ?? [];
       _isLoadingDelivery = false;
-      _deliveryLoaded = true;
+      _deliveryLoaded = results != null;
+      _deliveryError = results == null
+          ? 'Data delivery note belum dapat dimuat.'
+          : null;
     });
   }
 
   Future<void> _loadSales() async {
     if (_salesLoaded) return;
 
-    setState(() => _isLoadingSales = true);
+    setState(() {
+      _isLoadingSales = true;
+      _salesError = null;
+    });
 
     final soName = _s('series');
     final invoiceName = _s('name');
@@ -312,8 +423,12 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage>
       branchName,
     );
 
-    if (credential == null || !mounted) {
-      setState(() => _isLoadingSales = false);
+    if (!mounted) return;
+    if (credential == null) {
+      setState(() {
+        _isLoadingSales = false;
+        _salesError = 'Credential cabang tidak tersedia.';
+      });
       return;
     }
 
@@ -330,18 +445,25 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage>
     setState(() {
       _salesList = results ?? [];
       _isLoadingSales = false;
-      _salesLoaded = true;
+      _salesLoaded = results != null;
+      _salesError = results == null
+          ? 'Data sales order belum dapat dimuat.'
+          : null;
     });
   }
 
   // ─── HEADER ───────────────────────────────────────────────────────────────
-  Widget _buildHeader(BuildContext context, bool isBelumBayar) {
-    final Widget summary;
-    final String title;
+  String get _headerTitle {
+    if (_selectedPayment != null) return 'Detail Pembayaran';
+    if (_selectedDelivery != null) return 'Detail Delivery';
+    if (_selectedSales != null) return 'Detail Sales Order';
+    return 'Detail Sales Invoice';
+  }
 
+  Widget _buildSummarySection(bool isBelumBayar) {
+    final Widget summary;
     if (_selectedPayment != null) {
       final p = _selectedPayment!;
-      title = 'Detail Pembayaran';
       summary = _detailSummary(
         title: p['name']?.toString() ?? '-',
         status: p['status']?.toString() ?? '-',
@@ -356,7 +478,6 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage>
       );
     } else if (_selectedDelivery != null) {
       final p = _selectedDelivery!;
-      title = 'Detail Delivery';
       summary = _detailSummary(
         title: p['name']?.toString() ?? '-',
         status: p['status']?.toString() ?? '-',
@@ -373,7 +494,6 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage>
       );
     } else if (_selectedSales != null) {
       final p = _selectedSales!;
-      title = 'Detail Sales Order';
       summary = _detailSummary(
         title: p['name']?.toString() ?? '-',
         status: p['status']?.toString() ?? '-',
@@ -384,192 +504,236 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage>
         ],
       );
     } else {
-      title = 'Detail Sales Invoice';
       summary = _invoiceSummary(isBelumBayar);
     }
 
+    return SizedBox(width: double.infinity, child: summary);
+  }
+
+  /// Ringkasan invoice: nomor, status, total tagihan, jatuh tempo + countdown.
+  Widget _invoiceSummary(bool isBelumBayar) {
+    final dueRaw = _s('dueDate');
+    final totalAmount = _rupiahDigits(_i('nilai'));
+
     return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [Color(0xFFD52A2F), AppColors.primaryColor],
-        ),
-        borderRadius: BorderRadius.vertical(bottom: Radius.circular(28)),
-        boxShadow: [
-          BoxShadow(
-            color: Color(0x1F0F172A),
-            blurRadius: 12,
-            offset: Offset(0, 4),
-          ),
-        ],
-      ),
-      clipBehavior: Clip.antiAlias,
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: AppCardStyles.major,
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SafeArea(
-            bottom: false,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(12, 8, 16, 10),
-              child: Row(
+          // Baris atas: ikon + nomor invoice + status
+          Row(
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: kRed.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(11),
+                ),
+                child: const Icon(
+                  Icons.receipt_long_outlined,
+                  size: 19,
+                  color: kRed,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'SALES INVOICE',
+                      style: TextStyle(
+                        color: kFaint,
+                        fontSize: 9,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.6,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      _s('series'),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: kInk,
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              _invoiceStatusPill(_s('status'), paid: !isBelumBayar),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          // Total tagihan
+          const Text(
+            'Total Tagihan',
+            style: TextStyle(
+              color: kMuted,
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 2),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text.rich(
+              TextSpan(
                 children: [
-                  IconButton(
-                    tooltip: 'Kembali',
-                    onPressed: _handleBack,
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints.tightFor(
-                      width: 40,
-                      height: 40,
-                    ),
-                    style: IconButton.styleFrom(
-                      backgroundColor: Colors.white.withOpacity(0.16),
-                      foregroundColor: Colors.white,
-                      shape: const CircleBorder(),
-                    ),
-                    icon: const Icon(Icons.arrow_back_rounded, size: 20),
+                  const TextSpan(
+                    text: 'Rp ',
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
                   ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'EKAPLUS',
-                          maxLines: 1,
-                          style: TextStyle(
-                            fontFamily: AppFonts.primaryFont,
-                            color: Color(0xFFFECACA),
-                            fontSize: 9,
-                            fontWeight: FontWeight.w500,
-                            letterSpacing: .35,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontFamily: AppFonts.primaryFont,
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: -.3,
-                          ),
-                        ),
-                      ],
+                  TextSpan(
+                    text: totalAmount,
+                    style: const TextStyle(
+                      fontSize: 26,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: -0.4,
                     ),
                   ),
                 ],
               ),
+              maxLines: 1,
+              style: const TextStyle(color: kInk),
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
-            child: summary,
+          const SizedBox(height: 14),
+
+          // Strip jatuh tempo
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: kLine),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.event_outlined, size: 16, color: kMuted),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Jatuh Tempo',
+                        style: TextStyle(fontSize: 10, color: kFaint),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        _fmtDate(dueRaw),
+                        style: const TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w700,
+                          color: kInk,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                _dueChip(dueRaw, paid: !isBelumBayar),
+              ],
+            ),
           ),
         ],
       ),
     );
   }
 
-  /// Ringkasan invoice: series, tanggal, status, total tagihan & jatuh tempo.
-  Widget _invoiceSummary(bool isBelumBayar) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    _s('series'),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 17,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: -0.2,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  _metaLine(Icons.calendar_today_outlined, _s('date')),
-                ],
-              ),
+  /// Chip countdown hanya untuk invoice yang belum lunas.
+  Widget _dueChip(String dueRaw, {required bool paid}) {
+    if (paid) return const SizedBox.shrink();
+
+    final due = DateTime.tryParse(dueRaw);
+    if (due == null) return const SizedBox.shrink();
+    final now = DateTime.now();
+    final diff = DateTime(
+      due.year,
+      due.month,
+      due.day,
+    ).difference(DateTime(now.year, now.month, now.day)).inDays;
+
+    final String text;
+    final Color fg;
+    final Color bg;
+    final IconData icon;
+    if (diff < 0) {
+      text = 'Lewat ${-diff} hari';
+      fg = kRed;
+      bg = const Color(0xFFFFF1F2);
+      icon = Icons.error_outline;
+    } else if (diff == 0) {
+      text = 'Hari ini';
+      fg = kOrange;
+      bg = const Color(0xFFFFF3E0);
+      icon = Icons.schedule;
+    } else if (diff <= 7) {
+      text = '$diff hari lagi';
+      fg = kOrange;
+      bg = const Color(0xFFFFF3E0);
+      icon = Icons.schedule;
+    } else {
+      text = '$diff hari lagi';
+      fg = const Color(0xFF1565C0);
+      bg = const Color(0xFFE3F2FD);
+      icon = Icons.schedule;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: fg),
+          const SizedBox(width: 4),
+          Text(
+            text,
+            style: TextStyle(
+              fontSize: 10.5,
+              fontWeight: FontWeight.w700,
+              color: fg,
             ),
-            const SizedBox(width: 10),
-            _statusPill(_s('status'), paid: !isBelumBayar),
-          ],
-        ),
-        const SizedBox(height: 10),
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.14),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.white.withOpacity(0.18)),
           ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Total Tagihan',
-                      style: TextStyle(
-                        color: Colors.white70,
-                        fontSize: 10.5,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    FittedBox(
-                      fit: BoxFit.scaleDown,
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        _rupiah(_i('nilai')),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 20,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 12),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  const Text(
-                    'Jatuh Tempo',
-                    style: TextStyle(
-                      color: Colors.white70,
-                      fontSize: 9.5,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    _s('dueDate'),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _invoiceStatusPill(String text, {required bool paid}) {
+    final foreground = paid ? const Color(0xFF15803D) : AppColors.primaryColor;
+    final background = paid ? const Color(0xFFE8F8EE) : const Color(0xFFFFF1F2);
+    final border = paid ? const Color(0xFFBBF7D0) : const Color(0xFFFECACA);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: border),
+      ),
+      child: Text(
+        text,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          color: foreground,
+          fontSize: 10.5,
+          fontWeight: FontWeight.w700,
         ),
-      ],
+      ),
     );
   }
 
@@ -579,32 +743,37 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage>
     required String status,
     required List<(IconData, String)> metas,
   }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-                title,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 19,
-                  fontWeight: FontWeight.w800,
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: AppCardStyles.major,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    color: kInk,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(width: 10),
-            _statusPill(status, paid: _isPaidLike(status)),
-          ],
-        ),
-        const SizedBox(height: 10),
-        Wrap(
-          spacing: 14,
-          runSpacing: 6,
-          children: [for (final m in metas) _metaLine(m.$1, m.$2)],
-        ),
-      ],
+              const SizedBox(width: 10),
+              _chip(status),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 14,
+            runSpacing: 6,
+            children: [for (final m in metas) _metaLine(m.$1, m.$2)],
+          ),
+        ],
+      ),
     );
   }
 
@@ -612,68 +781,28 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage>
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 13, color: Colors.white70),
+        Icon(icon, size: 13, color: kFaint),
         const SizedBox(width: 5),
         Flexible(
           child: Text(
             text,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(color: Colors.white70, fontSize: 12),
+            style: const TextStyle(color: kMuted, fontSize: 11.5),
           ),
         ),
       ],
     );
   }
 
-  Widget _statusPill(String text, {required bool paid}) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: paid ? kGreen : Colors.white.withOpacity(0.2),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: paid ? Colors.transparent : Colors.white38),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 6,
-            height: 6,
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              shape: BoxShape.circle,
-            ),
-          ),
-          const SizedBox(width: 6),
-          Text(
-            text,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 11.5,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   // ─── TAB BAR (pill style) ─────────────────────────────────────────────────
   Widget _buildTabs() {
-    const labels = [
-      'Detail',
-      'Item',
-      'Payment',
-      'Delivery Note',
-      'Sales Order',
-    ];
+    const labels = ['Detail', 'Item', 'Bayar', 'Kirim', 'Order'];
     return Container(
       color: kBg,
-      padding: const EdgeInsets.fromLTRB(12, 12, 12, 2),
+      padding: const EdgeInsets.only(top: 12, bottom: 2),
       child: TabBar(
         controller: _tabController,
-        isScrollable: true,
-        tabAlignment: TabAlignment.start,
+        isScrollable: false,
         dividerColor: Colors.transparent,
         splashFactory: NoSplash.splashFactory,
         overlayColor: const WidgetStatePropertyAll(Colors.transparent),
@@ -689,12 +818,15 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage>
             ),
           ],
         ),
-        labelPadding: const EdgeInsets.symmetric(horizontal: 3),
+        labelPadding: EdgeInsets.zero,
         labelColor: Colors.white,
         unselectedLabelColor: kMuted,
-        labelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+        labelStyle: const TextStyle(
+          fontSize: 10.5,
+          fontWeight: FontWeight.w700,
+        ),
         unselectedLabelStyle: const TextStyle(
-          fontSize: 12,
+          fontSize: 10.5,
           fontWeight: FontWeight.w600,
         ),
         tabs: [
@@ -702,7 +834,7 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage>
             Tab(
               height: 34,
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 14),
+                padding: const EdgeInsets.symmetric(horizontal: 4),
                 child: Text(l),
               ),
             ),
@@ -720,25 +852,8 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage>
 
     return _ScrollPage(
       children: [
-        _card(
-          title: 'INFORMASI INVOICE',
-          child: _infoGroup([
-            (Icons.tag, 'Nomor Invoice', _s('series')),
-            (Icons.calendar_today_outlined, 'Tanggal', _s('date')),
-            (Icons.business_outlined, 'Customer', _s('customer')),
-            (Icons.event_outlined, 'Jatuh Tempo', _s('dueDate')),
-          ]),
-        ),
-        _card(
-          title: 'ALAMAT & KONTAK',
-          child: _infoGroup([
-            (
-              Icons.location_on_outlined,
-              'Alamat Customer',
-              _stripHtml(addr['addressDisplay']?.toString()),
-            ),
-          ]),
-        ),
+        _invoiceInfoCard(),
+        _addressCard(addr),
         _card(
           title: 'PAJAK & BIAYA',
           child: Column(
@@ -767,7 +882,7 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage>
                               Text(
                                 t['type']?.toString() ?? '-',
                                 style: const TextStyle(
-                                  fontSize: 12.5,
+                                  fontSize: 12,
                                   fontWeight: FontWeight.w700,
                                   color: kInk,
                                 ),
@@ -805,7 +920,7 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage>
                         Text(
                           _rupiah(amt),
                           style: const TextStyle(
-                            fontSize: 12.5,
+                            fontSize: 12,
                             fontWeight: FontWeight.w600,
                             color: kInk,
                           ),
@@ -826,7 +941,7 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage>
                     _rupiah(taxTotal),
                     style: const TextStyle(
                       fontSize: 14,
-                      fontWeight: FontWeight.w800,
+                      fontWeight: FontWeight.w700,
                       color: kRed,
                     ),
                   ),
@@ -857,6 +972,306 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage>
             ]),
           ),
       ],
+    );
+  }
+
+  /// Informasi invoice dalam satu section tanpa box/border per field.
+  Widget _invoiceInfoCard() {
+    final customer = _s('customer');
+    final initial = customer == '-' || customer.isEmpty
+        ? '?'
+        : customer.trim()[0].toUpperCase();
+
+    return _card(
+      title: 'INFORMASI INVOICE',
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: kRed.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  initial,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: kRed,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Customer',
+                      style: TextStyle(fontSize: 10, color: kMuted),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      customer,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        height: 1.3,
+                        fontWeight: FontWeight.w700,
+                        color: kInk,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: _plainInvoiceInfoTile(
+                  icon: Icons.calendar_today_outlined,
+                  label: 'Tanggal Terbit',
+                  value: _fmtDate(_s('date')),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: _plainInvoiceInfoTile(
+                  icon: Icons.event_outlined,
+                  label: 'Jatuh Tempo',
+                  value: _fmtDate(_s('dueDate')),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          _plainInvoiceInfoRow(
+            icon: Icons.tag,
+            label: 'Nomor Invoice',
+            value: _s('series'),
+            onCopy: () => _copy(_s('series'), 'Nomor invoice'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _plainInvoiceInfoTile({
+    required IconData icon,
+    required String label,
+    required String value,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 30,
+          child: Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: Icon(icon, size: 13, color: kRed),
+          ),
+        ),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 10, color: kMuted),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 12.5,
+                  height: 1.3,
+                  fontWeight: FontWeight.w700,
+                  color: kInk,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _plainInvoiceInfoRow({
+    required IconData icon,
+    required String label,
+    required String value,
+    VoidCallback? onCopy,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 30,
+          child: Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: Icon(icon, size: 17, color: kRed),
+          ),
+        ),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label, style: const TextStyle(fontSize: 10, color: kMuted)),
+              const SizedBox(height: 3),
+              Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 12.5,
+                  height: 1.3,
+                  fontWeight: FontWeight.w700,
+                  color: kInk,
+                ),
+              ),
+            ],
+          ),
+        ),
+        if (onCopy != null)
+          IconButton(
+            tooltip: 'Salin nomor invoice',
+            onPressed: onCopy,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints.tightFor(width: 40, height: 40),
+            icon: const Icon(Icons.copy_rounded, size: 16, color: kFaint),
+          ),
+      ],
+    );
+  }
+
+  /// Kartu "Alamat & Kontak": alamat dirapikan (title case, tanpa baris
+  /// duplikat), kode pos jadi chip, plus tombol salin.
+  Widget _addressCard(Map<String, dynamic> addr) {
+    final lines = _tidyAddress(addr['addressDisplay']?.toString());
+    final joined = lines.join(', ');
+    final postal = RegExp(r'\b\d{5}\b').firstMatch(joined)?.group(0);
+
+    return _card(
+      title: 'ALAMAT & KONTAK',
+      child: lines.isEmpty
+          ? const _InlineEmpty(
+              icon: Icons.location_off_outlined,
+              message: 'Alamat belum tersedia',
+            )
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 38,
+                      height: 38,
+                      decoration: BoxDecoration(
+                        color: kRed.withOpacity(0.08),
+                        borderRadius: BorderRadius.circular(11),
+                      ),
+                      child: const Icon(
+                        Icons.location_on_outlined,
+                        size: 19,
+                        color: kRed,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Alamat Customer',
+                            style: TextStyle(fontSize: 10, color: kMuted),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            lines.first,
+                            style: const TextStyle(
+                              fontSize: 12.5,
+                              height: 1.5,
+                              fontWeight: FontWeight.w600,
+                              color: kInk,
+                            ),
+                          ),
+                          for (final l in lines.skip(1)) ...[
+                            const SizedBox(height: 2),
+                            Text(
+                              l,
+                              style: const TextStyle(
+                                fontSize: 11.5,
+                                height: 1.4,
+                                color: kMuted,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                const Divider(height: 1, color: kLine),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    if (postal != null)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 9,
+                          vertical: 5,
+                        ),
+                        decoration: BoxDecoration(
+                          color: kLine,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.markunread_mailbox_outlined,
+                              size: 12,
+                              color: kMuted,
+                            ),
+                            const SizedBox(width: 5),
+                            Text(
+                              'Kode Pos $postal',
+                              style: const TextStyle(
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.w600,
+                                color: kMuted,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    const Spacer(),
+                    TextButton.icon(
+                      onPressed: () => _copy(joined, 'Alamat'),
+                      icon: const Icon(Icons.copy_rounded, size: 14),
+                      label: const Text('Salin'),
+                      style: TextButton.styleFrom(
+                        foregroundColor: kRed,
+                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                        minimumSize: const Size(0, 30),
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        textStyle: const TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
     );
   }
 
@@ -894,6 +1309,9 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage>
   Widget _paymentListView() {
     if (_isLoadingPayment) {
       return const Center(child: CircularProgressIndicator());
+    }
+    if (_paymentError != null) {
+      return _relatedDataError(_paymentError!, _loadPaymentEntry);
     }
 
     return _ScrollPage(
@@ -968,7 +1386,7 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage>
                       _money(p['paid_amount']),
                       style: const TextStyle(
                         fontSize: 20,
-                        fontWeight: FontWeight.w800,
+                        fontWeight: FontWeight.w700,
                         color: kGreen,
                       ),
                     ),
@@ -1019,6 +1437,9 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage>
   Widget _deliveryListView() {
     if (_isLoadingDelivery) {
       return const Center(child: CircularProgressIndicator());
+    }
+    if (_deliveryError != null) {
+      return _relatedDataError(_deliveryError!, _loadDeliveryNotes);
     }
 
     return _ScrollPage(
@@ -1086,6 +1507,9 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage>
     if (_isLoadingSales) {
       return const Center(child: CircularProgressIndicator());
     }
+    if (_salesError != null) {
+      return _relatedDataError(_salesError!, _loadSales);
+    }
 
     return _ScrollPage(
       children: [
@@ -1105,14 +1529,14 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage>
           ..._salesList.map((p) {
             return _listTile(
               icon: Icons.receipt_outlined,
-              iconColor: const Color(0xFFF57C00),
+              iconColor: kOrange,
               iconBg: const Color(0xFFFFF3E0),
               title: p['name']?.toString() ?? '-',
               status: p['status']?.toString() ?? '-',
               date: p['posting_date']?.toString() ?? '-',
               subtitle: p['customer_name']?.toString() ?? '-',
               amount: _money(p['grand_total']),
-              amountColor: const Color(0xFFF57C00),
+              amountColor: kOrange,
               onTap: () => setState(() => _selectedSales = p),
             );
           }),
@@ -1144,6 +1568,51 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage>
   }
 
   // ─── SHARED WIDGETS ───────────────────────────────────────────────────────
+  Widget _relatedDataError(String message, Future<void> Function() onRetry) {
+    return _ScrollPage(
+      children: [
+        _card(
+          title: '',
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Column(
+              children: [
+                const Icon(
+                  Icons.cloud_off_outlined,
+                  color: AppColors.primaryColor,
+                  size: 28,
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  message,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: kMuted,
+                    fontSize: 11,
+                    height: 1.4,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  onPressed: onRetry,
+                  icon: const Icon(Icons.refresh_rounded, size: 16),
+                  label: const Text('Coba Lagi'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.primaryColor,
+                    side: const BorderSide(color: Color(0xFFFECACA)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(9),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _sectionHeader(String title, {int? count}) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(4, 4, 4, 10),
@@ -1154,9 +1623,9 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage>
             style: const TextStyle(
               fontFamily: AppFonts.primaryFont,
               color: kFaint,
-              fontSize: 10,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 0.6,
+              fontSize: 9.5,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.45,
             ),
           ),
           if (count != null) ...[
@@ -1171,7 +1640,7 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage>
                 '$count',
                 style: const TextStyle(
                   fontSize: 10,
-                  fontWeight: FontWeight.w800,
+                  fontWeight: FontWeight.w700,
                   color: kRed,
                 ),
               ),
@@ -1182,21 +1651,12 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage>
     );
   }
 
-  BoxDecoration _cardDecoration() => BoxDecoration(
-    color: Colors.white,
-    borderRadius: BorderRadius.circular(16),
-    border: Border.all(color: kLine),
-    boxShadow: const [
-      BoxShadow(color: Color(0x0D0F172A), blurRadius: 10, offset: Offset(0, 2)),
-    ],
-  );
-
   Widget _card({required String title, required Widget child}) {
     return Container(
       width: double.infinity,
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: _cardDecoration(),
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: AppCardStyles.major,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1206,12 +1666,12 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage>
               style: const TextStyle(
                 fontFamily: AppFonts.primaryFont,
                 color: kFaint,
-                fontSize: 10,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 0.6,
+                fontSize: 9.5,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.45,
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 10),
           ],
           child,
         ],
@@ -1226,34 +1686,34 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage>
       children: [
         for (int i = 0; i < rows.length; i++) ...[
           Padding(
-            padding: const EdgeInsets.symmetric(vertical: 10),
+            padding: const EdgeInsets.symmetric(vertical: 8),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Container(
-                  width: 34,
-                  height: 34,
+                  width: 32,
+                  height: 32,
                   decoration: BoxDecoration(
                     color: kRed.withOpacity(0.08),
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: Icon(rows[i].$1, size: 17, color: kRed),
+                  child: Icon(rows[i].$1, size: 16, color: kRed),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 10),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         rows[i].$2,
-                        style: const TextStyle(fontSize: 11, color: kMuted),
+                        style: const TextStyle(fontSize: 10, color: kMuted),
                       ),
                       const SizedBox(height: 3),
                       Text(
                         rows[i].$3,
                         style: const TextStyle(
-                          fontSize: 13,
-                          height: 1.35,
+                          fontSize: 12,
+                          height: 1.3,
                           fontWeight: FontWeight.w600,
                           color: kInk,
                         ),
@@ -1280,120 +1740,106 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage>
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(14),
-      decoration: _cardDecoration(),
-      child: Column(
+      padding: const EdgeInsets.all(12),
+      decoration: AppCardStyles.compact,
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 26,
-                height: 26,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: kRed.withOpacity(0.08),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  '$index',
-                  style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w800,
-                    color: kRed,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
+          Container(
+            width: 44,
+            height: 44,
+            decoration: const BoxDecoration(
+              color: Color(0xFFF3F4F6),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.inventory_2_outlined,
+              size: 20,
+              color: kInk,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      name,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        height: 1.3,
-                        fontWeight: FontWeight.w700,
-                        color: kInk,
+                    Expanded(
+                      child: Text(
+                        name,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 11,
+                          height: 1.3,
+                          fontWeight: FontWeight.w700,
+                          color: kInk,
+                        ),
                       ),
                     ),
-                    const SizedBox(height: 3),
-                    Text(
-                      code,
-                      style: const TextStyle(fontSize: 11, color: kMuted),
+                    const SizedBox(width: 8),
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 132),
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.topRight,
+                        child: Text(
+                          _money(item['amount']),
+                          maxLines: 1,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: kInk,
+                          ),
+                        ),
+                      ),
                     ),
                   ],
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF8FAFC),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Row(
-              children: [
-                Expanded(child: _kv('Qty', '${qty}x')),
-                Expanded(child: _kv('Harga', _money(item['rate']))),
-                Expanded(
-                  child: _kv(
-                    'Subtotal',
-                    _money(item['amount']),
-                    end: true,
-                    color: kRed,
-                    bold: true,
-                  ),
+                const SizedBox(height: 3),
+                Text(
+                  code,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 11, color: kMuted),
+                ),
+                const SizedBox(height: 10),
+                const _DashedLine(),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Qty ${qty}x  •  Harga ${_money(item['rate'])}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w500,
+                          color: kMuted,
+                        ),
+                      ),
+                    ),
+                    if (date != '-') ...[
+                      const SizedBox(width: 8),
+                      Text(
+                        _fmtDate(date),
+                        style: const TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w500,
+                          color: kMuted,
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ],
             ),
           ),
-          if (date != '-') ...[
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                const Icon(
-                  Icons.calendar_today_outlined,
-                  size: 12,
-                  color: kFaint,
-                ),
-                const SizedBox(width: 5),
-                Text(date, style: const TextStyle(fontSize: 11, color: kMuted)),
-              ],
-            ),
-          ],
         ],
       ),
-    );
-  }
-
-  Widget _kv(
-    String label,
-    String value, {
-    bool end = false,
-    Color color = kInk,
-    bool bold = false,
-  }) {
-    return Column(
-      crossAxisAlignment: end
-          ? CrossAxisAlignment.end
-          : CrossAxisAlignment.start,
-      children: [
-        Text(label, style: const TextStyle(fontSize: 10.5, color: kFaint)),
-        const SizedBox(height: 3),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 12.5,
-            fontWeight: bold ? FontWeight.w800 : FontWeight.w600,
-            color: color,
-          ),
-        ),
-      ],
     );
   }
 
@@ -1415,7 +1861,7 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage>
       child: Material(
         color: Colors.transparent,
         child: Ink(
-          decoration: _cardDecoration(),
+          decoration: AppCardStyles.compact,
           child: InkWell(
             borderRadius: BorderRadius.circular(16),
             onTap: onTap,
@@ -1491,7 +1937,7 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage>
                                 amount,
                                 style: TextStyle(
                                   fontSize: 13,
-                                  fontWeight: FontWeight.w800,
+                                  fontWeight: FontWeight.w700,
                                   color: amountColor,
                                 ),
                               ),
@@ -1542,6 +1988,35 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage>
   }
 }
 
+class _DashedLine extends StatelessWidget {
+  const _DashedLine();
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const dashWidth = 3.0;
+        const dashGap = 3.0;
+        final count = (constraints.maxWidth / (dashWidth + dashGap)).floor();
+
+        return Row(
+          children: List.generate(
+            count,
+            (_) => const Padding(
+              padding: EdgeInsets.only(right: dashGap),
+              child: SizedBox(
+                width: dashWidth,
+                height: 1,
+                child: ColoredBox(color: Color(0xFFD1D5DB)),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
 /// Halaman scroll dengan ScrollController milik sendiri
 /// (tidak lagi membuat controller baru di setiap build).
 class _ScrollPage extends StatefulWidget {
@@ -1563,16 +2038,15 @@ class _ScrollPageState extends State<_ScrollPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scrollbar(
-      controller: _controller,
-      thumbVisibility: true,
-      thickness: 4,
-      radius: const Radius.circular(8),
-      child: ListView(
-        controller: _controller,
-        physics: const ClampingScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
-        children: widget.children,
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 680),
+        child: ListView(
+          controller: _controller,
+          physics: const ClampingScrollPhysics(),
+          padding: const EdgeInsets.only(top: 10, bottom: 28),
+          children: widget.children,
+        ),
       ),
     );
   }

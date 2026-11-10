@@ -25,20 +25,24 @@ class CustomerLoyaltyPointCard extends StatelessWidget {
       builder: (context, state) => Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const CustomerSectionTitle(title: 'Poin & Hadiah'),
+          const CustomerSectionTitle(title: 'EkaPoint & Hadiah'),
           const SizedBox(height: 8),
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
+            padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
             decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFFF1F5F9)),
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xFFFFFCF2), Colors.white],
+              ),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: const Color(0xFFFDE7A9)),
               boxShadow: const [
                 BoxShadow(
-                  color: Color(0x0D0F172A),
-                  blurRadius: 10,
-                  offset: Offset(0, 2),
+                  color: Color(0x120F172A),
+                  blurRadius: 20,
+                  offset: Offset(0, 6),
                 ),
               ],
             ),
@@ -46,7 +50,7 @@ class CustomerLoyaltyPointCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const _BrandRow(),
-                const SizedBox(height: 18),
+                const SizedBox(height: 16),
                 _BalanceContent(state: state, onRetry: onRetry),
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: 14),
@@ -109,10 +113,10 @@ class _BrandRow extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Ekapoint',
+              'EkaPoint',
               style: TextStyle(
                 color: Color(0xFF1E293B),
-                fontSize: 11.5,
+                fontSize: 13,
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -234,7 +238,7 @@ class _BalanceContent extends StatelessWidget {
               formatPointNumber(state.availablePoint),
               style: const TextStyle(
                 color: Color(0xFF0F172A),
-                fontSize: 25,
+                fontSize: 32,
                 height: 1.1,
                 fontWeight: FontWeight.w700,
                 letterSpacing: -.4,

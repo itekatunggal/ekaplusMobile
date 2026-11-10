@@ -301,14 +301,18 @@ Jangan membuat nilai seperti `17`, `19`, `23` tanpa alasan layout khusus.
 
 ## 7.1 Horizontal Page Padding
 
-- Compact list/grid padat: `12dp`
-- Layar kecil `<360dp`: `16dp`
-- Standard phone/form/detail: `20dp`
-- Tablet atau lebar `>=600dp`: `24dp`, tetap dengan max content width
+- Halaman aplikasi, termasuk root dashboard, list, form, dan detail: `12dp`
+- Login pada layar kecil `<360dp`: `16dp`
+- Login pada standard phone: `20dp`
+- Login pada tablet atau lebar `>=600dp`: `24dp`, tetap dengan max content width
 - Modal/bottom sheet: `20dp`
 - Empty/error state: `24–32dp`
 
-Major card tidak boleh menempel ke tepi layar. Gunakan padding responsif:
+Padding `12dp` adalah standar halaman aplikasi, termasuk Customer, Detail Plafon
+Kredit, dan Rincian Poin. Jangan otomatis memigrasikan halaman detail menjadi
+`16/20/24` hanya karena memiliki major card.
+
+Khusus halaman Login, gunakan padding responsif:
 
 ```dart
 final horizontalPadding = width >= 600
@@ -462,22 +466,51 @@ Wishlist pada bagian **11. Header + Search Pattern**. Jangan meletakkan search
 sebagai child pertama `CustomHeaderScaffold.body`, karena posisi judul dan
 search akan berbeda dari header Wishlist.
 
-### Default geometry
+### Geometry variants
+
+Pilih geometry berdasarkan fungsi halaman, bukan memaksakan satu ukuran untuk
+semua screen.
+
+#### A. Root dashboard/list compact
+
+Dipakai untuk root tab seperti Customer dan Account yang menampilkan banyak
+section ringkas:
+
+```text
+headerHeight  = 154
+contentTop    = 116
+bottomRadius  = 28
+bodyPadding   = 12
+```
+
+Geometry ini merupakan default `CustomHeaderScaffold`. Body overlap ke header
+sekitar `38dp`.
+
+#### B. Subpage/form/detail
+
+Dipakai untuk subpage, form, dan detail yang membutuhkan header lebih tinggi,
+tetapi tetap mengikuti padding horizontal aplikasi `12dp`:
 
 ```text
 headerHeight  = 160
 contentTop    = 124
 bottomRadius  = 28
-bodyPadding   = responsive 16 / 20 / 24
+bodyPadding   = 12
 ```
 
-Body overlap ke header sekitar `36dp`. Geometry ini menjadi default untuk
-halaman form/detail dengan major card pertama. Compact list yang tidak memakai
-overlap dapat mempertahankan geometry khusus existing jika sudah konsisten.
+Body overlap ke header sekitar `36dp`. Halaman form/detail yang memakai
+`CustomHeaderScaffold` harus mengirim `headerHeight: 160` dan `contentTop: 124`
+secara eksplisit. Padding horizontal tetap `12dp`.
 
-Jika default `CustomHeaderScaffold` di source masih `154/116`, halaman yang
-sedang dimigrasikan harus mengirim `headerHeight: 160` dan `contentTop: 124`
-secara eksplisit sampai shared default diperbarui melalui task refactor terpisah.
+#### C. Login spacious
+
+Login merupakan pengecualian dan memakai padding responsif `16/20/24` agar form
+tetap nyaman serta terpusat pada berbagai ukuran layar. Jangan menerapkan padding
+Login ini ke halaman aplikasi lain.
+
+Jangan mengubah default shared `154/116/12` karena dapat menggeser seluruh root
+tab. Geometry `160/124` pada detail adalah override header, bukan alasan untuk
+menaikkan horizontal padding.
 
 ## 10.2 Brand Header Gradient
 
@@ -1946,7 +1979,10 @@ Sebelum dianggap selesai, cek semua poin berikut.
 ## Layout
 
 - [ ] Background canonical `#F6F7F9`; `#F8FAFC` hanya untuk internal surface/input.
-- [ ] Horizontal padding responsif `16/20/24` untuk major card/form.
+- [ ] Blueprint layout sudah ditentukan: root page, subpage/detail, atau Login.
+- [ ] Root dashboard/list compact memakai geometry `154/116` dan padding `12`.
+- [ ] Subpage/form/detail memakai geometry `160/124` dan padding `12`.
+- [ ] Hanya Login yang memakai padding responsif `16/20/24`.
 - [ ] Section gap `14/16`.
 - [ ] Wide screen menggunakan max width jika halaman form/detail.
 - [ ] Background abu tetap terlihat di sekeliling dan di antara major card.
@@ -2042,13 +2078,16 @@ maka Codex harus melakukan urutan berikut:
 1. Baca `design.md`.
 2. Cari shared widget yang sudah tersedia.
 3. Cari halaman existing yang paling mirip.
-4. Tentukan page blueprint: detail/form/list.
+4. Tentukan page blueprint: root dashboard/list, subpage/form/detail, atau Login.
 5. Implementasikan dengan token di dokumen ini.
 6. Gunakan background `#F6F7F9` dan canonical major card radius `18` dengan
    border + shadow.
 7. Untuk header gunakan shared custom header; jika memiliki search, ikuti
    struktur canonical Wishlist pada bagian 11 dan gunakan
    `CustomHeaderSearchField`.
+   Untuk root dashboard/list gunakan geometry `154/116/12`; untuk
+   subpage/form/detail gunakan `160/124/12`. Padding responsif `16/20/24`
+   hanya dipakai oleh Login.
 8. Untuk list besar gunakan pagination contract di dokumen ini.
 9. Tambahkan loading/empty/error/retry state.
 10. Pastikan responsive `<360dp`.
@@ -2086,8 +2125,10 @@ INPUT RADIUS       12
 HEADER RADIUS      28
 BOTTOM SHEET       24
 
-COMPACT PADDING    12
-PAGE/FORM PADDING  16 / 20 / 24 responsive
+ROOT HEADER        154 / 116
+DETAIL HEADER      160 / 124
+APP PAGE PADDING   12
+LOGIN PADDING      16 / 20 / 24 responsive
 SECTION GAP        14
 MAX CONTENT WIDTH  680
 

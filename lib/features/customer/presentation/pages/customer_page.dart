@@ -1,7 +1,9 @@
 import 'package:ekaplus_ekatunggal/constant.dart';
 import 'package:ekaplus_ekatunggal/core/shared_widgets/custom_header.dart';
+import 'package:ekaplus_ekatunggal/core/theme/app_card_styles.dart';
 import 'package:ekaplus_ekatunggal/features/customer/presentation/widgets/customer_company_card.dart';
 import 'package:ekaplus_ekatunggal/features/customer/presentation/widgets/customer_menu_section.dart';
+import 'package:ekaplus_ekatunggal/features/customer/presentation/pages/customer_credit_detail_page.dart';
 import 'package:ekaplus_ekatunggal/features/invoice/presentation/cubit/invoice_cubit.dart';
 import 'package:ekaplus_ekatunggal/features/invoice/presentation/pages/invoice_page.dart';
 import 'package:ekaplus_ekatunggal/features/loyalty/data/services/loyalty_service.dart';
@@ -135,6 +137,7 @@ class _CustomerPageState extends State<CustomerPage> {
           child: CustomHeaderScaffold(
             title: 'Customer',
             showBackButton: false,
+            backgroundColor: const Color(0xFFF6F7F9),
 
             actions: [
               CustomHeaderActionButton(
@@ -189,7 +192,6 @@ class _CustomerPageState extends State<CustomerPage> {
                       activeCompany != null
                           ? CustomerCompanyCard(
                               company: activeCompany,
-                              reloadKey: _creditReloadKey,
                               onChangeCompany: () => context.pushNamed(
                                 'memberList',
                                 extra: {'initialTabIndex': 1},
@@ -210,6 +212,45 @@ class _CustomerPageState extends State<CustomerPage> {
                             ),
 
                       const SizedBox(height: 14),
+
+                      if (activeCompany != null &&
+                          _loyaltyBcid != null &&
+                          _loyaltyGpid != null) ...[
+                        CustomerLoyaltyPointCard(
+                          onCatalogTap: () => context.pushNamed(
+                            'loyalty-rewards',
+                            extra: {'bcid': _loyaltyBcid},
+                          ),
+                          onDetailTap: () => context.pushNamed(
+                            'loyalty-calculation-detail',
+                            extra: {
+                              'gpid': _loyaltyGpid,
+                              'bcid': _loyaltyBcid,
+                              'groupParentCode': activeCompany.gpCode,
+                              'groupParentName': activeCompany.gpName,
+                            },
+                          ),
+                          onRetry: () => _pointSummaryCubit.load(_loyaltyGpid),
+                        ),
+                        const SizedBox(height: 14),
+                      ],
+
+                      if (activeCompany != null) ...[
+                        CustomerCreditSummaryCard(
+                          company: activeCompany,
+                          reloadKey: _creditReloadKey,
+                          onTap: (policy) =>
+                              Navigator.of(context, rootNavigator: true).push(
+                                MaterialPageRoute<void>(
+                                  builder: (_) => CustomerCreditDetailPage(
+                                    company: activeCompany,
+                                    policy: policy,
+                                  ),
+                                ),
+                              ),
+                        ),
+                        const SizedBox(height: 14),
+                      ],
 
                       CustomerMenuSection(
                         title: 'Entitas & Cabang Perusahaan',
@@ -246,28 +287,6 @@ class _CustomerPageState extends State<CustomerPage> {
                       ),
 
                       const SizedBox(height: 14),
-
-                      if (activeCompany != null &&
-                          _loyaltyBcid != null &&
-                          _loyaltyGpid != null) ...[
-                        CustomerLoyaltyPointCard(
-                          onCatalogTap: () => context.pushNamed(
-                            'loyalty-rewards',
-                            extra: {'bcid': _loyaltyBcid},
-                          ),
-                          onDetailTap: () => context.pushNamed(
-                            'loyalty-calculation-detail',
-                            extra: {
-                              'gpid': _loyaltyGpid,
-                              'bcid': _loyaltyBcid,
-                              'groupParentCode': activeCompany.gpCode,
-                              'groupParentName': activeCompany.gpName,
-                            },
-                          ),
-                          onRetry: () => _pointSummaryCubit.load(_loyaltyGpid),
-                        ),
-                        const SizedBox(height: 14),
-                      ],
 
                       CustomerMenuSection(
                         title: 'Transaksi',
@@ -330,20 +349,7 @@ class _NoCompanyCard extends StatelessWidget {
 
       padding: const EdgeInsets.all(20),
 
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-
-        border: Border.all(color: const Color(0xFFF1F5F9)),
-
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x0D0F172A),
-            blurRadius: 10,
-            offset: Offset(0, 2),
-          ),
-        ],
-      ),
+      decoration: AppCardStyles.major,
 
       child: isLoading
           ? const _CompanyCardSkeleton()
@@ -456,18 +462,7 @@ class _CompanyErrorCard extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     width: double.infinity,
     padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
-    decoration: BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(16),
-      border: Border.all(color: const Color(0xFFF1F5F9)),
-      boxShadow: const [
-        BoxShadow(
-          color: Color(0x0D0F172A),
-          blurRadius: 10,
-          offset: Offset(0, 2),
-        ),
-      ],
-    ),
+    decoration: AppCardStyles.major,
     child: Column(
       children: [
         Container(

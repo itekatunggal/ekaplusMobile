@@ -1,3 +1,4 @@
+import 'package:ekaplus_ekatunggal/core/theme/app_card_styles.dart';
 import 'package:flutter/material.dart';
 
 class CustomerMenuItem {
@@ -40,18 +41,7 @@ class CustomerMenuSection extends StatelessWidget {
         CustomerSectionTitle(title: title),
         const SizedBox(height: 8),
         Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFFF1F5F9)),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x0D0F172A),
-                blurRadius: 10,
-                offset: Offset(0, 2),
-              ),
-            ],
-          ),
+          decoration: AppCardStyles.compact,
           clipBehavior: Clip.antiAlias,
           child: Column(
             children: List.generate(items.length, (index) {

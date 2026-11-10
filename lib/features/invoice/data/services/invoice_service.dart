@@ -98,10 +98,10 @@ class InvoiceService {
           message: 'Gagal memuat data (${response.statusCode})',
         );
       }
-    } catch (e) {
-      return InvoiceFetchResult(
+    } catch (_) {
+      return const InvoiceFetchResult(
         status: InvoiceFetchStatus.error,
-        message: 'Terjadi kesalahan: $e',
+        message: 'Sales invoice gagal dimuat. Periksa koneksi Anda.',
       );
     }
   }
