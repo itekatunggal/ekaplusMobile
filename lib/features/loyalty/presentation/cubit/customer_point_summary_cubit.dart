@@ -7,6 +7,7 @@ class CustomerPointSummaryState {
   const CustomerPointSummaryState({
     this.status = CustomerPointSummaryStatus.initial,
     this.gpid,
+    this.bcid,
     this.availablePoint = 0,
     this.nearestExpiry,
     this.periodName,
@@ -16,6 +17,7 @@ class CustomerPointSummaryState {
 
   final CustomerPointSummaryStatus status;
   final int? gpid;
+  final String? bcid;
   final int availablePoint;
   final DateTime? nearestExpiry;
   final String? periodName;
@@ -30,36 +32,44 @@ class CustomerPointSummaryCubit extends Cubit<CustomerPointSummaryState> {
   final LoyaltyService _service;
   int _requestVersion = 0;
 
-  Future<void> load(int? gpid) async {
+  Future<void> load(int? gpid, {String? bcid}) async {
     final version = ++_requestVersion;
-    if (gpid == null || gpid <= 0) {
+    final normalizedBcid = bcid?.trim() ?? '';
+    if (gpid == null || gpid <= 0 || normalizedBcid.isEmpty) {
       emit(const CustomerPointSummaryState());
       return;
     }
     final previous = state;
     final hasExistingData =
         previous.gpid == gpid &&
+        previous.bcid == normalizedBcid &&
         previous.status == CustomerPointSummaryStatus.success;
     if (!hasExistingData) {
       emit(
         CustomerPointSummaryState(
           status: CustomerPointSummaryStatus.loading,
           gpid: gpid,
+          bcid: normalizedBcid,
         ),
       );
     }
     try {
-      final ledger = await _service.getActiveLedger(gpid);
+      final balance = await _service.getBalance(normalizedBcid);
       if (version != _requestVersion || isClosed) return;
+      final activeExpiries =
+          balance.buckets
+              .where((bucket) => !bucket.expired && bucket.validTo != null)
+              .map((bucket) => bucket.validTo!)
+              .toList(growable: false)
+            ..sort();
       emit(
         CustomerPointSummaryState(
           status: CustomerPointSummaryStatus.success,
           gpid: gpid,
-          availablePoint: ledger?.earnedPoint ?? 0,
-          nearestExpiry: ledger?.validTo,
-          periodName: ledger?.periodName,
-          calculationId: ledger?.calculationId,
-          ready: ledger?.ready ?? false,
+          bcid: normalizedBcid,
+          availablePoint: balance.availablePoint,
+          nearestExpiry: activeExpiries.isEmpty ? null : activeExpiries.first,
+          ready: balance.buckets.any((bucket) => bucket.ready),
         ),
       );
     } catch (_) {
@@ -71,6 +81,7 @@ class CustomerPointSummaryCubit extends Cubit<CustomerPointSummaryState> {
           CustomerPointSummaryState(
             status: CustomerPointSummaryStatus.failure,
             gpid: gpid,
+            bcid: normalizedBcid,
           ),
         );
       }

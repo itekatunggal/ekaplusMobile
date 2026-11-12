@@ -1,9 +1,12 @@
 // ignore_for_file: use_build_context_synchronously
 
 import 'package:ekaplus_ekatunggal/features/banner/presentation/cubit/banner_cubit.dart';
-import 'package:ekaplus_ekatunggal/features/branch/presentation/cubit/branch_cubit.dart';
+import 'package:ekaplus_ekatunggal/features/branch/presentation/cubit/selected_branch_cubit.dart';
 import 'package:ekaplus_ekatunggal/features/member/presentation/cubit/member_registration_cubit.dart';
 import 'package:ekaplus_ekatunggal/features/member/presentation/cubit/active_company_cubit.dart';
+import 'package:ekaplus_ekatunggal/features/sales_directory/presentation/cubit/sales_directory_cubit.dart';
+import 'package:ekaplus_ekatunggal/features/promotion/presentation/cubit/promotion_cubit.dart';
+import 'package:ekaplus_ekatunggal/features/article/presentation/cubit/article_cubit.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -11,6 +14,7 @@ import 'package:intl/date_symbol_data_local.dart';
 
 import 'dart:async';
 import 'constant.dart';
+import 'core/config/feature_flags.dart';
 import 'injection.dart';
 import 'observer.dart';
 
@@ -21,6 +25,7 @@ import 'core/utils/global_navigator_key.dart';
 import 'features/auth/presentation/bloc/auth_bloc.dart';
 import 'features/auth/presentation/bloc/otp_timer/otp_timer_bloc.dart';
 import 'features/auth/presentation/cubit/auth_session_cubit.dart';
+import 'features/auth/presentation/cubit/auth_session_state.dart';
 
 import 'features/category/presentation/bloc/category_bloc.dart';
 import 'features/product/presentation/bloc/product_bloc.dart';
@@ -48,9 +53,10 @@ class FadeThroughPageTransitionsBuilder extends PageTransitionsBuilder {
       parent: secondaryAnimation,
       curve: const Interval(0.0, 0.8, curve: Curves.easeOutCubic),
     );
-    final scaleIn = Tween<double>(begin: 0.94, end: 1.0).animate(
-      CurvedAnimation(parent: animation, curve: Curves.easeOutCubic),
-    );
+    final scaleIn = Tween<double>(
+      begin: 0.94,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic));
 
     return FadeTransition(
       opacity: Tween<double>(begin: 1.0, end: 0.0).animate(fadeOut),
@@ -102,13 +108,13 @@ class _EkaplusAppState extends State<EkaplusApp> {
         BlocProvider(
           create: (_) => myinjection<AuthSessionCubit>()..refreshUser(),
         ),
-        BlocProvider(
-          create: (_) => myinjection<ActiveCompanyCubit>()..loadCompaniesAndResolveActive(),
-        ),
+        BlocProvider(create: (_) => myinjection<ActiveCompanyCubit>()),
         BlocProvider(
           create: (_) {
             final bloc = myinjection<ProductBloc>();
-            bloc.add(const ProductEventLoadFirstPage());
+            if (FeatureFlags.showProductCatalog) {
+              bloc.add(const ProductEventLoadFirstPage());
+            }
             return bloc;
           },
         ),
@@ -122,7 +128,10 @@ class _EkaplusAppState extends State<EkaplusApp> {
             return bloc;
           },
         ),
-        BlocProvider(create: (_) => myinjection<BranchCubit>()),
+        BlocProvider(create: (_) => myinjection<SelectedBranchCubit>()..load()),
+        BlocProvider(create: (_) => myinjection<SalesDirectoryCubit>()),
+        BlocProvider(create: (_) => myinjection<PromotionCubit>()),
+        BlocProvider(create: (_) => myinjection<ArticleCubit>()),
         BlocProvider(create: (_) => myinjection<BannerCubit>()),
         BlocProvider(create: (_) => myinjection<MemberRegistrationCubit>()),
         BlocProvider(create: (_) => myinjection<TypeBloc>()),
@@ -162,13 +171,42 @@ class _EkaplusAppState extends State<EkaplusApp> {
               }
             },
           ),
-          // BlocListener<AuthSessionCubit, AuthSessionState>(
-          //   listener: (context, state) {
-          //     // if (state is AuthSessionAuthenticated) {
-          //     //   context.read<WishlistBloc>().add(LoadWishlist(state.user.id));
-          //     // }
-          //   },
-          // ),
+          BlocListener<AuthSessionCubit, AuthSessionState>(
+            listenWhen: (previous, current) {
+              if (previous.runtimeType != current.runtimeType) return true;
+              if (previous is AuthSessionAuthenticated &&
+                  current is AuthSessionAuthenticated) {
+                return previous.user.id != current.user.id;
+              }
+              return false;
+            },
+            listener: (context, state) async {
+              authRouteRefresh.value++;
+              if (state is AuthSessionAuthenticated) {
+                await context
+                    .read<ActiveCompanyCubit>()
+                    .loadCompaniesAndResolveActive(force: true);
+              } else if (state is AuthSessionGuest ||
+                  state is AuthSessionError) {
+                await context.read<ActiveCompanyCubit>().reset();
+              }
+            },
+          ),
+          BlocListener<ActiveCompanyCubit, ActiveCompanyState>(
+            listener: (context, state) {
+              if (state is ActiveCompanyReady) {
+                context
+                    .read<SelectedBranchCubit>()
+                    .syncWithActiveCustomerBranch(
+                      state.activeCompany?.branchId,
+                    );
+              } else if (state is ActiveCompanyInitial) {
+                context
+                    .read<SelectedBranchCubit>()
+                    .syncWithActiveCustomerBranch(null);
+              }
+            },
+          ),
         ],
         child: MaterialApp.router(
           debugShowCheckedModeBanner: false,
@@ -179,9 +217,7 @@ class _EkaplusAppState extends State<EkaplusApp> {
             fontFamily: AppFonts.primaryFont,
             colorScheme: ColorScheme.fromSeed(
               seedColor: AppColors.primaryColor,
-            ).copyWith(
-              surface: Colors.white,
-            ),
+            ).copyWith(surface: Colors.white),
             dialogTheme: const DialogThemeData(
               backgroundColor: Colors.white,
               surfaceTintColor: Colors.transparent,
@@ -235,7 +271,11 @@ class _EkaplusAppState extends State<EkaplusApp> {
             if (!mounted) return;
             if (cubit.state.status != ConnectionStatus.online &&
                 !_isDialogShowing) {
-              _showNoInternetDialog(navigatorContext, cubit, cubit.state.status);
+              _showNoInternetDialog(
+                navigatorContext,
+                cubit,
+                cubit.state.status,
+              );
             }
           });
         });
@@ -254,14 +294,16 @@ class _EkaplusAppState extends State<EkaplusApp> {
   }
 
   void _refreshCurrentScreen(BuildContext context) {
-    // Refresh ProductBloc if exists
-    try {
-      context.read<ProductBloc>().add(const ProductEventRefresh());
-    } catch (_) {}
+    if (FeatureFlags.showProductCatalog) {
+      try {
+        context.read<ProductBloc>().add(const ProductEventRefresh());
+      } catch (_) {}
+    }
 
-    // Refresh TypeBloc if exists
-    try {
-      context.read<TypeBloc>().add(TypeEventGetAllTypes(1));
-    } catch (_) {}
+    if (FeatureFlags.showProductCategories) {
+      try {
+        context.read<TypeBloc>().add(TypeEventGetAllTypes(1));
+      } catch (_) {}
+    }
   }
 }

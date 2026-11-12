@@ -48,8 +48,23 @@ import 'package:ekaplus_ekatunggal/features/search/presentation/pages/search_pag
 import 'package:ekaplus_ekatunggal/features/wishlist/presentation/pages/wishlist_page.dart';
 import 'package:ekaplus_ekatunggal/features/report/presentation/pages/penjualan_page.dart';
 import 'package:ekaplus_ekatunggal/features/customer/presentation/pages/customer_page.dart';
-import 'package:ekaplus_ekatunggal/features/invoice/presentation/cubit/invoice_cubit.dart';
-import 'package:ekaplus_ekatunggal/features/invoice/presentation/pages/invoice_page.dart';
+import 'package:ekaplus_ekatunggal/features/branch/domain/entities/branch.dart';
+import 'package:ekaplus_ekatunggal/features/branch/presentation/cubit/selected_branch_cubit.dart';
+import 'package:ekaplus_ekatunggal/features/branch/presentation/pages/branch_detail_page.dart';
+import 'package:ekaplus_ekatunggal/features/branch/presentation/pages/branch_directory_page.dart';
+import 'package:ekaplus_ekatunggal/features/sales_directory/domain/entities/sales_profile.dart';
+import 'package:ekaplus_ekatunggal/features/sales_directory/domain/repositories/sales_directory_repository.dart';
+import 'package:ekaplus_ekatunggal/features/sales_directory/presentation/cubit/sales_directory_cubit.dart';
+import 'package:ekaplus_ekatunggal/features/sales_directory/presentation/pages/sales_detail_page.dart';
+import 'package:ekaplus_ekatunggal/features/sales_directory/presentation/pages/sales_directory_page.dart';
+import 'package:ekaplus_ekatunggal/features/promotion/domain/entities/promotion.dart';
+import 'package:ekaplus_ekatunggal/features/promotion/domain/repositories/promotion_repository.dart';
+import 'package:ekaplus_ekatunggal/features/promotion/presentation/pages/promotion_detail_page.dart';
+import 'package:ekaplus_ekatunggal/features/promotion/presentation/pages/promotion_list_page.dart';
+import 'package:ekaplus_ekatunggal/features/article/domain/entities/article.dart';
+import 'package:ekaplus_ekatunggal/features/article/domain/repositories/article_repository.dart';
+import 'package:ekaplus_ekatunggal/features/article/presentation/pages/article_detail_page.dart';
+import 'package:ekaplus_ekatunggal/features/article/presentation/pages/article_list_page.dart';
 import 'package:ekaplus_ekatunggal/features/loyalty/data/services/loyalty_service.dart';
 import 'package:ekaplus_ekatunggal/features/loyalty/domain/entities/loyalty_models.dart';
 import 'package:ekaplus_ekatunggal/features/loyalty/presentation/cubit/loyalty_point_cubit.dart';
@@ -77,6 +92,8 @@ import 'package:ekaplus_ekatunggal/features/product/presentation/pages/products_
 import 'package:ekaplus_ekatunggal/features/category/domain/entities/category.dart';
 
 import 'package:ekaplus_ekatunggal/core/shared_widgets/bottom_nav.dart';
+import 'package:ekaplus_ekatunggal/core/config/feature_flags.dart';
+import 'package:ekaplus_ekatunggal/core/routes/route_guard.dart';
 import 'package:ekaplus_ekatunggal/core/shared_widgets/exit_confirmation_wrapper.dart';
 import 'package:ekaplus_ekatunggal/core/utils/global_navigator_key.dart';
 
@@ -84,6 +101,7 @@ import 'package:ekaplus_ekatunggal/features/auth/presentation/cubit/auth_session
 import 'package:ekaplus_ekatunggal/features/auth/presentation/cubit/auth_session_state.dart';
 
 final getIt = GetIt.instance;
+final authRouteRefresh = ValueNotifier<int>(0);
 
 CustomTransitionPage<void> _smoothPage({
   required LocalKey key,
@@ -121,8 +139,17 @@ CustomTransitionPage<void> _smoothPage({
 class MyRouter {
   GoRouter get router => GoRouter(
     navigatorKey: globalNavigatorKey,
-    // initialLocation: "/splash",
-    initialLocation: "/customer",
+    initialLocation: "/",
+    refreshListenable: authRouteRefresh,
+    redirect: (context, state) {
+      final auth = getIt<AuthSessionCubit>().state;
+      return resolveAppRedirect(
+        path: state.uri.path,
+        sessionResolved:
+            auth is! AuthSessionInitial && auth is! AuthSessionLoading,
+        authenticated: auth is AuthSessionAuthenticated,
+      );
+    },
     routes: [
       // ********** Splash Screen (tanpa bottom nav) **********
       GoRoute(
@@ -141,6 +168,16 @@ class MyRouter {
             name: 'home',
             path: '/',
             builder: (context, state) => const HomePage(),
+          ),
+          GoRoute(
+            name: 'branches',
+            path: '/branches',
+            builder: (context, state) => const BranchDirectoryPage(),
+          ),
+          GoRoute(
+            name: 'sales',
+            path: '/sales',
+            builder: (context, state) => const SalesDirectoryPage(),
           ),
           GoRoute(
             name: 'category',
@@ -186,6 +223,66 @@ class MyRouter {
       ),
 
       // ********** Routes tanpa bottom nav *********
+      GoRoute(
+        name: 'branch-detail',
+        path: '/branches/:branchId',
+        builder: (context, state) {
+          final extra = state.extra;
+          final id = int.tryParse(state.pathParameters['branchId'] ?? '') ?? 0;
+          return BranchDetailResolverPage(
+            branchId: id,
+            salesRepository: myinjection<SalesDirectoryRepository>(),
+            initialBranch: extra is Branch ? extra : null,
+          );
+        },
+      ),
+      GoRoute(
+        name: 'sales-detail',
+        path: '/sales/:salesId',
+        builder: (context, state) {
+          final extra = state.extra;
+          final id = int.tryParse(state.pathParameters['salesId'] ?? '') ?? 0;
+          return SalesDetailResolverPage(
+            salesId: id,
+            repository: myinjection<SalesDirectoryRepository>(),
+            initialProfile: extra is SalesProfile ? extra : null,
+          );
+        },
+      ),
+      GoRoute(
+        name: 'promotions',
+        path: '/promotions',
+        builder: (context, state) => const PromotionListPage(),
+      ),
+      GoRoute(
+        name: 'promotion-detail',
+        path: '/promotions/:id',
+        builder: (context, state) {
+          final extra = state.extra;
+          return PromotionDetailResolverPage(
+            id: state.pathParameters['id'] ?? '',
+            repository: myinjection<PromotionRepository>(),
+            initial: extra is Promotion ? extra : null,
+          );
+        },
+      ),
+      GoRoute(
+        name: 'articles',
+        path: '/articles',
+        builder: (context, state) => const ArticleListPage(),
+      ),
+      GoRoute(
+        name: 'article-detail',
+        path: '/articles/:id',
+        builder: (context, state) {
+          final extra = state.extra;
+          return ArticleDetailResolverPage(
+            id: state.pathParameters['id'] ?? '',
+            repository: myinjection<ArticleRepository>(),
+            initial: extra is Article ? extra : null,
+          );
+        },
+      ),
       GoRoute(
         path: '/customer/points',
         name: 'loyalty-points',
@@ -948,42 +1045,52 @@ class AppShell extends StatelessWidget {
   const AppShell({required this.child, required this.currentPath, super.key});
 
   int _locationToIndex({required String path, required bool isLoggedIn}) {
-    if (path.startsWith('/category')) {
-      return 1;
-    }
-
-    if (path.startsWith('/wishlist')) {
-      return 2;
-    }
-
-    if (isLoggedIn) {
-      if (path.startsWith('/customer')) {
-        return 3;
-      }
-
-      if (path.startsWith('/account')) {
-        return 4;
-      }
-    } else {
-      if (path.startsWith('/account')) {
-        return 3;
-      }
-    }
-
-    return 0;
+    final routeName = path.startsWith('/customer')
+        ? 'customer'
+        : path.startsWith('/account')
+        ? 'account'
+        : path.startsWith('/branches')
+        ? 'branches'
+        : path.startsWith('/sales')
+        ? 'sales'
+        : path.startsWith('/category')
+        ? 'category'
+        : path.startsWith('/wishlist')
+        ? 'wishlist'
+        : 'home';
+    final index = _routeNames(isLoggedIn: isLoggedIn).indexOf(routeName);
+    return index < 0 ? 0 : index;
   }
 
   List<String> _routeNames({required bool isLoggedIn}) {
-    if (isLoggedIn) {
-      return const ['home', 'category', 'wishlist', 'customer', 'account'];
-    }
-
-    return const ['home', 'category', 'wishlist', 'account'];
+    return [
+      'home',
+      if (FeatureFlags.showBranchDirectory) 'branches',
+      if (FeatureFlags.showSalesDirectory) 'sales',
+      if (FeatureFlags.showProductCategories) 'category',
+      if (FeatureFlags.showWishlist) 'wishlist',
+      if (isLoggedIn) 'customer',
+      'account',
+    ];
   }
 
   void _refreshPage(BuildContext context, String routeName) {
     switch (routeName) {
       case 'home':
+        break;
+
+      case 'branches':
+        context.read<SelectedBranchCubit>().load(force: true);
+        break;
+
+      case 'sales':
+        final branchId = context
+            .read<SelectedBranchCubit>()
+            .state
+            .selectedBranchId;
+        if (branchId != null) {
+          context.read<SalesDirectoryCubit>().load(branchId: branchId);
+        }
         break;
 
       case 'category':

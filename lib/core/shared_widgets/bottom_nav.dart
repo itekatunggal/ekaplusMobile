@@ -1,4 +1,5 @@
 import 'package:ekaplus_ekatunggal/constant.dart';
+import 'package:ekaplus_ekatunggal/core/config/feature_flags.dart';
 import 'package:flutter/material.dart';
 
 class BottomNavBar extends StatelessWidget {
@@ -15,16 +16,28 @@ class BottomNavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scale = MediaQuery.of(context).textScaleFactor.clamp(0.9, 1.0);
-
     final items = <_BottomNavItemData>[
       const _BottomNavItemData(icon: Icons.home, label: 'Beranda'),
-      const _BottomNavItemData(icon: Icons.grid_view, label: 'Kategori'),
-      const _BottomNavItemData(
-        icon: Icons.favorite_border_rounded,
-        selectedIcon: Icons.favorite_rounded,
-        label: 'Wishlist',
-      ),
+      if (FeatureFlags.showBranchDirectory)
+        const _BottomNavItemData(
+          icon: Icons.store_mall_directory_outlined,
+          selectedIcon: Icons.store_mall_directory_rounded,
+          label: 'Cabang',
+        ),
+      if (FeatureFlags.showSalesDirectory)
+        const _BottomNavItemData(
+          icon: Icons.support_agent_outlined,
+          selectedIcon: Icons.support_agent_rounded,
+          label: 'Sales',
+        ),
+      if (FeatureFlags.showProductCategories)
+        const _BottomNavItemData(icon: Icons.grid_view, label: 'Kategori'),
+      if (FeatureFlags.showWishlist)
+        const _BottomNavItemData(
+          icon: Icons.favorite_border_rounded,
+          selectedIcon: Icons.favorite_rounded,
+          label: 'Wishlist',
+        ),
 
       if (showCustomer)
         const _BottomNavItemData(
@@ -39,39 +52,37 @@ class BottomNavBar extends StatelessWidget {
       ),
     ];
 
-    return MediaQuery(
-      data: MediaQuery.of(context).copyWith(textScaleFactor: scale),
-      child: Container(
-        decoration: BoxDecoration(
-          color: AppColors.whiteColor,
-          boxShadow: [
-            BoxShadow(color: Colors.black.withOpacity(.06), blurRadius: 8),
-          ],
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(16),
-            topRight: Radius.circular(16),
-          ),
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.whiteColor,
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(.06), blurRadius: 8),
+        ],
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(16),
+          topRight: Radius.circular(16),
         ),
-        // Ikuti system navigation inset masing-masing perangkat. Dengan begitu
-        // tombol tidak tertutup navigation bar Android tanpa offset tetap.
-        child: SafeArea(
-          top: false,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: List.generate(items.length, (index) {
-                final item = items[index];
+      ),
+      // Ikuti system navigation inset masing-masing perangkat. Dengan begitu
+      // tombol tidak tertutup navigation bar Android tanpa offset tetap.
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
+          child: Row(
+            children: List.generate(items.length, (index) {
+              final item = items[index];
 
-                return _NavItem(
+              return Expanded(
+                child: _NavItem(
                   icon: item.icon,
                   selectedIcon: item.selectedIcon,
                   label: item.label,
                   selected: currentIndex == index,
                   onTap: () => onTap(index),
-                );
-              }),
-            ),
+                ),
+              );
+            }),
           ),
         ),
       ),
@@ -112,32 +123,41 @@ class _NavItem extends StatelessWidget {
         ? Theme.of(context).primaryColor
         : Colors.grey.shade600;
 
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: SizedBox(
-        width: 64,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              selected && selectedIcon != null ? selectedIcon : icon,
-              color: color,
-              size: 22,
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: label,
+      excludeSemantics: true,
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 48),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  selected && selectedIcon != null ? selectedIcon : icon,
+                  color: color,
+                  size: 22,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: color,
+                    fontSize: 10,
+                    height: 1.1,
+                    fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: color,
-                fontSize: 10,
-                height: 1.1,
-                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );

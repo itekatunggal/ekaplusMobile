@@ -4,6 +4,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:ekaplus_ekatunggal/constant.dart';
 import 'package:ekaplus_ekatunggal/core/config/api_config.dart';
+import 'package:ekaplus_ekatunggal/core/config/feature_flags.dart';
 import 'package:ekaplus_ekatunggal/features/banner/domain/entities/bannerslider.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -32,7 +33,8 @@ class HomeSliderWidget extends StatelessWidget {
       }
     } catch (_) {
       if (context.mounted) {
-        AppSnackbar.showRaw(context,
+        AppSnackbar.showRaw(
+          context,
           const SnackBar(content: Text('Tidak dapat membuka link')),
         );
       }
@@ -48,8 +50,16 @@ class HomeSliderWidget extends StatelessWidget {
     if (type == 'Link') {
       final link = banner.link?.trim() ?? '';
       if (link.isEmpty) {
-        AppSnackbar.showRaw(context,
+        AppSnackbar.showRaw(
+          context,
           const SnackBar(content: Text('Link tidak tersedia')),
+        );
+        return;
+      }
+      if (FeatureFlags.isHiddenProductPath(link)) {
+        AppSnackbar.showRaw(
+          context,
+          const SnackBar(content: Text('Katalog produk belum tersedia')),
         );
         return;
       }
@@ -60,6 +70,13 @@ class HomeSliderWidget extends StatelessWidget {
         AppSnackbar.showRaw(
           context,
           const SnackBar(content: Text('Halaman tujuan tidak tersedia')),
+        );
+        return;
+      }
+      if (FeatureFlags.isHiddenProductRouteName(pageName)) {
+        AppSnackbar.showRaw(
+          context,
+          const SnackBar(content: Text('Katalog produk belum tersedia')),
         );
         return;
       }
@@ -163,7 +180,7 @@ class HomeSliderWidget extends StatelessWidget {
               final src = img.startsWith('http') ? img : img;
               imgWidget = CachedNetworkImage(
                 imageUrl: src,
-                fit: BoxFit.fill,
+                fit: BoxFit.cover,
                 width: double.infinity,
                 height: double.infinity,
                 placeholder: (context, url) => _buildShimmerPlaceholder(),

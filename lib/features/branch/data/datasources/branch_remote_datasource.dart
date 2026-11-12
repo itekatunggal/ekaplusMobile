@@ -21,7 +21,18 @@ class BranchRemoteDatasourceImplementation extends BranchRemoteDatasource {
   @override
   Future<List<Branch>> getAllBranches(int page) async {
     final spec = {
-      "fields": ["*"],
+      "fields": [
+        "id",
+        "branch_name",
+        "address",
+        "city",
+        "area",
+        "island",
+        "status",
+        "disabled",
+        "lat",
+        "lng",
+      ],
       "filters": [
         ["disabled", "=", "0"],
       ],
@@ -47,7 +58,18 @@ class BranchRemoteDatasourceImplementation extends BranchRemoteDatasource {
   @override
   Future<Branch> getBranch(int id) async {
     final spec = {
-      "fields": ["*"],
+      "fields": [
+        "id",
+        "branch_name",
+        "address",
+        "city",
+        "area",
+        "island",
+        "status",
+        "disabled",
+        "lat",
+        "lng",
+      ],
       "filters": [
         ["id", "=", "$id"],
         ["disabled", "=", "0"],

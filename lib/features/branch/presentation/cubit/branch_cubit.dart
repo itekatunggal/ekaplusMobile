@@ -1,4 +1,3 @@
-import 'package:ekaplus_ekatunggal/core/error/failure.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ekaplus_ekatunggal/features/branch/domain/usecases/get_all_branches.dart';
 import 'package:ekaplus_ekatunggal/features/branch/domain/usecases/get_branch.dart';
@@ -11,13 +10,6 @@ class BranchCubit extends Cubit<BranchState> {
   BranchCubit({required this.getAllBranches, required this.getBranch})
     : super(BranchInitial());
 
-  bool _isNetworkError(Failure failure) {
-    return failure is NetworkFailure ||
-        failure is TimeoutFailure ||
-        (failure is ServerFailure &&
-            (failure.statusCode == null || failure.statusCode! >= 500));
-  }
-
   Future<void> fetchBranches({int page = 1}) async {
     emit(BranchLoading());
 
@@ -25,12 +17,7 @@ class BranchCubit extends Cubit<BranchState> {
 
     result.fold(
       (failure) {
-        // If network failure, keep showing loading (dialog will handle notification)
-        if (_isNetworkError(failure)) {
-          emit(BranchLoading());
-        } else {
-          emit(BranchError(failure.message ?? 'Failed to load branches'));
-        }
+        emit(BranchError(failure.message ?? 'Gagal memuat cabang'));
       },
       (branches) {
         emit(BranchListLoaded(branches));
@@ -45,12 +32,7 @@ class BranchCubit extends Cubit<BranchState> {
 
     result.fold(
       (failure) {
-        // If network failure, keep showing loading (dialog will handle notification)
-        if (_isNetworkError(failure)) {
-          emit(BranchLoading());
-        } else {
-          emit(BranchError(failure.message ?? 'Failed to load branch'));
-        }
+        emit(BranchError(failure.message ?? 'Gagal memuat cabang'));
       },
       (branch) {
         emit(BranchLoaded(branch));

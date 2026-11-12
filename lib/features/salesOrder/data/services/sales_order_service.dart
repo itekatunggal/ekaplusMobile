@@ -106,23 +106,22 @@ class SalesOrderService {
     final limitStart = (page - 1) * _pageSize;
     final uri =
         Uri.parse(
-          '$root/api/method/ekaplus.api.sales_order.get_items_to_be_delivered_by_bcid',
+          '$root/api/method/ekaplus.api.sales_order.get_items_to_be_delivered',
         ).replace(
           queryParameters: {
+            'bcid': bcid,
             'limit_start': '$limitStart',
             'limit_page_length': '$_pageSize',
           },
         );
     try {
-      final request = http.Request('GET', uri)
-        ..headers.addAll({
+      final response = await http.get(
+        uri,
+        headers: {
           'Accept': 'application/json',
-          'Content-Type': 'application/json',
           'Authorization': 'token $token',
-        })
-        ..body = jsonEncode({'bcid': bcid});
-      final streamed = await request.send();
-      final response = await http.Response.fromStream(streamed);
+        },
+      );
       if (response.statusCode != 200) {
         throw SalesOrderApiException(
           _statusMessage(response.statusCode),

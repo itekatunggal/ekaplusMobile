@@ -133,7 +133,7 @@ class NoInternetDialog extends StatelessWidget {
         return const _DialogContent(
           title: 'Koneksi Internet Tidak Aktif',
           description:
-              'Aktifkan Wi-Fi atau data seluler kamu agar bisa kembali melihat produk kami.',
+              'Aktifkan Wi-Fi atau data seluler agar data dan layanan dapat dimuat kembali.',
           icon: Icons.wifi_off,
           accentColor: Colors.red,
         );

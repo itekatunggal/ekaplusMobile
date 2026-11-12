@@ -1,5 +1,6 @@
 // lib/injection.dart
 import 'package:ekaplus_ekatunggal/core/constants.dart'; // Import Constants
+import 'package:ekaplus_ekatunggal/core/config/feature_flags.dart';
 import 'package:ekaplus_ekatunggal/features/auth/data/datasources/google_auth_service.dart';
 import 'package:ekaplus_ekatunggal/features/auth/data/datasources/apple_auth_service.dart';
 import 'package:ekaplus_ekatunggal/core/services/device_id_service.dart';
@@ -32,12 +33,23 @@ import 'package:ekaplus_ekatunggal/features/branch/domain/repositories/branch_re
 import 'package:ekaplus_ekatunggal/features/branch/domain/usecases/get_all_branches.dart';
 import 'package:ekaplus_ekatunggal/features/branch/domain/usecases/get_branch.dart';
 import 'package:ekaplus_ekatunggal/features/branch/presentation/cubit/branch_cubit.dart';
+import 'package:ekaplus_ekatunggal/features/branch/presentation/cubit/selected_branch_cubit.dart';
 import 'package:ekaplus_ekatunggal/features/category/domain/usecases/get_by_type.dart';
 import 'package:ekaplus_ekatunggal/features/wishlist/domain/usecases/bulk_delete_wishlist.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:get_it/get_it.dart';
 import 'package:hive/hive.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:ekaplus_ekatunggal/features/sales_directory/data/repositories/mock_sales_directory_repository.dart';
+import 'package:ekaplus_ekatunggal/features/sales_directory/domain/repositories/sales_directory_repository.dart';
+import 'package:ekaplus_ekatunggal/features/sales_directory/presentation/cubit/sales_directory_cubit.dart';
+import 'package:ekaplus_ekatunggal/features/promotion/data/repositories/mock_promotion_repository.dart';
+import 'package:ekaplus_ekatunggal/features/promotion/domain/repositories/promotion_repository.dart';
+import 'package:ekaplus_ekatunggal/features/promotion/presentation/cubit/promotion_cubit.dart';
+import 'package:ekaplus_ekatunggal/features/article/data/repositories/mock_article_repository.dart';
+import 'package:ekaplus_ekatunggal/features/article/domain/repositories/article_repository.dart';
+import 'package:ekaplus_ekatunggal/features/article/presentation/cubit/article_cubit.dart';
 
 // AUTH
 import 'package:ekaplus_ekatunggal/features/auth/data/datasources/auth_remote_datasource.dart';
@@ -110,7 +122,30 @@ import 'package:ekaplus_ekatunggal/features/wishlist/presentation/bloc/wishlist_
 
 final myinjection = GetIt.instance;
 
+SalesDirectoryRepository _createSalesDirectoryRepository() {
+  if (FeatureFlags.useDummySales) return MockSalesDirectoryRepository();
+  throw StateError(
+    'Remote SalesDirectoryRepository belum didaftarkan di injection.dart.',
+  );
+}
+
+PromotionRepository _createPromotionRepository() {
+  if (FeatureFlags.useDummyPromotions) return MockPromotionRepository();
+  throw StateError(
+    'Remote PromotionRepository belum didaftarkan di injection.dart.',
+  );
+}
+
+ArticleRepository _createArticleRepository() {
+  if (FeatureFlags.useDummyArticles) return MockArticleRepository();
+  throw StateError(
+    'Remote ArticleRepository belum didaftarkan di injection.dart.',
+  );
+}
+
 Future<void> init() async {
+  final preferences = await SharedPreferences.getInstance();
+  myinjection.registerLazySingleton<SharedPreferences>(() => preferences);
   // ============================================
   // 🔥 GOOGLE AUTH SERVICE - HARUS PERTAMA!
   // ============================================
@@ -392,6 +427,25 @@ Future<void> init() async {
   myinjection.registerFactory(
     () => BranchCubit(getAllBranches: myinjection(), getBranch: myinjection()),
   );
+
+  myinjection.registerLazySingleton(
+    () => SelectedBranchCubit(getAllBranches: myinjection()),
+  );
+
+  myinjection.registerLazySingleton<SalesDirectoryRepository>(
+    _createSalesDirectoryRepository,
+  );
+  myinjection.registerLazySingleton(() => SalesDirectoryCubit(myinjection()));
+
+  myinjection.registerLazySingleton<PromotionRepository>(
+    _createPromotionRepository,
+  );
+  myinjection.registerLazySingleton(() => PromotionCubit(myinjection()));
+
+  myinjection.registerLazySingleton<ArticleRepository>(
+    _createArticleRepository,
+  );
+  myinjection.registerLazySingleton(() => ArticleCubit(myinjection()));
 
   myinjection.registerFactory(
     () => MemberRegistrationCubit(

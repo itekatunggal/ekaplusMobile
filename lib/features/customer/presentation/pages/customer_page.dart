@@ -63,7 +63,7 @@ class _CustomerPageState extends State<CustomerPage> {
     _loyaltyBcid = bcid;
     _loyaltyGpid = gpid;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _pointSummaryCubit.load(gpid);
+      if (mounted) _pointSummaryCubit.load(gpid, bcid: bcid);
     });
   }
 
@@ -106,7 +106,10 @@ class _CustomerPageState extends State<CustomerPage> {
     final company = state is ActiveCompanyReady
         ? state.activeCompany
         : _lastReadyState?.activeCompany;
-    await _pointSummaryCubit.load(company?.gpidId);
+    await _pointSummaryCubit.load(
+      company?.gpidId,
+      bcid: _customerBcid(company),
+    );
     if (!mounted) return;
     setState(() => _creditReloadKey++);
   }
@@ -230,7 +233,10 @@ class _CustomerPageState extends State<CustomerPage> {
                               'groupParentName': activeCompany.gpName,
                             },
                           ),
-                          onRetry: () => _pointSummaryCubit.load(_loyaltyGpid),
+                          onRetry: () => _pointSummaryCubit.load(
+                            _loyaltyGpid,
+                            bcid: _loyaltyBcid,
+                          ),
                         ),
                         const SizedBox(height: 14),
                       ],
