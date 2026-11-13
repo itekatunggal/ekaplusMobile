@@ -1,6 +1,8 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:ekaplus_ekatunggal/constant.dart';
 import 'package:ekaplus_ekatunggal/core/config/feature_flags.dart';
-import 'package:ekaplus_ekatunggal/core/shared_widgets/profile_header.dart';
+// import 'package:ekaplus_ekatunggal/core/shared_widgets/profile_header.dart';
+import 'package:ekaplus_ekatunggal/core/shared_widgets/whatsapp_helper.dart';
 import 'package:ekaplus_ekatunggal/features/auth/presentation/cubit/auth_session_cubit.dart';
 import 'package:ekaplus_ekatunggal/features/auth/presentation/cubit/auth_session_state.dart';
 import 'package:ekaplus_ekatunggal/features/banner/presentation/cubit/banner_cubit.dart';
@@ -9,13 +11,15 @@ import 'package:ekaplus_ekatunggal/features/branch/domain/entities/branch.dart';
 import 'package:ekaplus_ekatunggal/features/branch/presentation/cubit/selected_branch_cubit.dart';
 import 'package:ekaplus_ekatunggal/features/branch/presentation/cubit/selected_branch_state.dart';
 import 'package:ekaplus_ekatunggal/features/home/presentation/widgets/home_slider_widget.dart';
+import 'package:ekaplus_ekatunggal/features/invoice/presentation/cubit/invoice_cubit.dart';
+import 'package:ekaplus_ekatunggal/features/invoice/presentation/pages/invoice_page.dart';
 import 'package:ekaplus_ekatunggal/features/loyalty/data/services/loyalty_service.dart';
 import 'package:ekaplus_ekatunggal/features/loyalty/presentation/cubit/customer_point_summary_cubit.dart';
 import 'package:ekaplus_ekatunggal/features/member/domain/entities/active_member_company.dart';
 import 'package:ekaplus_ekatunggal/features/member/presentation/cubit/active_company_cubit.dart';
-import 'package:ekaplus_ekatunggal/features/sales_directory/presentation/cubit/sales_directory_cubit.dart';
-import 'package:ekaplus_ekatunggal/features/sales_directory/presentation/cubit/sales_directory_state.dart';
-import 'package:ekaplus_ekatunggal/features/sales_directory/presentation/widgets/sales_profile_card.dart';
+import 'package:ekaplus_ekatunggal/features/member/presentation/widgets/company_picker_sheet.dart';
+import 'package:ekaplus_ekatunggal/features/salesOrder/presentation/cubit/sales_order_cubit.dart';
+import 'package:ekaplus_ekatunggal/features/salesOrder/presentation/pages/sales_order_page.dart';
 import 'package:ekaplus_ekatunggal/features/promotion/presentation/cubit/promotion_cubit.dart';
 import 'package:ekaplus_ekatunggal/features/promotion/presentation/widgets/promotion_card.dart';
 import 'package:ekaplus_ekatunggal/features/article/presentation/cubit/article_cubit.dart';
@@ -25,6 +29,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:shimmer/shimmer.dart';
+import 'dart:math' as math;
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -37,7 +42,6 @@ class _HomePageState extends State<HomePage> {
   late final CustomerPointSummaryCubit _points;
   int? _loadedGpid;
   String? _loadedBcid;
-  int? _loadedSalesBranchId;
   int? _loadedPromotionBranchId;
   bool _promotionLoaded = false;
 
@@ -75,14 +79,6 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
-  void _syncSales(int? branchId) {
-    if (branchId == null || branchId == _loadedSalesBranchId) return;
-    _loadedSalesBranchId = branchId;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) context.read<SalesDirectoryCubit>().load(branchId: branchId);
-    });
-  }
-
   void _syncPromotions(int? branchId) {
     if (_promotionLoaded && branchId == _loadedPromotionBranchId) return;
     _promotionLoaded = true;
@@ -102,12 +98,6 @@ class _HomePageState extends State<HomePage> {
         .read<SelectedBranchCubit>()
         .state
         .selectedBranch;
-    if (selectedBranch != null) {
-      await context.read<SalesDirectoryCubit>().load(
-        branchId: selectedBranch.id,
-      );
-    }
-    if (!mounted) return;
     await Future.wait([
       context.read<PromotionCubit>().load(branchId: selectedBranch?.id),
       context.read<ArticleCubit>().load(),
@@ -116,6 +106,28 @@ class _HomePageState extends State<HomePage> {
     final state = context.read<ActiveCompanyCubit>().state;
     final company = state is ActiveCompanyReady ? state.activeCompany : null;
     await _points.load(company?.gpidId, bcid: _bcid(company));
+  }
+
+  void _openOrders() {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => BlocProvider(
+          create: (_) => SalesOrderCubit(),
+          child: const SalesOrderPage(),
+        ),
+      ),
+    );
+  }
+
+  void _openInvoices() {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => BlocProvider(
+          create: (_) => InvoiceCubit(),
+          child: const InvoicePage(),
+        ),
+      ),
+    );
   }
 
   @override
@@ -131,7 +143,6 @@ class _HomePageState extends State<HomePage> {
             _syncPoints(loggedIn ? company : null);
             final branchState = context.watch<SelectedBranchCubit>().state;
             final branch = branchState.selectedBranch;
-            _syncSales(branch?.id);
             _syncPromotions(branch?.id);
             return BlocProvider.value(
               value: _points,
@@ -140,37 +151,33 @@ class _HomePageState extends State<HomePage> {
                 body: SafeArea(
                   child: Column(
                     children: [
-                      const Padding(
-                        padding: EdgeInsets.fromLTRB(12, 10, 12, 10),
-                        child: ProfileHeader(),
-                      ),
+                      // const Padding(
+                      //   padding: EdgeInsets.fromLTRB(12, 10, 12, 10),
+                      //   child: ProfileHeader(),
+                      // ),
                       Expanded(
                         child: RefreshIndicator(
                           color: AppColors.primaryColor,
+                          displacement: 40,
+                          edgeOffset: 0,
+                          triggerMode: RefreshIndicatorTriggerMode.onEdge,
                           onRefresh: _refresh,
                           child: ListView(
                             key: const PageStorageKey('home-scroll'),
                             physics: const AlwaysScrollableScrollPhysics(
-                              parent: BouncingScrollPhysics(),
+                              parent: ClampingScrollPhysics(),
                             ),
                             padding: const EdgeInsets.fromLTRB(12, 0, 12, 28),
+
                             children: [
-                              _Banner(
-                                loggedIn: loggedIn,
-                                retry: () =>
+                              _HomeHero(
+                                company: company,
+                                retryBanner: () =>
                                     context.read<BannerCubit>().fetchBanners(),
+                                selectCompany: () => loggedIn
+                                    ? showCompanyPickerDialog(context)
+                                    : context.pushNamed('login'),
                               ),
-                              if (FeatureFlags.showBranchDirectory) ...[
-                                const SizedBox(height: 14),
-                                _BranchCard(
-                                  state: branchState,
-                                  branch: branch,
-                                  onTap: () => context.goNamed('branches'),
-                                  retry: () => context
-                                      .read<SelectedBranchCubit>()
-                                      .load(force: true),
-                                ),
-                              ],
                               if (FeatureFlags.showHomeLoyalty) ...[
                                 const SizedBox(height: 14),
                                 _LoyaltyCard(
@@ -185,12 +192,6 @@ class _HomePageState extends State<HomePage> {
                                     company?.gpidId,
                                     bcid: _bcid(company),
                                   ),
-                                  rewards: company == null
-                                      ? null
-                                      : () => context.pushNamed(
-                                          'loyalty-rewards',
-                                          extra: {'bcid': _bcid(company)},
-                                        ),
                                   details: company == null
                                       ? null
                                       : () => context.pushNamed(
@@ -206,18 +207,21 @@ class _HomePageState extends State<HomePage> {
                               ],
                               const SizedBox(height: 16),
                               _QuickServices(
-                                loggedIn: loggedIn,
-                                sales: () => context.goNamed('sales'),
-                                branch: () => context.goNamed('branches'),
-                                transaction: () => loggedIn
-                                    ? context.goNamed('customer')
+                                orders: () => loggedIn
+                                    ? _openOrders()
                                     : context.pushNamed('login'),
+                                invoices: () => loggedIn
+                                    ? _openInvoices()
+                                    : context.pushNamed('login'),
+                                about: () => context.pushNamed('about'),
+                                customerService: () =>
+                                    WhatsAppHelper.openGeneral(context),
                               ),
-                              if (FeatureFlags.showSalesDirectory) ...[
+                              if (FeatureFlags.showBranchDirectory) ...[
                                 const SizedBox(height: 16),
-                                _SalesSection(
-                                  branch: branch,
-                                  seeAll: () => context.goNamed('sales'),
+                                _BranchListSection(
+                                  state: branchState,
+                                  seeAll: () => context.goNamed('branches'),
                                 ),
                               ],
                               if (FeatureFlags.showPromotions) ...[
@@ -249,138 +253,152 @@ class _HomePageState extends State<HomePage> {
 }
 
 class _Banner extends StatelessWidget {
-  const _Banner({required this.loggedIn, required this.retry});
-  final bool loggedIn;
+  const _Banner({required this.retry});
   final VoidCallback retry;
 
   @override
-  Widget build(BuildContext context) => ClipRRect(
-    borderRadius: BorderRadius.circular(18),
-    child: SizedBox(
-      height: 180,
-      child: BlocBuilder<BannerCubit, BannerState>(
-        builder: (context, state) {
-          if (state is BannerLoaded) {
-            return HomeSliderWidget(
-              banners: state.banners,
-              enableTap: loggedIn,
-            );
-          }
-          if (state is BannerError) {
-            return _StateView(
-              icon: Icons.image_not_supported_outlined,
-              text: 'Banner belum dapat dimuat',
-              retry: retry,
-            );
-          }
-          return const _ShimmerBox();
-        },
-      ),
-    ),
+  Widget build(BuildContext context) => BlocBuilder<BannerCubit, BannerState>(
+    builder: (context, state) {
+      if (state is BannerLoaded) {
+        return HomeSliderWidget(
+          banners: state.banners,
+          bottomOverlap: _bannerCardOverlap,
+        );
+      }
+      if (state is BannerError) {
+        return _StateView(
+          icon: Icons.image_not_supported_outlined,
+          text: 'Banner belum dapat dimuat',
+          retry: retry,
+        );
+      }
+      return const _ShimmerBox();
+    },
   );
 }
 
-class _BranchCard extends StatelessWidget {
-  const _BranchCard({
-    required this.state,
-    required this.branch,
-    required this.onTap,
-    required this.retry,
+class _HomeHero extends StatelessWidget {
+  const _HomeHero({
+    required this.company,
+    required this.retryBanner,
+    required this.selectCompany,
   });
-  final SelectedBranchState state;
-  final Branch? branch;
+
+  final ActiveMemberCompany? company;
+  final VoidCallback retryBanner;
+  final VoidCallback selectCompany;
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) {
+      // Hero melebar 12 px ke setiap sisi untuk menutup padding ListView.
+      final bannerWidth = constraints.maxWidth + _bannerHorizontalBleed;
+      final bannerHeight = bannerWidth / _bannerAspectRatio;
+      final companyCardTop = bannerHeight - _bannerCardOverlap;
+      final heroHeight = companyCardTop + _companyCardHeight;
+
+      return SizedBox(
+        height: heroHeight,
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Positioned(
+              top: 0,
+              left: -_bannerSideBleed,
+              right: -_bannerSideBleed,
+              height: bannerHeight,
+              child: _Banner(retry: retryBanner),
+            ),
+            Positioned(
+              top: companyCardTop,
+              left: 0,
+              right: 0,
+              child: _CompanyPickerCard(company: company, onTap: selectCompany),
+            ),
+          ],
+        ),
+      );
+    },
+  );
+}
+
+class _CompanyPickerCard extends StatelessWidget {
+  const _CompanyPickerCard({required this.company, required this.onTap});
+
+  final ActiveMemberCompany? company;
   final VoidCallback onTap;
-  final VoidCallback retry;
 
   @override
   Widget build(BuildContext context) {
-    if (state.status == SelectedBranchStatus.error && state.branches.isEmpty) {
-      return _Card(
-        child: _StateView(
-          icon: Icons.store_mall_directory_outlined,
-          text: 'Cabang belum dapat dimuat',
-          retry: retry,
-        ),
-      );
-    }
-    if (state.status == SelectedBranchStatus.ready && branch == null) {
-      return const _Card(
-        child: _StateView(
-          icon: Icons.store_mall_directory_outlined,
-          text: 'Cabang mengikuti customer aktif',
-        ),
-      );
-    }
-    if (branch == null) return const _Card(child: _BranchShimmer());
-    final location = [
-      branch!.city?.trim(),
-      branch!.area?.trim(),
-    ].whereType<String>().where((text) => text.isNotEmpty).join(' • ');
+    final gcName = (company?.gcName ?? '').trim();
+    final registeredName = (company?.customerCompanyName ?? '').trim();
+    final companyName = gcName.isNotEmpty
+        ? gcName
+        : registeredName.isNotEmpty
+        ? registeredName
+        : company?.displayName ?? 'Pilih Customer';
+    final city = (company?.branchCity ?? '').trim();
+    final subtitle = company == null
+        ? 'Ketuk untuk memilih customer'
+        : city.isEmpty
+        ? 'Customer aktif'
+        : 'Customer aktif • $city';
+
     return _Card(
       onTap: onTap,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
       child: Row(
         children: [
-          const _IconBox(icon: Icons.store_mall_directory_rounded),
-          const SizedBox(width: 12),
+          const Icon(
+            Icons.apartment_outlined,
+            color: AppColors.primaryColor,
+            size: 30,
+          ),
+          const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('CABANG INFORMASI AKTIF', style: _eyebrow),
-                const SizedBox(height: 4),
                 Text(
-                  branch!.branchName,
+                  companyName.toUpperCase(),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: _cardTitle,
+                  style: const TextStyle(
+                    color: Color(0xFF172554),
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
-                if (location.isNotEmpty)
-                  Text(
-                    location,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: _subtitle,
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Color(0xFF64748B),
+                    fontSize: 8.5,
+                    fontWeight: FontWeight.w500,
                   ),
-                if (state.status == SelectedBranchStatus.error) ...[
-                  const SizedBox(height: 4),
-                  const Row(
-                    children: [
-                      Icon(
-                        Icons.info_outline_rounded,
-                        size: 12,
-                        color: Color(0xFFD97706),
-                      ),
-                      SizedBox(width: 4),
-                      Expanded(
-                        child: Text(
-                          'Menampilkan data tersimpan',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: Color(0xFFD97706),
-                            fontSize: 8,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+                ),
               ],
             ),
           ),
-          if (state.status == SelectedBranchStatus.error)
-            IconButton(
-              tooltip: 'Coba perbarui cabang',
-              onPressed: retry,
-              visualDensity: VisualDensity.compact,
-              icon: const Icon(
-                Icons.refresh_rounded,
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              border: Border.all(color: AppColors.primaryColor),
+              borderRadius: BorderRadius.circular(9),
+            ),
+            child: const Text(
+              'Ganti',
+              style: TextStyle(
                 color: AppColors.primaryColor,
+                fontSize: 8.5,
+                fontWeight: FontWeight.w700,
               ),
-            )
-          else
-            const Icon(Icons.chevron_right_rounded, color: Color(0xFF94A3B8)),
+            ),
+          ),
         ],
       ),
     );
@@ -396,7 +414,6 @@ class _LoyaltyCard extends StatelessWidget {
     required this.login,
     required this.addCompany,
     required this.retry,
-    required this.rewards,
     required this.details,
   });
   final bool loggedIn;
@@ -406,7 +423,6 @@ class _LoyaltyCard extends StatelessWidget {
   final VoidCallback login;
   final VoidCallback addCompany;
   final VoidCallback retry;
-  final VoidCallback? rewards;
   final VoidCallback? details;
 
   @override
@@ -444,65 +460,75 @@ class _LoyaltyCard extends StatelessWidget {
               action: retry,
             );
           }
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Row(
-                children: [
-                  const Icon(
-                    Icons.workspace_premium_outlined,
-                    color: AppColors.secondaryColor,
-                    size: 22,
-                  ),
-                  const SizedBox(width: 8),
-                  const Expanded(child: Text('EkaPoint', style: _loyaltyTitle)),
-                  Flexible(
-                    child: Text(
-                      (company!.gpName ?? '').toUpperCase(),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Color(0xFFD7BCC0),
-                        fontSize: 8.5,
-                        fontWeight: FontWeight.w700,
+              Image.asset(
+                'assets/icons/icon_medali.png',
+                width: 61,
+                fit: BoxFit.contain,
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('EKAPOINT', style: _loyaltyTitle),
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        NumberFormat.decimalPattern(
+                          'id_ID',
+                        ).format(state.availablePoint),
+                        maxLines: 1,
+                        style: const TextStyle(
+                          color: Colors.black,
+                          fontSize: 34,
+                          height: 1.05,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 18),
-              const Text(
-                'Total Poin Tersedia',
-                style: TextStyle(color: Color(0xFFE8DADD), fontSize: 10),
-              ),
-              Text(
-                NumberFormat.decimalPattern(
-                  'id_ID',
-                ).format(state.availablePoint),
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 30,
-                  fontWeight: FontWeight.w700,
+                    const SizedBox(height: 3),
+                    const Text(
+                      'Poin Tersedia',
+                      style: TextStyle(
+                        color: Color(0xFF9E9E9E),
+                        fontSize: 9.5,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: _LoyaltyButton(
-                      label: 'Tukar Poin',
-                      filled: true,
-                      action: rewards,
-                    ),
+              const SizedBox(width: 10),
+              InkWell(
+                onTap: details,
+                borderRadius: BorderRadius.circular(10),
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 2, vertical: 12),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Rincian Poin',
+                        style: TextStyle(
+                          color: Color(0xFFD43D45),
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      SizedBox(width: 8),
+                      Icon(
+                        Icons.arrow_forward_rounded,
+                        color: Color(0xFFD43D45),
+                        size: 16,
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: _LoyaltyButton(
-                      label: 'Rincian Poin',
-                      action: details,
-                    ),
-                  ),
-                ],
+                ),
               ),
             ],
           );
@@ -511,19 +537,17 @@ class _LoyaltyCard extends StatelessWidget {
     }
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(18),
+      constraints: const BoxConstraints(minHeight: 126),
+      padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 18),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFF68151A), Color(0xFF991D22)],
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+          transform: GradientRotation(82 * math.pi / 180),
+          colors: [Color(0xFFFDECC5), Color(0xFFFFFDF9)],
+          stops: [0.43, 0.76],
         ),
         borderRadius: BorderRadius.circular(18),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x260F172A),
-            blurRadius: 20,
-            offset: Offset(0, 6),
-          ),
-        ],
       ),
       child: child,
     );
@@ -532,21 +556,21 @@ class _LoyaltyCard extends StatelessWidget {
 
 class _QuickServices extends StatelessWidget {
   const _QuickServices({
-    required this.loggedIn,
-    required this.sales,
-    required this.branch,
-    required this.transaction,
+    required this.orders,
+    required this.invoices,
+    required this.about,
+    required this.customerService,
   });
-  final bool loggedIn;
-  final VoidCallback sales;
-  final VoidCallback branch;
-  final VoidCallback transaction;
+  final VoidCallback orders;
+  final VoidCallback invoices;
+  final VoidCallback about;
+  final VoidCallback customerService;
 
   @override
   Widget build(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      const _Header(title: 'Layanan Cepat'),
+      const _Header(title: 'Layanan Anda'),
       const SizedBox(height: 8),
       _Card(
         padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 12),
@@ -554,31 +578,30 @@ class _QuickServices extends StatelessWidget {
           children: [
             Expanded(
               child: _QuickItem(
-                icon: Icons.support_agent_rounded,
-                label: 'Hubungi\nSales',
-                action: sales,
-              ),
-            ),
-            Expanded(
-              child: _QuickItem(
-                icon: Icons.location_on_outlined,
-                label: 'Lokasi\nCabang',
-                action: branch,
+                icon: Icons.assignment_outlined,
+                label: 'Pesanan',
+                action: orders,
               ),
             ),
             Expanded(
               child: _QuickItem(
                 icon: Icons.receipt_long_outlined,
-                label: 'Transaksi',
-                caption: loggedIn ? null : 'Masuk dulu',
-                action: transaction,
+                label: 'Tagihan',
+                action: invoices,
               ),
             ),
-            const Expanded(
+            Expanded(
               child: _QuickItem(
-                icon: Icons.help_outline_rounded,
-                label: 'Bantuan',
-                caption: 'Segera',
+                icon: Icons.support_agent_rounded,
+                label: 'Customer\nService',
+                action: customerService,
+              ),
+            ),
+            Expanded(
+              child: _QuickItem(
+                icon: Icons.info_outline_rounded,
+                label: 'Program',
+                action: about,
               ),
             ),
           ],
@@ -588,76 +611,231 @@ class _QuickServices extends StatelessWidget {
   );
 }
 
-class _SalesSection extends StatelessWidget {
-  const _SalesSection({required this.branch, required this.seeAll});
-  final Branch? branch;
+class _BranchListSection extends StatelessWidget {
+  const _BranchListSection({required this.state, required this.seeAll});
+  final SelectedBranchState state;
   final VoidCallback seeAll;
 
   @override
-  Widget build(BuildContext context) =>
-      BlocBuilder<SalesDirectoryCubit, SalesDirectoryState>(
-        builder: (context, state) => Column(
-          children: [
-            _Header(
-              title: 'Sales Ekatunggal',
-              subtitle: branch == null
-                  ? 'Pilih customer aktif untuk melihat tim sales'
-                  : 'Tim sales cabang ${branch!.branchName}',
-              action: seeAll,
-            ),
-            const SizedBox(height: 8),
-            if (branch == null)
-              const _Card(
-                child: _StateView(
-                  icon: Icons.support_agent_rounded,
-                  text: 'Data sales menunggu customer aktif',
+  Widget build(BuildContext context) => Column(
+    children: [
+      _Header(
+        title: 'Daftar Cabang',
+        subtitle: 'Temukan cabang Ekatunggal terdekat',
+        action: seeAll,
+      ),
+      const SizedBox(height: 8),
+      if ((state.status == SelectedBranchStatus.initial ||
+              state.status == SelectedBranchStatus.loading) &&
+          state.branches.isEmpty)
+        const SizedBox(height: 128, child: _ShimmerBox())
+      else if (state.status == SelectedBranchStatus.error &&
+          state.branches.isEmpty)
+        const _Card(
+          child: _StateView(
+            icon: Icons.cloud_off_rounded,
+            text: 'Daftar cabang belum dapat dimuat',
+          ),
+        )
+      else if (state.branches.isEmpty)
+        const _Card(
+          child: _StateView(
+            icon: Icons.store_mall_directory_outlined,
+            text: 'Belum ada cabang tersedia',
+          ),
+        )
+      else
+        SizedBox(
+          height: 190,
+          child: ListView.separated(
+            key: const PageStorageKey('home-branch-list'),
+            scrollDirection: Axis.horizontal,
+            itemCount:
+                (state.branches.length > 5 ? 5 : state.branches.length) + 1,
+            separatorBuilder: (_, _) => const SizedBox(width: 10),
+            itemBuilder: (context, index) {
+              final visibleBranchCount = state.branches.length > 5
+                  ? 5
+                  : state.branches.length;
+              if (index == visibleBranchCount) {
+                return _SeeAllBranchesCard(
+                  backgroundBranch: state.branches.last,
+                  onTap: seeAll,
+                );
+              }
+              final branch = state.branches[index];
+              return _BranchPreviewCard(
+                branch: branch,
+                onTap: () => context.pushNamed(
+                  'branch-detail',
+                  pathParameters: {'branchId': '${branch.id}'},
+                  extra: branch,
                 ),
-              )
-            else if (state.status == SalesDirectoryStatus.loading &&
-                state.profiles.isEmpty)
-              const SizedBox(height: 190, child: _ShimmerBox())
-            else if (state.status == SalesDirectoryStatus.error)
-              _Card(
-                child: _StateView(
-                  icon: Icons.cloud_off_rounded,
-                  text: 'Data sales belum dapat dimuat',
-                  retry: () => context.read<SalesDirectoryCubit>().load(
-                    branchId: branch!.id,
+              );
+            },
+          ),
+        ),
+    ],
+  );
+}
+
+class _SeeAllBranchesCard extends StatelessWidget {
+  const _SeeAllBranchesCard({
+    required this.backgroundBranch,
+    required this.onTap,
+  });
+
+  final Branch backgroundBranch;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    button: true,
+    label: 'Lihat semua cabang',
+    excludeSemantics: true,
+    child: Material(
+      color: const Color(0xFF1E293B),
+      borderRadius: BorderRadius.circular(16),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: SizedBox(
+          width: 148,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              CachedNetworkImage(
+                imageUrl: _branchPhotoUrl(backgroundBranch),
+                fit: BoxFit.cover,
+                placeholder: (_, _) => const _BranchPhotoFallback(),
+                errorWidget: (_, _, _) => const _BranchPhotoFallback(),
+              ),
+              const ColoredBox(color: Color(0x990F172A)),
+              const Center(
+                child: Text(
+                  'Lihat Semua',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
-              )
-            else if (state.profiles.isEmpty)
-              const _Card(
-                child: _StateView(
-                  icon: Icons.person_search_outlined,
-                  text: 'Belum ada data sales untuk cabang ini',
-                ),
-              )
-            else
-              SizedBox(
-                height: 190,
-                child: ListView.separated(
-                  key: const PageStorageKey('home-sales-carousel'),
-                  scrollDirection: Axis.horizontal,
-                  itemCount: state.profiles.length,
-                  separatorBuilder: (_, _) => const SizedBox(width: 10),
-                  itemBuilder: (context, index) {
-                    final profile = state.profiles[index];
-                    return SalesProfileCard(
-                      compact: true,
-                      profile: profile,
-                      onTap: () => context.pushNamed(
-                        'sales-detail',
-                        pathParameters: {'salesId': '${profile.id}'},
-                        extra: profile,
-                      ),
-                    );
-                  },
+              ),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+class _BranchPreviewCard extends StatelessWidget {
+  const _BranchPreviewCard({required this.branch, required this.onTap});
+
+  final Branch branch;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    button: true,
+    label: 'Buka detail ${branch.branchName}, ${branch.city ?? ''}',
+    excludeSemantics: true,
+    child: Material(
+      color: const Color(0xFFF1F5F9),
+      borderRadius: BorderRadius.circular(16),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: SizedBox(
+          width: 148,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              CachedNetworkImage(
+                imageUrl: _branchPhotoUrl(branch),
+                fit: BoxFit.cover,
+                placeholder: (_, _) => const _BranchPhotoFallback(),
+                errorWidget: (_, _, _) => const _BranchPhotoFallback(),
+              ),
+              const DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    stops: [0.42, 1],
+                    colors: [Colors.transparent, Color(0xD9000000)],
+                  ),
                 ),
               ),
-          ],
+              Positioned(
+                left: 12,
+                right: 12,
+                bottom: 12,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      branch.branchName,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    Text(
+                      (branch.city ?? '').trim().isEmpty
+                          ? 'Ekatunggal'
+                          : branch.city!.trim(),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Color(0xFFE2E8F0),
+                        fontSize: 9,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
-      );
+      ),
+    ),
+  );
+}
+
+class _BranchPhotoFallback extends StatelessWidget {
+  const _BranchPhotoFallback();
+
+  @override
+  Widget build(BuildContext context) => const ColoredBox(
+    color: Color(0xFFFFF1F2),
+    child: Center(
+      child: Icon(
+        Icons.store_mall_directory_rounded,
+        size: 58,
+        color: AppColors.primaryColor,
+      ),
+    ),
+  );
+}
+
+String _branchPhotoUrl(Branch branch) {
+  final seedSource = branch.city?.trim().isNotEmpty == true
+      ? branch.city!
+      : branch.branchName;
+  final seed = seedSource.trim().toLowerCase().replaceAll(
+    RegExp(r'[^a-z0-9]+'),
+    '-',
+  );
+  return Uri.https(
+    'via.placeholder.com',
+    '/photo/office-building/800x450.webp',
+    {'seed': seed.isEmpty ? '${branch.id}' : '$seed-${branch.id}'},
+  ).toString();
 }
 
 class _PromotionSection extends StatelessWidget {
@@ -865,53 +1043,52 @@ class _Card extends StatelessWidget {
 }
 
 class _QuickItem extends StatelessWidget {
-  const _QuickItem({
-    required this.icon,
-    required this.label,
-    this.caption,
-    this.action,
-  });
+  const _QuickItem({required this.icon, required this.label, this.action});
   final IconData icon;
   final String label;
-  final String? caption;
   final VoidCallback? action;
 
   @override
   Widget build(BuildContext context) => Semantics(
     button: action != null,
     enabled: action != null,
-    label: caption == null ? label : '$label, $caption',
+    label: label,
     excludeSemantics: true,
-    child: InkWell(
-      onTap: action,
+    child: Material(
+      color: Colors.transparent,
       borderRadius: BorderRadius.circular(12),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(minHeight: 64),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 4),
-          child: Column(
-            children: [
-              _IconBox(icon: icon, disabled: action == null),
-              const SizedBox(height: 6),
-              Text(
-                label,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: Color(0xFF475569),
-                  fontSize: 9,
-                  height: 1.2,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              if (caption != null)
-                Text(
-                  caption!,
-                  style: const TextStyle(
-                    color: Color(0xFF94A3B8),
-                    fontSize: 7.5,
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: action,
+        borderRadius: BorderRadius.circular(12),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 76),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _IconBox(icon: icon, disabled: action == null),
+                const SizedBox(height: 6),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(minHeight: 28),
+                  child: Align(
+                    child: Text(
+                      label,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        color: Color(0xFF475569),
+                        fontSize: 10,
+                        height: 1.25,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
                   ),
                 ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -934,10 +1111,10 @@ class _LoyaltyPrompt extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Row(
     children: [
-      const Icon(
-        Icons.workspace_premium_outlined,
-        color: AppColors.secondaryColor,
-        size: 36,
+      Image.asset(
+        'assets/icons/icon_medali.png',
+        width: 36,
+        fit: BoxFit.contain,
       ),
       const SizedBox(width: 12),
       Expanded(
@@ -947,7 +1124,7 @@ class _LoyaltyPrompt extends StatelessWidget {
             Text(title, style: _loyaltyTitle),
             Text(
               message,
-              style: const TextStyle(color: Color(0xFFE8DADD), fontSize: 9.5),
+              style: const TextStyle(color: Color(0xFF7A7A7A), fontSize: 9.5),
             ),
             const SizedBox(height: 10),
             SizedBox(
@@ -955,8 +1132,8 @@ class _LoyaltyPrompt extends StatelessWidget {
               child: FilledButton(
                 onPressed: action,
                 style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.secondaryColor,
-                  foregroundColor: AppColors.blackColor,
+                  backgroundColor: _loyaltyRed,
+                  foregroundColor: Colors.white,
                   textStyle: const TextStyle(
                     fontSize: 9.5,
                     fontWeight: FontWeight.w700,
@@ -969,39 +1146,6 @@ class _LoyaltyPrompt extends StatelessWidget {
         ),
       ),
     ],
-  );
-}
-
-class _LoyaltyButton extends StatelessWidget {
-  const _LoyaltyButton({
-    required this.label,
-    required this.action,
-    this.filled = false,
-  });
-  final String label;
-  final VoidCallback? action;
-  final bool filled;
-
-  @override
-  Widget build(BuildContext context) => SizedBox(
-    height: 42,
-    child: filled
-        ? FilledButton(
-            onPressed: action,
-            style: FilledButton.styleFrom(
-              backgroundColor: AppColors.secondaryColor,
-              foregroundColor: AppColors.blackColor,
-            ),
-            child: Text(label, style: _buttonText),
-          )
-        : OutlinedButton(
-            onPressed: action,
-            style: OutlinedButton.styleFrom(
-              foregroundColor: Colors.white,
-              side: const BorderSide(color: Color(0x66FFFFFF)),
-            ),
-            child: Text(label, style: _buttonText),
-          ),
   );
 }
 
@@ -1038,8 +1182,8 @@ class _IconBox extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-    width: 42,
-    height: 42,
+    width: 46,
+    height: 46,
     decoration: BoxDecoration(
       color: disabled ? const Color(0xFFF1F5F9) : const Color(0xFFFFF1F2),
       borderRadius: BorderRadius.circular(12),
@@ -1047,7 +1191,7 @@ class _IconBox extends StatelessWidget {
     child: Icon(
       icon,
       color: disabled ? const Color(0xFF94A3B8) : AppColors.primaryColor,
-      size: 21,
+      size: 24,
     ),
   );
 }
@@ -1062,23 +1206,61 @@ class _ShimmerBox extends StatelessWidget {
   );
 }
 
-class _BranchShimmer extends StatelessWidget {
-  const _BranchShimmer();
+class _LoyaltyShimmer extends StatelessWidget {
+  const _LoyaltyShimmer();
+
   @override
   Widget build(BuildContext context) => Shimmer.fromColors(
-    baseColor: Colors.grey[300]!,
-    highlightColor: Colors.grey[100]!,
-    child: const SizedBox(height: 44, child: ColoredBox(color: Colors.white)),
+    baseColor: const Color(0xFFEADDBD),
+    highlightColor: const Color(0xFFFFF9EA),
+    child: SizedBox(
+      height: 90,
+      child: Row(
+        children: [
+          Container(
+            width: 52,
+            height: 58,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const _LoyaltyShimmerBar(width: 78, height: 12),
+                const SizedBox(height: 7),
+                const _LoyaltyShimmerBar(width: 72, height: 30),
+                const SizedBox(height: 6),
+                const _LoyaltyShimmerBar(width: 62, height: 8),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          const _LoyaltyShimmerBar(width: 76, height: 12),
+        ],
+      ),
+    ),
   );
 }
 
-class _LoyaltyShimmer extends StatelessWidget {
-  const _LoyaltyShimmer();
+class _LoyaltyShimmerBar extends StatelessWidget {
+  const _LoyaltyShimmerBar({required this.width, required this.height});
+
+  final double width;
+  final double height;
+
   @override
-  Widget build(BuildContext context) => Shimmer.fromColors(
-    baseColor: const Color(0xFF8C4C50),
-    highlightColor: const Color(0xFFB47B7E),
-    child: const SizedBox(height: 130, child: ColoredBox(color: Colors.white)),
+  Widget build(BuildContext context) => Container(
+    width: width,
+    height: height,
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(6),
+    ),
   );
 }
 
@@ -1090,26 +1272,20 @@ const _cardDecoration = BoxDecoration(
     BoxShadow(color: Color(0x120F172A), blurRadius: 20, offset: Offset(0, 6)),
   ],
 );
+const double _bannerAspectRatio = 2.28;
+const double _bannerSideBleed = 12;
+const double _bannerHorizontalBleed = _bannerSideBleed * 2;
+const double _bannerCardOverlap = 20;
+const double _companyCardHeight = 52;
 const _sectionTitle = TextStyle(
   color: Color(0xFF1E293B),
   fontSize: 14,
   fontWeight: FontWeight.w700,
 );
-const _cardTitle = TextStyle(
-  color: Color(0xFF1E293B),
-  fontSize: 13,
-  fontWeight: FontWeight.w700,
-);
 const _subtitle = TextStyle(color: Color(0xFF64748B), fontSize: 9.5);
-const _eyebrow = TextStyle(
-  color: Color(0xFF94A3B8),
-  fontSize: 9,
-  fontWeight: FontWeight.w700,
-  letterSpacing: .4,
-);
 const _loyaltyTitle = TextStyle(
-  color: Colors.white,
-  fontSize: 13,
+  color: _loyaltyRed,
+  fontSize: 15,
   fontWeight: FontWeight.w700,
 );
-const _buttonText = TextStyle(fontSize: 9.5, fontWeight: FontWeight.w700);
+const _loyaltyRed = Color(0xFFB21E2B);

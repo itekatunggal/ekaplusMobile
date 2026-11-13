@@ -5,10 +5,8 @@ class BannerModel extends BannerSlider {
     required super.name,
     required super.img,
     super.disabled,
-    super.redirect,
-    super.redirectType,
-    super.pages,
-    super.link,
+    super.type,
+    super.typeValue,
   });
 
   factory BannerModel.fromJson(Map<String, dynamic> json) {
@@ -16,10 +14,8 @@ class BannerModel extends BannerSlider {
       name: json['banner_name']?.toString() ?? '',
       img: json['image']?.toString() ?? '',
       disabled: (json['disabled'] ?? 0) == 1,
-      // redirect: json['redirect'] ?? false,
-      // redirectType: json['redirect_type']?.toString() ?? '',
-      // pages: json['pages']?.toString() ?? '',
-      // link: json['link']?.toString() ?? '',
+      type: json['type']?.toString().trim().toLowerCase() ?? 'non',
+      typeValue: json['type_value']?.toString().trim() ?? '',
     );
   }
 
@@ -28,10 +24,8 @@ class BannerModel extends BannerSlider {
       'banner_name': name,
       'image': img,
       'disabled': (disabled ?? false) ? 1 : 0,
-      // 'redirect': redirect,
-      // 'redirect_type': redirectType,
-      // 'pages': pages,
-      // 'link': link,
+      'type': type,
+      'type_value': typeValue,
     };
   }
 

@@ -5,29 +5,20 @@ class BannerSlider extends Equatable {
   final String name;
   final String img;
   final bool? disabled;
-  final bool? redirect;
-  final String? redirectType;
-  final String? pages;
-  final String? link;
+  final String type;
+  final String typeValue;
 
   const BannerSlider({
     required this.name,
     required this.img,
     this.disabled = true,
-    this.redirect = false,
-    this.redirectType = "",
-    this.pages = "",
-    this.link = "",
+    this.type = 'non',
+    this.typeValue = '',
   });
 
+  bool get hasAction =>
+      (type == 'url' || type == 'internal_route') && typeValue.isNotEmpty;
+
   @override
-  List<Object?> get props => [
-        name,
-        img,
-        disabled,
-        redirect,
-        redirectType,
-        pages,
-        link,
-      ];
+  List<Object?> get props => [name, img, disabled, type, typeValue];
 }

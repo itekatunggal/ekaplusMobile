@@ -48,7 +48,7 @@ class BannerRemoteDatasourceImplementation extends BannerRemoteDatasource {
   @override
   Future<BannerSlider> getBanner(String id) async {
     final uri = Uri.parse(
-      '${ApiConfig.baseUrl}/api/resource/ekatalog_category/$id',
+      '${ApiConfig.baseUrl}/api/resource/ekatalog_banner/$id',
     );
 
     final response = await HttpRequestHandler.send(

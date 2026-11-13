@@ -154,7 +154,7 @@ class _BranchDetailPageState extends State<BranchDetailPage> {
     final hasMaps = _coordinates != null;
     return CustomHeaderScaffold(
       title: 'Detail Cabang',
-      subtitle: branch.branchName,
+      // subtitle: branch.branchName,
       showBackButton: true,
       backgroundColor: const Color(0xFFF6F7F9),
       body: ListView(

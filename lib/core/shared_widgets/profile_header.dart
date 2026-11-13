@@ -4,7 +4,6 @@ import 'package:ekaplus_ekatunggal/constant.dart';
 import 'package:ekaplus_ekatunggal/core/config/api_config.dart';
 import 'package:ekaplus_ekatunggal/features/auth/presentation/cubit/auth_session_cubit.dart';
 import 'package:ekaplus_ekatunggal/features/auth/presentation/cubit/auth_session_state.dart';
-import 'package:ekaplus_ekatunggal/features/member/domain/entities/active_member_company.dart';
 import 'package:ekaplus_ekatunggal/features/member/presentation/cubit/active_company_cubit.dart';
 import 'package:ekaplus_ekatunggal/features/member/presentation/widgets/company_picker_sheet.dart';
 
@@ -24,66 +23,7 @@ class ProfileHeader extends StatefulWidget {
 class _ProfileHeaderState extends State<ProfileHeader> {
   int? _lastLoadedUserId;
 
-  void _showActiveCompanyToast(String message) {
-    AppSnackbar.show(
-      context,
-      message: message,
-      type: AppSnackbarType.success,
-    );
-  }
-
-  Future<void> _showCompanyPicker() async {
-    final activeCubit = context.read<ActiveCompanyCubit>();
-    final state = activeCubit.state;
-    final companies = state is ActiveCompanyReady
-        ? state.companies
-        : const <ActiveMemberCompany>[];
-    final activeBcid = state is ActiveCompanyReady ? state.activeBcid : null;
-
-
-    await showDialog(
-      context: context,
-      barrierDismissible: true,
-      builder: (dialogContext) => CompanyPickerSheet(
-        companies: companies,
-        activeBcid: activeBcid,
-        onSelectCompany: (selected) async {
-          try {
-            final changed = await activeCubit.setActiveCompany(selected);
-            if (dialogContext.mounted) {
-              Navigator.of(dialogContext).pop();
-            }
-            if (!mounted) return;
-            if (changed) {
-              _showActiveCompanyToast(
-                '${selected.displayName} menjadi perusahaan aktif',
-              );
-            } else {
-              AppSnackbar.show(
-                context,
-                message: 'Perusahaan belum memiliki BCID valid',
-                type: AppSnackbarType.error,
-              );
-            }
-          } catch (e) {
-            if (dialogContext.mounted) {
-              Navigator.of(dialogContext).pop();
-            }
-            if (!mounted) return;
-            AppSnackbar.show(
-              context,
-              message: 'Gagal memilih perusahaan aktif: $e',
-              type: AppSnackbarType.error,
-            );
-          }
-        },
-        onAddCompany: () {
-          Navigator.of(dialogContext).pop();
-          context.pushNamed('companySelection');
-        },
-      ),
-    );
-  }
+  Future<void> _showCompanyPicker() => showCompanyPickerDialog(context);
 
   @override
   Widget build(BuildContext context) {
@@ -107,9 +47,9 @@ class _ProfileHeaderState extends State<ProfileHeader> {
                     activeState is! ActiveCompanyLoading)) {
               WidgetsBinding.instance.addPostFrameCallback((_) {
                 if (!mounted) return;
-                context.read<ActiveCompanyCubit>().loadCompaniesAndResolveActive(
-                  force: shouldForceReload,
-                );
+                context
+                    .read<ActiveCompanyCubit>()
+                    .loadCompaniesAndResolveActive(force: shouldForceReload);
               });
             }
           }
@@ -246,7 +186,8 @@ class _ProfileHeaderState extends State<ProfileHeader> {
                       if (!hasActiveCompany) {
                         return const SizedBox.shrink();
                       }
-                      final companyLabel = readyState.activeCompany!.displayName;
+                      final companyLabel =
+                          readyState.activeCompany!.displayName;
                       return GestureDetector(
                         onTap: widget.onCompanyTap ?? _showCompanyPicker,
                         child: Row(

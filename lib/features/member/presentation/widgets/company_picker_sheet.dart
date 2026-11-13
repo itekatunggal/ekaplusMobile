@@ -1,6 +1,53 @@
 import 'package:ekaplus_ekatunggal/constant.dart';
 import 'package:ekaplus_ekatunggal/features/member/domain/entities/active_member_company.dart';
+import 'package:ekaplus_ekatunggal/features/member/presentation/cubit/active_company_cubit.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
+
+Future<void> showCompanyPickerDialog(BuildContext context) async {
+  final activeCubit = context.read<ActiveCompanyCubit>();
+  final state = activeCubit.state;
+  final companies = state is ActiveCompanyReady
+      ? state.companies
+      : const <ActiveMemberCompany>[];
+  final activeBcid = state is ActiveCompanyReady ? state.activeBcid : null;
+
+  await showDialog<void>(
+    context: context,
+    barrierDismissible: true,
+    builder: (dialogContext) => CompanyPickerSheet(
+      companies: companies,
+      activeBcid: activeBcid,
+      onSelectCompany: (selected) async {
+        try {
+          final changed = await activeCubit.setActiveCompany(selected);
+          if (dialogContext.mounted) Navigator.of(dialogContext).pop();
+          if (!context.mounted) return;
+          AppSnackbar.show(
+            context,
+            message: changed
+                ? '${selected.displayName} menjadi perusahaan aktif'
+                : 'Perusahaan belum memiliki BCID valid',
+            type: changed ? AppSnackbarType.success : AppSnackbarType.error,
+          );
+        } catch (error) {
+          if (dialogContext.mounted) Navigator.of(dialogContext).pop();
+          if (!context.mounted) return;
+          AppSnackbar.show(
+            context,
+            message: 'Gagal memilih perusahaan aktif: $error',
+            type: AppSnackbarType.error,
+          );
+        }
+      },
+      onAddCompany: () {
+        Navigator.of(dialogContext).pop();
+        context.pushNamed('companySelection');
+      },
+    ),
+  );
+}
 
 class CompanyPickerSheet extends StatelessWidget {
   final List<ActiveMemberCompany> companies;
