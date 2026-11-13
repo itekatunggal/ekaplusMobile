@@ -57,6 +57,8 @@ flutter:
   assets:
     - assets/fonts/
     - assets/icons/
+    - assets/icons/budaya/
+    - assets/icons/keunggulan/
     - assets/images/
     - assets/images/avatars/
     - assets/images/account/
