@@ -139,7 +139,8 @@ CustomTransitionPage<void> _smoothPage({
 class MyRouter {
   GoRouter get router => GoRouter(
     navigatorKey: globalNavigatorKey,
-    initialLocation: "/",
+    initialLocation: "/splash",
+    // initialLocation: "/about",
     refreshListenable: authRouteRefresh,
     redirect: (context, state) {
       final auth = getIt<AuthSessionCubit>().state;

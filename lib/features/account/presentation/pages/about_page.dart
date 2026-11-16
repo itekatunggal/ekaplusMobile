@@ -21,28 +21,87 @@ class _AboutPageState extends State<AboutPage> {
   ];
 
   _AboutTab _selectedTab = _AboutTab.profile;
+  final ScrollController _scrollController = ScrollController();
+  final GlobalKey _scrollViewportKey = GlobalKey();
   final Map<_AboutTab, GlobalKey> _sectionKeys = {
     for (final tab in _AboutTab.values) tab: GlobalKey(),
   };
+  bool _isNavigatingToSection = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_syncTabWithScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController
+      ..removeListener(_syncTabWithScroll)
+      ..dispose();
+    super.dispose();
+  }
+
+  void _syncTabWithScroll() {
+    if (!mounted || _isNavigatingToSection || !_scrollController.hasClients) {
+      return;
+    }
+
+    var activeTab = _AboutTab.profile;
+    if (_scrollController.position.extentAfter <= 1) {
+      activeTab = _AboutTab.workCulture;
+    } else {
+      final viewportBox = _scrollViewportKey.currentContext?.findRenderObject();
+      if (viewportBox is! RenderBox || !viewportBox.hasSize) return;
+
+      final viewportTop = viewportBox.localToGlobal(Offset.zero).dy;
+      final activationLine = viewportTop + 40;
+
+      for (final (tab, _) in _tabs) {
+        final sectionBox = _sectionKeys[tab]?.currentContext
+            ?.findRenderObject();
+        if (sectionBox is! RenderBox || !sectionBox.hasSize) continue;
+
+        final sectionTop = sectionBox.localToGlobal(Offset.zero).dy;
+        if (sectionTop <= activationLine) {
+          activeTab = tab;
+        } else {
+          break;
+        }
+      }
+    }
+
+    if (activeTab != _selectedTab) {
+      setState(() => _selectedTab = activeTab);
+    }
+  }
 
   void _scrollToTab(_AboutTab tab) {
+    _isNavigatingToSection = true;
     setState(() => _selectedTab = tab);
 
     final sectionContext = _sectionKeys[tab]?.currentContext;
-    if (sectionContext == null) return;
+    if (sectionContext == null) {
+      _isNavigatingToSection = false;
+      return;
+    }
 
     Scrollable.ensureVisible(
       sectionContext,
       duration: const Duration(milliseconds: 350),
       curve: Curves.easeInOut,
       alignment: 0,
-    );
+    ).whenComplete(() {
+      if (!mounted) return;
+      _isNavigatingToSection = false;
+      _syncTabWithScroll();
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.whiteColor,
+      backgroundColor: const Color(0xFFF6F7F9),
       appBar: AppBar(
         backgroundColor: AppColors.whiteColor,
         surfaceTintColor: AppColors.whiteColor,
@@ -72,7 +131,7 @@ class _AboutPageState extends State<AboutPage> {
           Padding(
             padding: const EdgeInsets.only(right: 18),
             child: Image.asset(
-              'assets/images/account/logoETM.png',
+              'assets/icons/icon_app.png',
               width: 34,
               height: 34,
               errorBuilder: (_, __, ___) => const SizedBox.shrink(),
@@ -84,48 +143,47 @@ class _AboutPageState extends State<AboutPage> {
         top: false,
         child: LayoutBuilder(
           builder: (context, constraints) {
-            final horizontalPadding = constraints.maxWidth >= 600 ? 32.0 : 20.0;
-
             return Padding(
-              padding: EdgeInsets.fromLTRB(
-                horizontalPadding,
-                10,
-                horizontalPadding,
-                0,
-              ),
+              padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
               child: Center(
                 child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 720),
+                  constraints: const BoxConstraints(maxWidth: 680),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: AspectRatio(
-                          aspectRatio: 350 / 116,
-                          child: Image.asset(
-                            'assets/images/banner_informasi.png',
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => Container(
-                              color: const Color(0xFFF5E8EB),
-                              alignment: Alignment.center,
-                              child: const Icon(
-                                Icons.image_outlined,
-                                color: AppColors.primaryColor,
+                      Container(
+                        decoration: _majorCardDecoration,
+                        clipBehavior: Clip.antiAlias,
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(18),
+                          child: AspectRatio(
+                            aspectRatio: 350 / 116,
+                            child: Image.asset(
+                              'assets/images/banner_informasi.png',
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => Container(
+                                color: const Color(0xFFF8FAFC),
+                                alignment: Alignment.center,
+                                child: const Icon(
+                                  Icons.image_outlined,
+                                  color: AppColors.primaryColor,
+                                ),
                               ),
                             ),
                           ),
                         ),
                       ),
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 14),
                       _AboutTabBar(
                         tabs: _tabs,
                         selectedTab: _selectedTab,
                         onSelected: _scrollToTab,
                       ),
-                      const SizedBox(height: 18),
+                      const SizedBox(height: 14),
                       Expanded(
                         child: SingleChildScrollView(
+                          key: _scrollViewportKey,
+                          controller: _scrollController,
                           padding: const EdgeInsets.only(bottom: 32),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -134,17 +192,17 @@ class _AboutPageState extends State<AboutPage> {
                                 key: _sectionKeys[_AboutTab.profile],
                                 child: const _ProfileContent(),
                               ),
-                              const SizedBox(height: 30),
+                              const SizedBox(height: 14),
                               KeyedSubtree(
                                 key: _sectionKeys[_AboutTab.advantages],
                                 child: const _AdvantagesContent(),
                               ),
-                              const SizedBox(height: 30),
+                              const SizedBox(height: 14),
                               KeyedSubtree(
                                 key: _sectionKeys[_AboutTab.visionMission],
                                 child: const _VisionMissionContent(),
                               ),
-                              const SizedBox(height: 30),
+                              const SizedBox(height: 14),
                               KeyedSubtree(
                                 key: _sectionKeys[_AboutTab.workCulture],
                                 child: const _WorkCultureContent(),
@@ -165,7 +223,7 @@ class _AboutPageState extends State<AboutPage> {
   }
 }
 
-class _AboutTabBar extends StatelessWidget {
+class _AboutTabBar extends StatefulWidget {
   const _AboutTabBar({
     required this.tabs,
     required this.selectedTab,
@@ -177,20 +235,72 @@ class _AboutTabBar extends StatelessWidget {
   final ValueChanged<_AboutTab> onSelected;
 
   @override
+  State<_AboutTabBar> createState() => _AboutTabBarState();
+}
+
+class _AboutTabBarState extends State<_AboutTabBar> {
+  final Map<_AboutTab, GlobalKey> _tabKeys = {
+    for (final tab in _AboutTab.values) tab: GlobalKey(),
+  };
+
+  @override
+  void didUpdateWidget(covariant _AboutTabBar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.selectedTab == widget.selectedTab) return;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final tabContext = _tabKeys[widget.selectedTab]?.currentContext;
+      if (tabContext == null) return;
+      Scrollable.ensureVisible(
+        tabContext,
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOut,
+        alignment: .5,
+      );
+    });
+  }
+
+  Widget _buildButton(int index) {
+    final tab = widget.tabs[index].$1;
+    return KeyedSubtree(
+      key: _tabKeys[tab],
+      child: _AboutTabButton(
+        label: widget.tabs[index].$2,
+        isSelected: widget.selectedTab == tab,
+        onTap: () => widget.onSelected(tab),
+      ),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        for (var index = 0; index < tabs.length; index++) ...[
-          if (index > 0) const SizedBox(width: 8),
-          Expanded(
-            child: _AboutTabButton(
-              label: tabs[index].$2,
-              isSelected: selectedTab == tabs[index].$1,
-              onTap: () => onSelected(tabs[index].$1),
-            ),
-          ),
-        ],
-      ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final buttons = <Widget>[
+          for (var index = 0; index < widget.tabs.length; index++) ...[
+            if (index > 0) const SizedBox(width: 8),
+            _buildButton(index),
+          ],
+        ];
+
+        if (constraints.maxWidth < 440) {
+          return SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            child: Row(children: buttons),
+          );
+        }
+
+        return Row(
+          children: [
+            for (var index = 0; index < widget.tabs.length; index++) ...[
+              if (index > 0) const SizedBox(width: 8),
+              Expanded(child: _buildButton(index)),
+            ],
+          ],
+        );
+      },
     );
   }
 }
@@ -209,29 +319,44 @@ class _AboutTabButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Semantics(
+      label: label,
       button: true,
       selected: isSelected,
-      child: Material(
-        color: isSelected ? AppColors.primaryColor : const Color(0xFFF8E7EA),
-        borderRadius: BorderRadius.circular(12),
-        child: InkWell(
+      child: AnimatedContainer(
+        key: ValueKey('about-tab-$label'),
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeInOut,
+        decoration: BoxDecoration(
+          color: isSelected ? AppColors.primaryColor : const Color(0xFFFFF1F2),
+          border: Border.all(
+            color: isSelected
+                ? AppColors.primaryColor
+                : const Color(0xFFFECACA),
+          ),
           borderRadius: BorderRadius.circular(12),
-          onTap: onTap,
-          child: SizedBox(
-            height: 34,
-            child: Center(
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  style: TextStyle(
-                    fontFamily: AppFonts.primaryFont,
-                    color: isSelected
-                        ? AppColors.whiteColor
-                        : AppColors.primaryColor,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
+        ),
+        child: Material(
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(12),
+            onTap: onTap,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              child: SizedBox(
+                height: 32,
+                child: Center(
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    style: TextStyle(
+                      fontFamily: AppFonts.primaryFont,
+                      color: isSelected
+                          ? AppColors.whiteColor
+                          : AppColors.primaryColor,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
               ),
@@ -242,6 +367,15 @@ class _AboutTabButton extends StatelessWidget {
     );
   }
 }
+
+const _majorCardDecoration = BoxDecoration(
+  color: AppColors.whiteColor,
+  borderRadius: BorderRadius.all(Radius.circular(18)),
+  border: Border.fromBorderSide(BorderSide(color: Color(0xFFF1F5F9), width: 1)),
+  boxShadow: [
+    BoxShadow(color: Color(0x120F172A), blurRadius: 20, offset: Offset(0, 6)),
+  ],
+);
 
 class _ProfileContent extends StatelessWidget {
   const _ProfileContent();
@@ -255,7 +389,7 @@ class _ProfileContent extends StatelessWidget {
         _BodyText(
           'Perusahaan distributor bahan baku material springbed dan sofa, serta barang jadi. Didirikan oleh Alm. Bapak Gapo Suseno pada tahun 1997. Ekatunggal berkomitmen untuk menghadirkan produk dan layanan berkualitas tinggi yang memenuhi kebutuhan masyarakat Indonesia.',
         ),
-        SizedBox(height: 30),
+        SizedBox(height: 16),
         _SectionTitle('LEBIH DARI 2 DEKADE BERDIRI'),
         _BodyText(
           'Ekatunggal terus berinovasi untuk memberikan solusi terbaik bagi pelanggan, sekaligus membangun hubungan jangka panjang berdasarkan kepercayaan, integritas, dan profesionalisme. Didukung oleh tim yang berpengalaman dan jaringan yang luas, Ekatunggal siap menjadi mitra terpercaya untuk masa depan yang lebih baik.',
@@ -316,6 +450,7 @@ class _VisionMissionContent extends StatefulWidget {
 
 class _VisionMissionContentState extends State<_VisionMissionContent> {
   static const _autoSwitchDuration = Duration(seconds: 3);
+  static const _transitionDuration = Duration(milliseconds: 420);
 
   _VisionMissionTab _selectedTab = _VisionMissionTab.vision;
   Timer? _autoSwitchTimer;
@@ -359,7 +494,7 @@ class _VisionMissionContentState extends State<_VisionMissionContent> {
         const _SectionTitle('VISI & MISI'),
         const SizedBox(height: 10),
         Container(
-          height: 54,
+          height: 58,
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
             color: const Color(0xFFF8E2E7),
@@ -385,34 +520,24 @@ class _VisionMissionContentState extends State<_VisionMissionContent> {
             ],
           ),
         ),
-        const SizedBox(height: 24),
-        SizedBox(
-          height: 350,
-          child: AnimatedCrossFade(
-            firstChild: AnimatedSlide(
-              offset: _selectedTab == _VisionMissionTab.vision
-                  ? Offset.zero
-                  : const Offset(0, 0.1),
-              duration: const Duration(milliseconds: 420),
-              curve: Curves.easeOutQuart,
-              child: const _VisionPanel(key: ValueKey('vision-panel')),
+        const SizedBox(height: 16),
+        AnimatedSize(
+          duration: _transitionDuration,
+          curve: Curves.easeInOut,
+          alignment: Alignment.topCenter,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 350),
+            child: Align(
+              alignment: Alignment.topCenter,
+              child: AnimatedSwitcher(
+                duration: _transitionDuration,
+                switchInCurve: Curves.easeOutQuart,
+                switchOutCurve: Curves.easeInQuart,
+                child: _selectedTab == _VisionMissionTab.vision
+                    ? const _VisionPanel(key: ValueKey('vision-panel'))
+                    : const _MissionPanel(key: ValueKey('mission-panel')),
+              ),
             ),
-            secondChild: AnimatedSlide(
-              offset: _selectedTab == _VisionMissionTab.mission
-                  ? Offset.zero
-                  : const Offset(0, 0.1),
-              duration: const Duration(milliseconds: 420),
-              curve: Curves.easeOutQuart,
-              child: const _MissionPanel(key: ValueKey('mission-panel')),
-            ),
-            crossFadeState: _selectedTab == _VisionMissionTab.vision
-                ? CrossFadeState.showFirst
-                : CrossFadeState.showSecond,
-            duration: const Duration(milliseconds: 420),
-            firstCurve: Curves.easeOutQuart,
-            secondCurve: Curves.easeOutQuart,
-            sizeCurve: Curves.easeInOutQuart,
-            alignment: Alignment.topCenter,
           ),
         ),
       ],
@@ -436,22 +561,32 @@ class _VisionMissionTabButton extends StatelessWidget {
     return Semantics(
       button: true,
       selected: isSelected,
-      child: Material(
-        color: isSelected ? AppColors.primaryColor : Colors.transparent,
-        borderRadius: BorderRadius.circular(10),
-        child: InkWell(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 520),
+        curve: Curves.easeInOutCubic,
+        decoration: BoxDecoration(
+          color: isSelected ? AppColors.primaryColor : Colors.transparent,
           borderRadius: BorderRadius.circular(10),
-          onTap: onTap,
-          child: Center(
-            child: Text(
-              label,
-              style: TextStyle(
-                fontFamily: AppFonts.primaryFont,
-                color: isSelected
-                    ? AppColors.whiteColor
-                    : AppColors.primaryColor,
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
+        ),
+        child: Material(
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(10),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(10),
+            onTap: onTap,
+            child: Center(
+              child: AnimatedDefaultTextStyle(
+                duration: const Duration(milliseconds: 520),
+                curve: Curves.easeInOutCubic,
+                style: TextStyle(
+                  fontFamily: AppFonts.primaryFont,
+                  color: isSelected
+                      ? AppColors.whiteColor
+                      : AppColors.primaryColor,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                ),
+                child: Text(label),
               ),
             ),
           ),
@@ -470,9 +605,9 @@ class _VisionPanel extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
-        color: AppColors.whiteColor,
-        border: Border.all(color: AppColors.primaryColor),
-        borderRadius: BorderRadius.circular(12),
+        color: const Color(0xFFFFF1F2),
+        border: Border.all(color: const Color(0xFFFECACA)),
+        borderRadius: BorderRadius.circular(16),
       ),
       child: const Text(
         'Menjadi perusahaan perdagangan bahan baku springbed dan sofa, serta bahan jadi skala nasional terlengkap dan menjadi pilihan utama pelanggan.',
@@ -524,8 +659,15 @@ class _MissionCard extends StatelessWidget {
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: AppColors.whiteColor,
-        border: Border.all(color: const Color(0xFFF4DCE1)),
-        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFF1F5F9)),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0D0F172A),
+            blurRadius: 14,
+            offset: Offset(0, 4),
+          ),
+        ],
       ),
       child: Row(
         children: [
@@ -571,116 +713,110 @@ class _WorkCultureContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Align(
-        alignment: Alignment.topCenter,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 440),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const _SectionTitle('BUDAYA KERJA EKATUNGGAL'),
-              const SizedBox(height: 18),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 16,
-                ),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF5DDE2),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Column(
-                  children: [
-                    Text(
-                      'Bekerja dan Melayani dengan',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontFamily: AppFonts.primaryFont,
-                        color: AppColors.blackColor,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                      ),
+    return Align(
+      alignment: Alignment.topCenter,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 440),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const _SectionTitle('BUDAYA KERJA EKATUNGGAL'),
+            const SizedBox(height: 18),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF5DDE2),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Column(
+                children: [
+                  Text(
+                    'Bekerja dan Melayani dengan',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontFamily: AppFonts.primaryFont,
+                      color: AppColors.blackColor,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
                     ),
-                    SizedBox(height: 2),
-                    Text(
-                      'SEJUTA HATI',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontFamily: AppFonts.primaryFont,
-                        color: AppColors.primaryColor,
-                        fontSize: 26,
-                        fontWeight: FontWeight.w700,
-                        height: 1.15,
+                  ),
+                  SizedBox(height: 2),
+                  Text(
+                    'SEJUTA HATI',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontFamily: AppFonts.primaryFont,
+                      color: AppColors.primaryColor,
+                      fontSize: 26,
+                      fontWeight: FontWeight.w700,
+                      height: 1.15,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 10),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                const gap = 10.0;
+                final cardWidth = (constraints.maxWidth - gap) / 2;
+
+                return Column(
+                  children: [
+                    Row(
+                      children: [
+                        SizedBox(
+                          width: cardWidth,
+                          child: const _CultureCard(
+                            iconAsset: 'assets/icons/budaya/setia.png',
+                            label: 'SETIA',
+                          ),
+                        ),
+                        const SizedBox(width: gap),
+                        SizedBox(
+                          width: cardWidth,
+                          child: const _CultureCard(
+                            iconAsset: 'assets/icons/budaya/jujur.png',
+                            label: 'JUJUR',
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: gap),
+                    Row(
+                      children: [
+                        SizedBox(
+                          width: cardWidth,
+                          child: const _CultureCard(
+                            iconAsset: 'assets/icons/budaya/tangguh.png',
+                            label: 'TANGGUH',
+                          ),
+                        ),
+                        const SizedBox(width: gap),
+                        SizedBox(
+                          width: cardWidth,
+                          child: const _CultureCard(
+                            iconAsset: 'assets/icons/budaya/hargai.png',
+                            label: 'HARGAI',
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: gap),
+                    Center(
+                      child: SizedBox(
+                        width: cardWidth,
+                        child: const _CultureCard(
+                          iconAsset: 'assets/icons/budaya/teliti.png',
+                          label: 'TELITI',
+                        ),
                       ),
                     ),
                   ],
-                ),
-              ),
-              const SizedBox(height: 10),
-              LayoutBuilder(
-                builder: (context, constraints) {
-                  const gap = 10.0;
-                  final cardWidth = (constraints.maxWidth - gap) / 2;
-
-                  return Column(
-                    children: [
-                      Row(
-                        children: [
-                          SizedBox(
-                            width: cardWidth,
-                            child: const _CultureCard(
-                              iconAsset: 'assets/icons/budaya/setia.png',
-                              label: 'SETIA',
-                            ),
-                          ),
-                          const SizedBox(width: gap),
-                          SizedBox(
-                            width: cardWidth,
-                            child: const _CultureCard(
-                              iconAsset: 'assets/icons/budaya/jujur.png',
-                              label: 'JUJUR',
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: gap),
-                      Row(
-                        children: [
-                          SizedBox(
-                            width: cardWidth,
-                            child: const _CultureCard(
-                              iconAsset: 'assets/icons/budaya/tangguh.png',
-                              label: 'TANGGUH',
-                            ),
-                          ),
-                          const SizedBox(width: gap),
-                          SizedBox(
-                            width: cardWidth,
-                            child: const _CultureCard(
-                              iconAsset: 'assets/icons/budaya/hargai.png',
-                              label: 'HARGAI',
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: gap),
-                      Center(
-                        child: SizedBox(
-                          width: cardWidth,
-                          child: const _CultureCard(
-                            iconAsset: 'assets/icons/budaya/teliti.png',
-                            label: 'TELITI',
-                          ),
-                        ),
-                      ),
-                    ],
-                  );
-                },
-              ),
-            ],
-          ),
+                );
+              },
+            ),
+          ],
         ),
       ),
     );
@@ -701,7 +837,8 @@ class _CultureCard extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(16, 18, 16, 12),
         decoration: BoxDecoration(
           color: const Color(0xFFF8E2E7),
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFFF1F5F9)),
         ),
         child: Column(
           children: [
@@ -768,10 +905,10 @@ class _BodyText extends StatelessWidget {
       text,
       style: const TextStyle(
         fontFamily: AppFonts.primaryFont,
-        color: AppColors.blackColor,
-        fontSize: 13,
+        color: Color(0xFF475569),
+        fontSize: 11.5,
         fontWeight: FontWeight.w400,
-        height: 1.45,
+        height: 1.5,
       ),
     );
   }
@@ -796,14 +933,21 @@ class _AdvantageCard extends StatelessWidget {
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: AppColors.whiteColor,
-        border: Border.all(color: const Color(0xFFF4DCE1)),
-        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFF1F5F9)),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0D0F172A),
+            blurRadius: 14,
+            offset: Offset(0, 4),
+          ),
+        ],
       ),
       child: Row(
         children: [
           Container(
-            width: 52,
-            height: 52,
+            width: 60,
+            height: 60,
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
               color: const Color(0xFFFBE7EB),
@@ -829,7 +973,7 @@ class _AdvantageCard extends StatelessWidget {
                   style: const TextStyle(
                     fontFamily: AppFonts.primaryFont,
                     color: AppColors.primaryColor,
-                    fontSize: 12,
+                    fontSize: 14,
                     fontWeight: FontWeight.w700,
                     height: 1.25,
                   ),
@@ -840,9 +984,9 @@ class _AdvantageCard extends StatelessWidget {
                   style: const TextStyle(
                     fontFamily: AppFonts.primaryFont,
                     color: AppColors.primaryColor,
-                    fontSize: 10,
+                    fontSize: 12,
                     fontWeight: FontWeight.w400,
-                    height: 1.35,
+                    // height: 1.35,
                   ),
                 ),
               ],

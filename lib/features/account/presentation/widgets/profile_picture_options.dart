@@ -1,6 +1,4 @@
 // lib/features/account/presentation/widgets/profile_picture_options_sheet.dart
-// ignore_for_file: use_build_context_synchronously
-
 import 'package:ekaplus_ekatunggal/constant.dart';
 import 'package:ekaplus_ekatunggal/core/services/avatar_local_storage.dart';
 import 'package:ekaplus_ekatunggal/features/auth/domain/entities/user.dart';
@@ -16,11 +14,13 @@ import 'package:image_picker/image_picker.dart';
 class ProfilePictureOptionsSheet extends StatelessWidget {
   final User user;
   final VoidCallback onDismiss;
+  final BuildContext hostContext;
 
   const ProfilePictureOptionsSheet({
     super.key,
     required this.user,
     required this.onDismiss,
+    required this.hostContext,
   });
 
   @override
@@ -77,8 +77,14 @@ class ProfilePictureOptionsSheet extends StatelessWidget {
                 title: 'Ambil Foto',
                 subtitle: 'Gunakan kamera langsung',
                 onTap: () async {
+                  final authBloc = hostContext.read<AuthBloc>();
+                  final authSessionCubit = hostContext.read<AuthSessionCubit>();
                   onDismiss();
-                  await _pickImageFromCamera(context);
+                  await _pickImage(
+                    source: ImageSource.camera,
+                    authBloc: authBloc,
+                    authSessionCubit: authSessionCubit,
+                  );
                 },
               ),
               const Divider(height: 1),
@@ -88,8 +94,14 @@ class ProfilePictureOptionsSheet extends StatelessWidget {
                 title: 'Ambil dari Galeri',
                 subtitle: 'Pilih dari penyimpanan',
                 onTap: () async {
+                  final authBloc = hostContext.read<AuthBloc>();
+                  final authSessionCubit = hostContext.read<AuthSessionCubit>();
                   onDismiss();
-                  await _pickImageFromGallery(context);
+                  await _pickImage(
+                    source: ImageSource.gallery,
+                    authBloc: authBloc,
+                    authSessionCubit: authSessionCubit,
+                  );
                 },
               ),
               const Divider(height: 1),
@@ -100,7 +112,7 @@ class ProfilePictureOptionsSheet extends StatelessWidget {
                 subtitle: 'Pilih ilustrasi karakter',
                 onTap: () {
                   onDismiss();
-                  context.pushNamed('selectAvatar', extra: user);
+                  hostContext.pushNamed('selectAvatar', extra: user);
                 },
               ),
               if (hasLocalAvatar) ...[
@@ -113,7 +125,7 @@ class ProfilePictureOptionsSheet extends StatelessWidget {
                   color: Colors.red,
                   onTap: () {
                     onDismiss();
-                    _deleteLocalAvatar(context);
+                    _deleteLocalAvatar(hostContext);
                   },
                 ),
               ],
@@ -165,150 +177,51 @@ class ProfilePictureOptionsSheet extends StatelessWidget {
     );
   }
 
-  Future<void> _pickImageFromGallery(BuildContext context) async {
-    // Save references BEFORE async operations
-    final authBloc = context.read<AuthBloc>();
-    final authSessionCubit = context.read<AuthSessionCubit>();
-
+  Future<void> _pickImage({
+    required ImageSource source,
+    required AuthBloc authBloc,
+    required AuthSessionCubit authSessionCubit,
+  }) async {
     try {
       final ImagePicker picker = ImagePicker();
       final XFile? image = await picker.pickImage(
-        source: ImageSource.gallery,
+        source: source,
         imageQuality: 80,
       );
 
-      if (image != null) {
-        final imagePath = image.path;
+      if (image == null) return;
 
-        // Clear local avatar karena user mau upload foto baru
-        await AvatarLocalStorage.clearLocalAvatar();
-        await AvatarLocalStorage.clearOriginalProfilePic();
-
-        // Update via AuthBloc
-        authBloc.add(
-          UpdateProfilePictureEvent(
-            userId: user.phone,
-            profilePicPath: imagePath,
-          ),
-        );
-
-        // Wait for result using stream.firstWhere
-        await authBloc.stream
-            .firstWhere(
-              (state) =>
-                  state is ProfilePictureUpdateSuccess ||
-                  state is ProfilePictureUpdateError,
-            )
-            .then((state) async {
-              if (state is ProfilePictureUpdateSuccess) {
-                // Update session dengan user yang baru
-                await authSessionCubit.updateUser(state.user);
-
-                AppSnackbar.showRaw(context, 
-                  SnackBar(
-                    content: Text(
-                      'Foto profil berhasil diubah',
-                      style: TextStyle(fontFamily: AppFonts.primaryFont),
-                    ),
-                    backgroundColor: Colors.green,
-                  ),
-                );
-              } else if (state is ProfilePictureUpdateError) {
-                AppSnackbar.showRaw(context, 
-                  SnackBar(
-                    content: Text(
-                      'Gagal mengubah foto profil: ${state.message}',
-                      style: TextStyle(fontFamily: AppFonts.primaryFont),
-                    ),
-                    backgroundColor: Colors.red,
-                  ),
-                );
-              }
-            });
-      }
-    } catch (e) {
-      AppSnackbar.showRaw(context, 
-        SnackBar(
-          content: Text(
-            'Gagal mengambil foto: $e',
-            style: TextStyle(fontFamily: AppFonts.primaryFont),
-          ),
-          backgroundColor: Colors.red,
+      authBloc.add(
+        UpdateProfilePictureEvent(
+          userId: user.phone,
+          profilePicPath: image.path,
         ),
       );
-    }
-  }
 
-  Future<void> _pickImageFromCamera(BuildContext context) async {
-    // Save references BEFORE async operations
-    final authBloc = context.read<AuthBloc>();
-    final authSessionCubit = context.read<AuthSessionCubit>();
-
-    try {
-      final ImagePicker picker = ImagePicker();
-      final XFile? image = await picker.pickImage(
-        source: ImageSource.camera,
-        imageQuality: 80,
+      final state = await authBloc.stream.firstWhere(
+        (state) =>
+            state is ProfilePictureUpdateSuccess ||
+            state is ProfilePictureUpdateError,
       );
 
-      if (image != null) {
-        final imagePath = image.path;
-
-        // Clear local avatar karena user mau upload foto baru
+      if (state is ProfilePictureUpdateSuccess) {
+        await authSessionCubit.updateUser(state.user);
         await AvatarLocalStorage.clearLocalAvatar();
         await AvatarLocalStorage.clearOriginalProfilePic();
-
-        // Update via AuthBloc
-        authBloc.add(
-          UpdateProfilePictureEvent(
-            userId: user.phone,
-            profilePicPath: imagePath,
-          ),
+        AppSnackbar.showGlobal(
+          message: 'Foto profil berhasil diubah',
+          type: AppSnackbarType.success,
         );
-
-        // Wait for result using stream.firstWhere
-        await authBloc.stream
-            .firstWhere(
-              (state) =>
-                  state is ProfilePictureUpdateSuccess ||
-                  state is ProfilePictureUpdateError,
-            )
-            .then((state) async {
-              if (state is ProfilePictureUpdateSuccess) {
-                // Update session dengan user yang baru
-                await authSessionCubit.updateUser(state.user);
-
-                AppSnackbar.showRaw(context, 
-                  SnackBar(
-                    content: Text(
-                      'Foto profil berhasil diubah',
-                      style: TextStyle(fontFamily: AppFonts.primaryFont),
-                    ),
-                    backgroundColor: Colors.green,
-                  ),
-                );
-              } else if (state is ProfilePictureUpdateError) {
-                AppSnackbar.showRaw(context, 
-                  SnackBar(
-                    content: Text(
-                      'Gagal mengubah foto profil: ${state.message}',
-                      style: TextStyle(fontFamily: AppFonts.primaryFont),
-                    ),
-                    backgroundColor: Colors.red,
-                  ),
-                );
-              }
-            });
+      } else if (state is ProfilePictureUpdateError) {
+        AppSnackbar.showGlobal(
+          message: 'Gagal mengubah foto profil: ${state.message}',
+          type: AppSnackbarType.error,
+        );
       }
     } catch (e) {
-      AppSnackbar.showRaw(context, 
-        SnackBar(
-          content: Text(
-            'Gagal mengambil foto: $e',
-            style: TextStyle(fontFamily: AppFonts.primaryFont),
-          ),
-          backgroundColor: Colors.red,
-        ),
+      AppSnackbar.showGlobal(
+        message: 'Gagal mengambil foto: $e',
+        type: AppSnackbarType.error,
       );
     }
   }
@@ -356,6 +269,7 @@ class ProfilePictureOptionsSheet extends StatelessWidget {
         ],
       ),
     );
+    if (!context.mounted) return;
 
     if (confirmed == true) {
       try {
@@ -371,24 +285,14 @@ class ProfilePictureOptionsSheet extends StatelessWidget {
         final updatedUser = user.copyWith(profilePic: originalProfilePic ?? '');
         await authSessionCubit.updateUser(updatedUser);
 
-        AppSnackbar.showRaw(context, 
-          SnackBar(
-            content: Text(
-              'Avatar berhasil dihapus',
-              style: TextStyle(fontFamily: AppFonts.primaryFont),
-            ),
-            backgroundColor: Colors.green,
-          ),
+        AppSnackbar.showGlobal(
+          message: 'Avatar berhasil dihapus',
+          type: AppSnackbarType.success,
         );
       } catch (e) {
-        AppSnackbar.showRaw(context, 
-          SnackBar(
-            content: Text(
-              'Gagal menghapus avatar: $e',
-              style: TextStyle(fontFamily: AppFonts.primaryFont),
-            ),
-            backgroundColor: Colors.red,
-          ),
+        AppSnackbar.showGlobal(
+          message: 'Gagal menghapus avatar: $e',
+          type: AppSnackbarType.error,
         );
       }
     }

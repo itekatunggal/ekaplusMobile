@@ -136,6 +136,7 @@ class AccountLoggedInView extends StatelessWidget {
       ),
       builder: (sheetContext) => ProfilePictureOptionsSheet(
         user: currentUser,
+        hostContext: context,
         onDismiss: () => Navigator.pop(sheetContext),
       ),
     );

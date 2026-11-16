@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:ekaplus_ekatunggal/core/utils/global_navigator_key.dart';
 import 'package:flutter/material.dart';
 
 enum AppSnackbarType { success, error, info, warning }
@@ -54,17 +55,55 @@ class AppSnackbar {
     );
   }
 
+  static void showGlobal({
+    required String message,
+    AppSnackbarType type = AppSnackbarType.info,
+    Duration duration = const Duration(milliseconds: 2000),
+  }) {
+    final navigator = globalNavigatorKey.currentState;
+    final overlay = navigator?.overlay;
+    if (navigator == null || overlay == null) return;
+
+    _showRaw(
+      SnackBar(
+        content: Text(message),
+        duration: duration,
+        backgroundColor: _bg(type),
+      ),
+      overlay: overlay,
+      navigator: navigator,
+      theme: Theme.of(overlay.context),
+      type: type,
+    );
+  }
+
   static void showRaw(
     BuildContext context,
     SnackBar snackBar, {
     AppSnackbarType type = AppSnackbarType.info,
   }) {
+    final overlay = Overlay.of(context, rootOverlay: true);
+    final navigator = Navigator.of(context, rootNavigator: true);
+
+    _showRaw(
+      snackBar,
+      overlay: overlay,
+      navigator: navigator,
+      theme: Theme.of(context),
+      type: type,
+    );
+  }
+
+  static void _showRaw(
+    SnackBar snackBar, {
+    required OverlayState overlay,
+    required NavigatorState navigator,
+    required ThemeData theme,
+    required AppSnackbarType type,
+  }) {
     _dismissTimer?.cancel();
     _currentController?.dispose();
     _currentEntry?.remove();
-
-    final overlay = Overlay.of(context, rootOverlay: true);
-    final navigator = Navigator.of(context, rootNavigator: true);
 
     final controller = AnimationController(
       vsync: navigator,
@@ -119,10 +158,7 @@ class AppSnackbar {
                       height: 1.3,
                     ),
                     child: IconTheme(
-                      data: const IconThemeData(
-                        color: Colors.white,
-                        size: 18,
-                      ),
+                      data: const IconThemeData(color: Colors.white, size: 18),
                       child: Padding(
                         padding: resolvedPadding,
                         child: Row(
@@ -139,7 +175,7 @@ class AppSnackbar {
                             if (snackBar.action != null) ...[
                               const SizedBox(width: 8),
                               Theme(
-                                data: Theme.of(context).copyWith(
+                                data: theme.copyWith(
                                   textButtonTheme: TextButtonThemeData(
                                     style: TextButton.styleFrom(
                                       foregroundColor: Colors.white,

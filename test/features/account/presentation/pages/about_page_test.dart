@@ -55,7 +55,7 @@ void main() {
     expect(find.text('TELITI'), findsOneWidget);
   });
 
-  testWidgets('tab visi dan misi berpindah otomatis setiap 3 detik', (
+  testWidgets('tab visi dan misi berpindah otomatis tanpa menggeser section', (
     tester,
   ) async {
     await tester.pumpWidget(const MaterialApp(home: AboutPage()));
@@ -69,6 +69,9 @@ void main() {
           .hitTestable(),
       findsOneWidget,
     );
+    final cultureTopInVision = tester
+        .getTopLeft(find.text('BUDAYA KERJA EKATUNGGAL'))
+        .dy;
 
     await tester.pump(const Duration(seconds: 3));
     await tester.pumpAndSettle();
@@ -79,5 +82,36 @@ void main() {
           .hitTestable(),
       findsOneWidget,
     );
+    final cultureTopInMission = tester
+        .getTopLeft(find.text('BUDAYA KERJA EKATUNGGAL'))
+        .dy;
+    expect(cultureTopInMission, closeTo(cultureTopInVision, 0.1));
+  });
+
+  testWidgets('scroll manual memperbarui tab section yang aktif', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const MaterialApp(home: AboutPage()));
+    await tester.pumpAndSettle();
+
+    final verticalScroll = find.byWidgetPredicate(
+      (widget) =>
+          widget is SingleChildScrollView &&
+          widget.scrollDirection == Axis.vertical,
+    );
+    final viewportTop = tester.getTopLeft(verticalScroll).dy;
+    final visionSectionTop = tester.getTopLeft(find.text('VISI & MISI')).dy;
+
+    await tester.drag(
+      verticalScroll,
+      Offset(0, -(visionSectionTop - viewportTop + 10)),
+    );
+    await tester.pumpAndSettle();
+
+    final activeTab = tester.widget<AnimatedContainer>(
+      find.byKey(const ValueKey('about-tab-Visi & Misi')),
+    );
+    final decoration = activeTab.decoration! as BoxDecoration;
+    expect(decoration.color, const Color(0xFFB11F23));
   });
 }

@@ -248,6 +248,7 @@ class _ProfileContent extends StatelessWidget {
       ),
       builder: (sheetContext) => ProfilePictureOptionsSheet(
         user: user,
+        hostContext: context,
         onDismiss: () => Navigator.pop(sheetContext),
       ),
     );
