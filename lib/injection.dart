@@ -41,9 +41,6 @@ import 'package:get_it/get_it.dart';
 import 'package:hive/hive.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:ekaplus_ekatunggal/features/sales_directory/data/repositories/mock_sales_directory_repository.dart';
-import 'package:ekaplus_ekatunggal/features/sales_directory/domain/repositories/sales_directory_repository.dart';
-import 'package:ekaplus_ekatunggal/features/sales_directory/presentation/cubit/sales_directory_cubit.dart';
 import 'package:ekaplus_ekatunggal/features/promotion/data/repositories/mock_promotion_repository.dart';
 import 'package:ekaplus_ekatunggal/features/promotion/domain/repositories/promotion_repository.dart';
 import 'package:ekaplus_ekatunggal/features/promotion/presentation/cubit/promotion_cubit.dart';
@@ -121,13 +118,6 @@ import 'package:ekaplus_ekatunggal/features/wishlist/domain/usecases/toggle_wish
 import 'package:ekaplus_ekatunggal/features/wishlist/presentation/bloc/wishlist_bloc.dart';
 
 final myinjection = GetIt.instance;
-
-SalesDirectoryRepository _createSalesDirectoryRepository() {
-  if (FeatureFlags.useDummySales) return MockSalesDirectoryRepository();
-  throw StateError(
-    'Remote SalesDirectoryRepository belum didaftarkan di injection.dart.',
-  );
-}
 
 PromotionRepository _createPromotionRepository() {
   if (FeatureFlags.useDummyPromotions) return MockPromotionRepository();
@@ -431,11 +421,6 @@ Future<void> init() async {
   myinjection.registerLazySingleton(
     () => SelectedBranchCubit(getAllBranches: myinjection()),
   );
-
-  myinjection.registerLazySingleton<SalesDirectoryRepository>(
-    _createSalesDirectoryRepository,
-  );
-  myinjection.registerLazySingleton(() => SalesDirectoryCubit(myinjection()));
 
   myinjection.registerLazySingleton<PromotionRepository>(
     _createPromotionRepository,

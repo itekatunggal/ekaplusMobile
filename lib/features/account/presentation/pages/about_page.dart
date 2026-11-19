@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:ekaplus_ekatunggal/constant.dart';
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 enum _AboutTab { profile, advantages, visionMission, workCulture }
 
@@ -13,6 +14,13 @@ class AboutPage extends StatefulWidget {
 }
 
 class _AboutPageState extends State<AboutPage> {
+  static final Uri _instagramUri = Uri.parse(
+    'https://instagram.com/ekatunggalgroup',
+  );
+  static final Uri _tiktokUri = Uri.parse(
+    'https://tiktok.com/ekatunggal_official',
+  );
+
   static const _tabs = <(_AboutTab, String)>[
     (_AboutTab.profile, 'Profil'),
     (_AboutTab.advantages, 'Keunggulan'),
@@ -96,6 +104,19 @@ class _AboutPageState extends State<AboutPage> {
       _isNavigatingToSection = false;
       _syncTabWithScroll();
     });
+  }
+
+  Future<void> _openSocialMedia(Uri uri, String platform) async {
+    try {
+      final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (opened || !mounted) return;
+    } catch (_) {
+      if (!mounted) return;
+    }
+
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('$platform tidak dapat dibuka')));
   }
 
   @override
@@ -206,6 +227,15 @@ class _AboutPageState extends State<AboutPage> {
                               KeyedSubtree(
                                 key: _sectionKeys[_AboutTab.workCulture],
                                 child: const _WorkCultureContent(),
+                              ),
+                              const SizedBox(height: 24),
+                              _FollowEkatunggalSection(
+                                onInstagram: () => _openSocialMedia(
+                                  _instagramUri,
+                                  'Instagram',
+                                ),
+                                onTikTok: () =>
+                                    _openSocialMedia(_tiktokUri, 'TikTok'),
                               ),
                             ],
                           ),
@@ -605,7 +635,7 @@ class _VisionPanel extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFF1F2),
+        color: AppColors.whiteColor,
         border: Border.all(color: const Color(0xFFFECACA)),
         borderRadius: BorderRadius.circular(16),
       ),
@@ -865,6 +895,115 @@ class _CultureCard extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _FollowEkatunggalSection extends StatelessWidget {
+  const _FollowEkatunggalSection({
+    required this.onInstagram,
+    required this.onTikTok,
+  });
+
+  final VoidCallback onInstagram;
+  final VoidCallback onTikTok;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const _SectionTitle('IKUTI EKATUNGGAL'),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _SocialMediaButton(
+                label: 'INSTAGRAM',
+                assetPath: 'assets/icons/ig1.jpg',
+                onTap: onInstagram,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _SocialMediaButton(
+                label: 'TIKTOK',
+                assetPath: 'assets/icons/tiktok1.jpg',
+                onTap: onTikTok,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _SocialMediaButton extends StatelessWidget {
+  const _SocialMediaButton({
+    required this.label,
+    required this.assetPath,
+    required this.onTap,
+  });
+
+  final String label;
+  final String assetPath;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      link: true,
+      label: 'Buka $label Ekatunggal',
+      child: Material(
+        color: AppColors.whiteColor,
+        borderRadius: BorderRadius.circular(18),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(18),
+          child: Container(
+            height: 146,
+            padding: const EdgeInsets.fromLTRB(12, 20, 12, 16),
+            decoration: BoxDecoration(
+              border: Border.all(color: const Color(0xFFF4DCE1)),
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: Column(
+              children: [
+                Expanded(
+                  child: Center(
+                    child: Image.asset(
+                      assetPath,
+                      width: 58,
+                      height: 58,
+                      fit: BoxFit.contain,
+                      filterQuality: FilterQuality.high,
+                      errorBuilder: (_, __, ___) => const Icon(
+                        Icons.public_rounded,
+                        color: AppColors.primaryColor,
+                        size: 48,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontFamily: AppFonts.primaryFont,
+                    color: AppColors.primaryColor,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );

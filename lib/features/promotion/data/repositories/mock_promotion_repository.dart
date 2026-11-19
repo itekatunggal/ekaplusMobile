@@ -16,6 +16,7 @@ class MockPromotionRepository implements PromotionRepository {
       content:
           'Ini adalah konten demo. Informasi program resmi akan ditampilkan setelah disetujui dan tersedia.',
       status: 'active',
+      coverImage: '5ba306b6-5053-4687-8afd-6c4e167f4cca',
       targetAudience: 'Pelanggan EKAPLUS',
       isDemo: true,
     ),
@@ -26,6 +27,7 @@ class MockPromotionRepository implements PromotionRepository {
       content:
           'Konten ini hanya digunakan untuk pratinjau tampilan dan bukan penawaran komersial.',
       status: 'active',
+      coverImage: '34b1c63c-d1af-42f2-9a10-85c3e8d704d3',
       isDemo: true,
     ),
     PromotionModel(

@@ -4,7 +4,6 @@ import 'package:ekaplus_ekatunggal/features/banner/presentation/cubit/banner_cub
 import 'package:ekaplus_ekatunggal/features/branch/presentation/cubit/selected_branch_cubit.dart';
 import 'package:ekaplus_ekatunggal/features/member/presentation/cubit/member_registration_cubit.dart';
 import 'package:ekaplus_ekatunggal/features/member/presentation/cubit/active_company_cubit.dart';
-import 'package:ekaplus_ekatunggal/features/sales_directory/presentation/cubit/sales_directory_cubit.dart';
 import 'package:ekaplus_ekatunggal/features/promotion/presentation/cubit/promotion_cubit.dart';
 import 'package:ekaplus_ekatunggal/features/article/presentation/cubit/article_cubit.dart';
 import 'package:flutter/material.dart';
@@ -129,7 +128,6 @@ class _EkaplusAppState extends State<EkaplusApp> {
           },
         ),
         BlocProvider(create: (_) => myinjection<SelectedBranchCubit>()..load()),
-        BlocProvider(create: (_) => myinjection<SalesDirectoryCubit>()),
         BlocProvider(create: (_) => myinjection<PromotionCubit>()),
         BlocProvider(create: (_) => myinjection<ArticleCubit>()),
         BlocProvider(create: (_) => myinjection<BannerCubit>()),

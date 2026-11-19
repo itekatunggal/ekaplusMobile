@@ -52,11 +52,6 @@ import 'package:ekaplus_ekatunggal/features/branch/domain/entities/branch.dart';
 import 'package:ekaplus_ekatunggal/features/branch/presentation/cubit/selected_branch_cubit.dart';
 import 'package:ekaplus_ekatunggal/features/branch/presentation/pages/branch_detail_page.dart';
 import 'package:ekaplus_ekatunggal/features/branch/presentation/pages/branch_directory_page.dart';
-import 'package:ekaplus_ekatunggal/features/sales_directory/domain/entities/sales_profile.dart';
-import 'package:ekaplus_ekatunggal/features/sales_directory/domain/repositories/sales_directory_repository.dart';
-import 'package:ekaplus_ekatunggal/features/sales_directory/presentation/cubit/sales_directory_cubit.dart';
-import 'package:ekaplus_ekatunggal/features/sales_directory/presentation/pages/sales_detail_page.dart';
-import 'package:ekaplus_ekatunggal/features/sales_directory/presentation/pages/sales_directory_page.dart';
 import 'package:ekaplus_ekatunggal/features/promotion/domain/entities/promotion.dart';
 import 'package:ekaplus_ekatunggal/features/promotion/domain/repositories/promotion_repository.dart';
 import 'package:ekaplus_ekatunggal/features/promotion/presentation/pages/promotion_detail_page.dart';
@@ -139,8 +134,8 @@ CustomTransitionPage<void> _smoothPage({
 class MyRouter {
   GoRouter get router => GoRouter(
     navigatorKey: globalNavigatorKey,
-    initialLocation: "/splash",
-    // initialLocation: "/about",
+    // initialLocation: "/splash",
+    initialLocation: "/",
     refreshListenable: authRouteRefresh,
     redirect: (context, state) {
       final auth = getIt<AuthSessionCubit>().state;
@@ -174,11 +169,6 @@ class MyRouter {
             name: 'branches',
             path: '/branches',
             builder: (context, state) => const BranchDirectoryPage(),
-          ),
-          GoRoute(
-            name: 'sales',
-            path: '/sales',
-            builder: (context, state) => const SalesDirectoryPage(),
           ),
           GoRoute(
             name: 'category',
@@ -232,21 +222,7 @@ class MyRouter {
           final id = int.tryParse(state.pathParameters['branchId'] ?? '') ?? 0;
           return BranchDetailResolverPage(
             branchId: id,
-            salesRepository: myinjection<SalesDirectoryRepository>(),
             initialBranch: extra is Branch ? extra : null,
-          );
-        },
-      ),
-      GoRoute(
-        name: 'sales-detail',
-        path: '/sales/:salesId',
-        builder: (context, state) {
-          final extra = state.extra;
-          final id = int.tryParse(state.pathParameters['salesId'] ?? '') ?? 0;
-          return SalesDetailResolverPage(
-            salesId: id,
-            repository: myinjection<SalesDirectoryRepository>(),
-            initialProfile: extra is SalesProfile ? extra : null,
           );
         },
       ),
@@ -1052,8 +1028,6 @@ class AppShell extends StatelessWidget {
         ? 'account'
         : path.startsWith('/branches')
         ? 'branches'
-        : path.startsWith('/sales')
-        ? 'sales'
         : path.startsWith('/category')
         ? 'category'
         : path.startsWith('/wishlist')
@@ -1067,7 +1041,6 @@ class AppShell extends StatelessWidget {
     return [
       'home',
       if (FeatureFlags.showBranchDirectory) 'branches',
-      if (FeatureFlags.showSalesDirectory) 'sales',
       if (FeatureFlags.showProductCategories) 'category',
       if (FeatureFlags.showWishlist) 'wishlist',
       if (isLoggedIn) 'customer',
@@ -1082,16 +1055,6 @@ class AppShell extends StatelessWidget {
 
       case 'branches':
         context.read<SelectedBranchCubit>().load(force: true);
-        break;
-
-      case 'sales':
-        final branchId = context
-            .read<SelectedBranchCubit>()
-            .state
-            .selectedBranchId;
-        if (branchId != null) {
-          context.read<SalesDirectoryCubit>().load(branchId: branchId);
-        }
         break;
 
       case 'category':

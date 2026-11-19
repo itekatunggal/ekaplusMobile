@@ -9,10 +9,8 @@ abstract final class FeatureFlags {
   static const bool showProductSearch = false;
   static const bool showHomeLoyalty = true;
   static const bool showBranchDirectory = true;
-  static const bool showSalesDirectory = true;
   static const bool showPromotions = true;
   static const bool showArticles = true;
-  static const bool useDummySales = true;
   static const bool useDummyPromotions = true;
   static const bool useDummyArticles = true;
 

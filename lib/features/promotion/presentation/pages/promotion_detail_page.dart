@@ -1,4 +1,6 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:ekaplus_ekatunggal/constant.dart';
+import 'package:ekaplus_ekatunggal/core/config/api_config.dart';
 import 'package:ekaplus_ekatunggal/core/shared_widgets/custom_header.dart';
 import 'package:ekaplus_ekatunggal/features/promotion/domain/entities/promotion.dart';
 import 'package:ekaplus_ekatunggal/features/promotion/domain/repositories/promotion_repository.dart';
@@ -46,20 +48,7 @@ class PromotionDetailPage extends StatelessWidget {
     body: ListView(
       padding: const EdgeInsets.only(bottom: 28),
       children: [
-        Container(
-          height: 190,
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Color(0xFFB11F23), Color(0xFFD52A2F)],
-            ),
-            borderRadius: BorderRadius.circular(18),
-          ),
-          child: const Icon(
-            Icons.local_offer_outlined,
-            color: Colors.white,
-            size: 54,
-          ),
-        ),
+        _PromotionCover(image: promotion.coverImage),
         const SizedBox(height: 14),
         Container(
           padding: const EdgeInsets.all(18),
@@ -108,6 +97,45 @@ class PromotionDetailPage extends StatelessWidget {
       ],
     ),
   );
+}
+
+class _PromotionCover extends StatelessWidget {
+  const _PromotionCover({required this.image});
+
+  final String? image;
+
+  @override
+  Widget build(BuildContext context) {
+    final fallback = Container(
+      height: 190,
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Color(0xFFB11F23), Color(0xFFD52A2F)],
+        ),
+      ),
+      alignment: Alignment.center,
+      child: const Icon(
+        Icons.local_offer_outlined,
+        color: Colors.white,
+        size: 54,
+      ),
+    );
+    final imageUrl = ApiConfig.getImageUrl(image);
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(18),
+      child: imageUrl.isEmpty
+          ? fallback
+          : CachedNetworkImage(
+              imageUrl: imageUrl,
+              height: 190,
+              width: double.infinity,
+              fit: BoxFit.cover,
+              placeholder: (_, _) => fallback,
+              errorWidget: (_, _, _) => fallback,
+            ),
+    );
+  }
 }
 
 const _detailDecoration = BoxDecoration(

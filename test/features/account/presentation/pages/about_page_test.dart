@@ -53,6 +53,9 @@ void main() {
     expect(find.text('TANGGUH'), findsOneWidget);
     expect(find.text('HARGAI'), findsOneWidget);
     expect(find.text('TELITI'), findsOneWidget);
+    expect(find.text('IKUTI EKATUNGGAL'), findsOneWidget);
+    expect(find.text('INSTAGRAM'), findsOneWidget);
+    expect(find.text('TIKTOK'), findsOneWidget);
   });
 
   testWidgets('tab visi dan misi berpindah otomatis tanpa menggeser section', (

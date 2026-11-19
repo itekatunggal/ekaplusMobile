@@ -24,12 +24,6 @@ class BottomNavBar extends StatelessWidget {
           selectedIcon: Icons.store_mall_directory_rounded,
           label: 'Cabang',
         ),
-      if (FeatureFlags.showSalesDirectory)
-        const _BottomNavItemData(
-          icon: Icons.support_agent_outlined,
-          selectedIcon: Icons.support_agent_rounded,
-          label: 'Sales',
-        ),
       if (FeatureFlags.showProductCategories)
         const _BottomNavItemData(icon: Icons.grid_view, label: 'Kategori'),
       if (FeatureFlags.showWishlist)

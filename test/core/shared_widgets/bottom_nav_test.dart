@@ -16,7 +16,7 @@ void main() {
 
     expect(find.text('Beranda'), findsOneWidget);
     expect(find.text('Cabang'), findsOneWidget);
-    expect(find.text('Sales'), findsOneWidget);
+    expect(find.text('Sales'), findsNothing);
     expect(find.text('Customer'), findsOneWidget);
     expect(find.text('Akun'), findsOneWidget);
     expect(find.text('Kategori'), findsNothing);
@@ -52,7 +52,7 @@ void main() {
     semantics.dispose();
   });
 
-  testWidgets('guest melihat empat tab tanpa Customer', (tester) async {
+  testWidgets('guest melihat tiga tab tanpa Customer', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
@@ -67,7 +67,7 @@ void main() {
 
     expect(find.text('Beranda'), findsOneWidget);
     expect(find.text('Cabang'), findsOneWidget);
-    expect(find.text('Sales'), findsOneWidget);
+    expect(find.text('Sales'), findsNothing);
     expect(find.text('Akun'), findsOneWidget);
     expect(find.text('Customer'), findsNothing);
   });

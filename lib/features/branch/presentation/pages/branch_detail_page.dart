@@ -4,33 +4,24 @@ import 'package:ekaplus_ekatunggal/core/shared_widgets/custom_header.dart';
 import 'package:ekaplus_ekatunggal/features/branch/domain/entities/branch.dart';
 import 'package:ekaplus_ekatunggal/features/branch/presentation/cubit/selected_branch_cubit.dart';
 import 'package:ekaplus_ekatunggal/features/branch/presentation/cubit/selected_branch_state.dart';
-import 'package:ekaplus_ekatunggal/features/sales_directory/domain/entities/sales_profile.dart';
-import 'package:ekaplus_ekatunggal/features/sales_directory/domain/repositories/sales_directory_repository.dart';
-import 'package:ekaplus_ekatunggal/features/sales_directory/presentation/widgets/sales_profile_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class BranchDetailResolverPage extends StatelessWidget {
   const BranchDetailResolverPage({
     super.key,
     required this.branchId,
-    required this.salesRepository,
     this.initialBranch,
   });
 
   final int branchId;
-  final SalesDirectoryRepository salesRepository;
   final Branch? initialBranch;
 
   @override
   Widget build(BuildContext context) {
     if (initialBranch != null) {
-      return BranchDetailPage(
-        branch: initialBranch!,
-        salesRepository: salesRepository,
-      );
+      return BranchDetailPage(branch: initialBranch!);
     }
     return BlocBuilder<SelectedBranchCubit, SelectedBranchState>(
       builder: (context, state) {
@@ -42,10 +33,7 @@ class BranchDetailResolverPage extends StatelessWidget {
           }
         }
         if (branch != null) {
-          return BranchDetailPage(
-            branch: branch,
-            salesRepository: salesRepository,
-          );
+          return BranchDetailPage(branch: branch);
         }
         if (state.status == SelectedBranchStatus.initial ||
             state.status == SelectedBranchStatus.loading) {
@@ -89,47 +77,10 @@ class BranchDetailResolverPage extends StatelessWidget {
   }
 }
 
-class BranchDetailPage extends StatefulWidget {
-  const BranchDetailPage({
-    super.key,
-    required this.branch,
-    required this.salesRepository,
-  });
+class BranchDetailPage extends StatelessWidget {
+  const BranchDetailPage({super.key, required this.branch});
 
   final Branch branch;
-  final SalesDirectoryRepository salesRepository;
-
-  @override
-  State<BranchDetailPage> createState() => _BranchDetailPageState();
-}
-
-class _BranchDetailPageState extends State<BranchDetailPage> {
-  late Future<List<SalesProfile>> _salesFuture;
-
-  Branch get branch => widget.branch;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadSales();
-  }
-
-  @override
-  void didUpdateWidget(covariant BranchDetailPage oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.branch.id != widget.branch.id ||
-        oldWidget.salesRepository != widget.salesRepository) {
-      _loadSales();
-    }
-  }
-
-  void _loadSales() {
-    _salesFuture = widget.salesRepository.getSales(branchId: branch.id);
-  }
-
-  void _retrySales() {
-    setState(_loadSales);
-  }
 
   Future<void> _openMaps(BuildContext context) async {
     final coordinates = _coordinates;
@@ -214,70 +165,6 @@ class _BranchDetailPageState extends State<BranchDetailPage> {
                 label: const Text('Lihat di Maps'),
               ),
             ),
-          const SizedBox(height: 20),
-          const Text(
-            'Sales Cabang',
-            style: TextStyle(
-              color: Color(0xFF1E293B),
-              fontSize: 15,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 4),
-          const Text(
-            'Tim sales yang tersedia di cabang ini',
-            style: TextStyle(color: Color(0xFF64748B), fontSize: 10),
-          ),
-          const SizedBox(height: 10),
-          FutureBuilder<List<SalesProfile>>(
-            future: _salesFuture,
-            builder: (context, snapshot) {
-              if (snapshot.connectionState != ConnectionState.done) {
-                return const SizedBox(
-                  height: 190,
-                  child: Center(
-                    child: CircularProgressIndicator(
-                      color: AppColors.primaryColor,
-                    ),
-                  ),
-                );
-              }
-              if (snapshot.hasError) {
-                return _SalesState(
-                  icon: Icons.cloud_off_rounded,
-                  message: 'Data sales belum dapat dimuat',
-                  onRetry: _retrySales,
-                );
-              }
-              final profiles = snapshot.data ?? const <SalesProfile>[];
-              if (profiles.isEmpty) {
-                return const _SalesState(
-                  icon: Icons.person_search_outlined,
-                  message: 'Belum ada data sales untuk cabang ini',
-                );
-              }
-              return SizedBox(
-                height: 190,
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: profiles.length,
-                  separatorBuilder: (_, _) => const SizedBox(width: 10),
-                  itemBuilder: (context, index) {
-                    final profile = profiles[index];
-                    return SalesProfileCard(
-                      compact: true,
-                      profile: profile,
-                      onTap: () => context.pushNamed(
-                        'sales-detail',
-                        pathParameters: {'salesId': '${profile.id}'},
-                        extra: profile,
-                      ),
-                    );
-                  },
-                ),
-              );
-            },
-          ),
         ],
       ),
     );
@@ -329,37 +216,6 @@ class _BranchPhotoFallback extends StatelessWidget {
               color: AppColors.primaryColor,
               size: 52,
             ),
-    ),
-  );
-}
-
-class _SalesState extends StatelessWidget {
-  const _SalesState({required this.icon, required this.message, this.onRetry});
-  final IconData icon;
-  final String message;
-  final VoidCallback? onRetry;
-
-  @override
-  Widget build(BuildContext context) => Container(
-    width: double.infinity,
-    padding: const EdgeInsets.all(18),
-    decoration: _detailDecoration,
-    child: Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Icon(icon, color: const Color(0xFF94A3B8)),
-        const SizedBox(width: 8),
-        Flexible(
-          child: Text(
-            message,
-            style: const TextStyle(color: Color(0xFF64748B), fontSize: 10.5),
-          ),
-        ),
-        if (onRetry != null) ...[
-          const SizedBox(width: 8),
-          TextButton(onPressed: onRetry, child: const Text('Coba Lagi')),
-        ],
-      ],
     ),
   );
 }
