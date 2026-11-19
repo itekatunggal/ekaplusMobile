@@ -49,21 +49,14 @@ class CustomHeaderAppBar extends StatelessWidget
       return _buildBrandHeader(context, isIOS: isIOS);
     }
 
-    return Container(
-      decoration: BoxDecoration(
-        color: backgroundColor,
-        borderRadius: BorderRadius.vertical(
-          bottom: Radius.circular(bottomRadius),
-        ),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x24000000),
-            blurRadius: 10,
-            offset: Offset(0, 4),
-          ),
-        ],
+    return _HeaderBackground(
+      backgroundColor: backgroundColor,
+      bottomRadius: bottomRadius,
+      shadow: const BoxShadow(
+        color: Color(0x24000000),
+        blurRadius: 10,
+        offset: Offset(0, 4),
       ),
-      clipBehavior: Clip.antiAlias,
       child: SafeArea(
         bottom: false,
         child: Padding(
@@ -154,26 +147,17 @@ class CustomHeaderAppBar extends StatelessWidget
   }
 
   Widget _buildBrandHeader(BuildContext context, {required bool isIOS}) {
-    return Container(
+    final resolvedBottomRadius = bottomRadius == 20 ? 28.0 : bottomRadius;
+
+    return _HeaderBackground(
       height: height,
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [Color(0xFFD52A2F), AppColors.primaryColor],
-        ),
-        borderRadius: BorderRadius.vertical(
-          bottom: Radius.circular(bottomRadius == 20 ? 28 : bottomRadius),
-        ),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x1F0F172A),
-            blurRadius: 12,
-            offset: Offset(0, 4),
-          ),
-        ],
+      backgroundColor: backgroundColor,
+      bottomRadius: resolvedBottomRadius,
+      shadow: const BoxShadow(
+        color: Color(0x1F0F172A),
+        blurRadius: 12,
+        offset: Offset(0, 4),
       ),
-      clipBehavior: Clip.antiAlias,
       child: SafeArea(
         bottom: false,
         child: Padding(
@@ -268,6 +252,267 @@ class CustomHeaderAppBar extends StatelessWidget
     final hasSubtitle = subtitle != null && subtitle!.isNotEmpty;
     return Size.fromHeight(height ?? (hasSubtitle ? 76 : 60));
   }
+}
+
+class _HeaderBackground extends StatelessWidget {
+  const _HeaderBackground({
+    required this.child,
+    required this.backgroundColor,
+    required this.bottomRadius,
+    required this.shadow,
+    this.height,
+  });
+
+  final Widget child;
+  final Color backgroundColor;
+  final double bottomRadius;
+  final BoxShadow shadow;
+  final double? height;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: height,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.vertical(
+          bottom: Radius.circular(bottomRadius),
+        ),
+        boxShadow: [shadow],
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          CustomPaint(
+            painter: _HeaderBackgroundPainter(baseColor: backgroundColor),
+          ),
+          child,
+        ],
+      ),
+    );
+  }
+}
+
+class _HeaderBackgroundPainter extends CustomPainter {
+  const _HeaderBackgroundPainter({required this.baseColor});
+
+  final Color baseColor;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (size.isEmpty) return;
+
+    final w = size.width;
+    final h = size.height;
+    final bounds = Offset.zero & size;
+
+    canvas.save();
+    canvas.clipRect(bounds);
+
+    // WARNA ASLI _EkaHeaderPainter: #850532 -> #990033 -> #690322.
+    // Palet tetap, sesuai desain hasil generate awal.
+    canvas.drawRect(
+      bounds,
+      Paint()
+        ..shader = const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF850532), Color(0xFF990033), Color(0xFF690322)],
+          stops: [0, 0.52, 1],
+        ).createShader(bounds),
+    );
+
+    // Cahaya dasar asli: merah maroon lembut, bukan warna baru.
+    canvas.drawRect(
+      bounds,
+      Paint()
+        ..shader = const RadialGradient(
+          center: Alignment(0.12, 0.05),
+          radius: 0.9,
+          colors: [Color(0x70D80042), Color(0x00D80042)],
+          stops: [0, 1],
+        ).createShader(bounds),
+    );
+
+    // Bayangan bawah asli.
+    canvas.drawRect(
+      bounds,
+      Paint()
+        ..shader = const LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0x00600024), Color(0x38600024)],
+        ).createShader(bounds),
+    );
+
+    // 2. WATERFALL RIBBON: geometri dan ukuran SAMA seperti versi sebelumnya.
+    const ribbonScale = 0.70;
+    canvas.save();
+    canvas.translate(w * 0.35, h * 0.23);
+    canvas.scale(ribbonScale);
+
+    final p0 = Offset(w * 1.08, h * .18);
+    final p1 = Offset(w * .93, h * .15);
+    final p2 = Offset(w * .70, h * .28);
+    final p3 = Offset(w * .28, h * 1.08);
+
+    const segments = 64;
+    final upperPoints = <Offset>[];
+    final lowerPoints = <Offset>[];
+
+    for (var i = 0; i <= segments; i++) {
+      final t = i / segments;
+      final u = 1.0 - t;
+
+      final center =
+          p0 * (u * u * u) +
+          p1 * (3 * u * u * t) +
+          p2 * (3 * u * t * t) +
+          p3 * (t * t * t);
+
+      final tangent =
+          (p1 - p0) * (3 * u * u) +
+          (p2 - p1) * (6 * u * t) +
+          (p3 - p2) * (3 * t * t);
+
+      final length = tangent.distance;
+      final normal = length > 0.0001
+          ? Offset(-tangent.dy / length, tangent.dx / length)
+          : const Offset(0, -1);
+
+      final thickness = h * (.065 + .70 * t * t);
+      final half = thickness / 2;
+
+      upperPoints.add(center + normal * half);
+      lowerPoints.add(center - normal * half);
+    }
+
+    final upper = Path()..moveTo(upperPoints.first.dx, upperPoints.first.dy);
+    for (var i = 1; i < upperPoints.length; i++) {
+      upper.lineTo(upperPoints[i].dx, upperPoints[i].dy);
+    }
+
+    final band = Path()..moveTo(upperPoints.first.dx, upperPoints.first.dy);
+    for (var i = 1; i < upperPoints.length; i++) {
+      band.lineTo(upperPoints[i].dx, upperPoints[i].dy);
+    }
+    for (var i = lowerPoints.length - 1; i >= 0; i--) {
+      band.lineTo(lowerPoints[i].dx, lowerPoints[i].dy);
+    }
+    band.close();
+
+    // 3. Area sedikit lebih gelap di bawah pita, mengikuti sisi bawah.
+    final below = Path()..moveTo(lowerPoints.first.dx, lowerPoints.first.dy);
+    for (var i = 1; i < lowerPoints.length; i++) {
+      below.lineTo(lowerPoints[i].dx, lowerPoints[i].dy);
+    }
+    below
+      ..lineTo(-w * .10, h * 1.20)
+      ..lineTo(w * 1.12, h * 1.20)
+      ..close();
+    canvas.drawPath(below, Paint()..color = const Color(0x28200008));
+
+    final curveBounds = Rect.fromLTRB(w * .16, h * .08, w * 1.09, h * 1.16);
+
+    // Aura halus mengikuti tepi atas; warna turunan dari palet awal.
+    canvas.drawPath(
+      upper,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round
+        ..strokeWidth = h * .11
+        ..shader = const LinearGradient(
+          begin: Alignment.bottomLeft,
+          end: Alignment.topRight,
+          colors: [Color(0x00D80042), Color(0x20DA0043), Color(0x50FF0050)],
+          stops: [0, .55, 1],
+        ).createShader(curveBounds)
+        ..maskFilter = MaskFilter.blur(BlurStyle.normal, h * .065),
+    );
+
+    // PITA: keempat warna dan stops diambil PERSIS dari _EkaHeaderPainter.
+    // Hanya bentuk/posisi pita yang tetap berasal dari painter Ekaplus sekarang.
+    canvas.drawPath(
+      band,
+      Paint()
+        ..shader = const LinearGradient(
+          begin: Alignment.bottomLeft,
+          end: Alignment.topRight,
+          colors: [
+            Color(0x00D60040),
+            Color(0xFFDA0043),
+            Color(0xFFFF0050),
+            Color(0xFFE00043),
+          ],
+          stops: [0, 0.38, 0.75, 1],
+        ).createShader(curveBounds),
+    );
+
+    // Pantulan di badan pita: DIGAMBAR SETELAH badan pita, agar terlihat.
+    // Titik mengikuti dua tepi pita, bukan koordinat statis layar.
+    final glowCenter = Offset.lerp(upperPoints[35], lowerPoints[35], .35)!;
+    final sunGlowRect = Rect.fromCenter(
+      center: glowCenter,
+      width: w * .42,
+      height: h * .22,
+    );
+
+    canvas.save();
+    canvas.clipPath(band);
+    canvas.drawOval(
+      sunGlowRect,
+      Paint()
+        ..shader = const RadialGradient(
+          colors: [Color(0x45FF7A8F), Color(0x25FF0050), Color(0x00D80042)],
+          stops: [0.0, 0.45, 1.0],
+        ).createShader(sunGlowRect)
+        ..maskFilter = MaskFilter.blur(BlurStyle.normal, h * .045),
+    );
+    canvas.restore();
+
+    // Pantulan lembut di tepi atas, dengan spektrum asli merah-pink.
+    canvas.drawPath(
+      upper,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round
+        ..strokeWidth = h * .065
+        ..shader = const LinearGradient(
+          begin: Alignment.bottomLeft,
+          end: Alignment.topRight,
+          colors: [Color(0x00D80042), Color(0x30DA0043), Color(0x75FF0050)],
+          stops: [0, .62, 1],
+        ).createShader(curveBounds)
+        ..maskFilter = MaskFilter.blur(BlurStyle.normal, h * .035),
+    );
+
+    // Garis cahaya tipis (tetap mengikuti geometri kurva yang sama).
+    canvas.drawPath(
+      upper,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round
+        ..strokeWidth = h * .006
+        ..shader = const LinearGradient(
+          begin: Alignment.bottomLeft,
+          end: Alignment.topRight,
+          colors: [Color(0x00FF0050), Color(0x28FF0050), Color(0x88FF7A8F)],
+          stops: [0, .68, 1],
+        ).createShader(curveBounds)
+        ..maskFilter = MaskFilter.blur(BlurStyle.normal, h * .008),
+    );
+
+    // Kembalikan transformasi pita ke koordinat header.
+    canvas.restore();
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(covariant _HeaderBackgroundPainter oldDelegate) =>
+      oldDelegate.baseColor != baseColor;
 }
 
 /// Reusable layout untuk halaman utama seperti Customer dan Account.
