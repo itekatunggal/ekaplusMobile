@@ -21,6 +21,18 @@ class WhatsAppHelper {
     await _open(context, message);
   }
 
+  static Future<void> openFeedback(BuildContext context) async {
+    final message =
+        'EKA+ Message: \nHalo $adminName, saya ingin memberikan masukan untuk layanan Ekatunggal: ';
+    await _open(context, message);
+  }
+
+  static Future<void> openComplaint(BuildContext context) async {
+    final message =
+        'EKA+ Message: \nHalo $adminName, saya ingin melaporkan kendala yang saya alami: ';
+    await _open(context, message);
+  }
+
   static Future<void> _open(BuildContext context, String message) async {
     final cleanNumber = whatsappNumber.replaceAll(RegExp(r'[^\d]'), '');
     final encodedMessage = Uri.encodeComponent(message);

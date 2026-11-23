@@ -48,6 +48,10 @@ import 'package:ekaplus_ekatunggal/features/search/presentation/pages/search_pag
 import 'package:ekaplus_ekatunggal/features/wishlist/presentation/pages/wishlist_page.dart';
 import 'package:ekaplus_ekatunggal/features/report/presentation/pages/penjualan_page.dart';
 import 'package:ekaplus_ekatunggal/features/customer/presentation/pages/customer_page.dart';
+import 'package:ekaplus_ekatunggal/features/customer_service/presentation/pages/customer_service_page.dart';
+import 'package:ekaplus_ekatunggal/features/customer_service/presentation/pages/customer_service_form_page.dart';
+import 'package:ekaplus_ekatunggal/features/customer_service/presentation/pages/customer_service_history_page.dart';
+import 'package:ekaplus_ekatunggal/features/customer_service/presentation/pages/customer_service_history_detail_page.dart';
 import 'package:ekaplus_ekatunggal/features/branch/domain/entities/branch.dart';
 import 'package:ekaplus_ekatunggal/features/branch/presentation/cubit/selected_branch_cubit.dart';
 import 'package:ekaplus_ekatunggal/features/branch/presentation/pages/branch_detail_page.dart';
@@ -214,6 +218,37 @@ class MyRouter {
       ),
 
       // ********** Routes tanpa bottom nav *********
+      GoRoute(
+        name: 'customer-service',
+        path: '/customer-service',
+        builder: (context, state) => const CustomerServicePage(),
+      ),
+      GoRoute(
+        name: 'customer-feedback',
+        path: '/customer-service/feedback',
+        builder: (context, state) => const CustomerServiceFormPage(
+          type: CustomerServiceFormType.feedback,
+        ),
+      ),
+      GoRoute(
+        name: 'customer-complaint',
+        path: '/customer-service/complaint',
+        builder: (context, state) => const CustomerServiceFormPage(
+          type: CustomerServiceFormType.complaint,
+        ),
+      ),
+      GoRoute(
+        name: 'customer-history',
+        path: '/customer-service/history',
+        builder: (context, state) => const CustomerServiceHistoryPage(),
+      ),
+      GoRoute(
+        name: 'customer-history-detail',
+        path: '/customer-service/history/:submissionId',
+        builder: (context, state) => CustomerServiceHistoryDetailPage(
+          submissionId: state.pathParameters['submissionId'] ?? '',
+        ),
+      ),
       GoRoute(
         name: 'branch-detail',
         path: '/branches/:branchId',

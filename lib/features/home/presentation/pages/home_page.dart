@@ -2,7 +2,6 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:ekaplus_ekatunggal/constant.dart';
 import 'package:ekaplus_ekatunggal/core/config/feature_flags.dart';
 // import 'package:ekaplus_ekatunggal/core/shared_widgets/profile_header.dart';
-import 'package:ekaplus_ekatunggal/core/shared_widgets/whatsapp_helper.dart';
 import 'package:ekaplus_ekatunggal/features/auth/presentation/cubit/auth_session_cubit.dart';
 import 'package:ekaplus_ekatunggal/features/auth/presentation/cubit/auth_session_state.dart';
 import 'package:ekaplus_ekatunggal/features/banner/presentation/cubit/banner_cubit.dart';
@@ -215,7 +214,7 @@ class _HomePageState extends State<HomePage> {
                                     : context.pushNamed('login'),
                                 about: () => context.pushNamed('about'),
                                 customerService: () =>
-                                    WhatsAppHelper.openGeneral(context),
+                                    context.pushNamed('customer-service'),
                               ),
                               if (FeatureFlags.showBranchDirectory) ...[
                                 const SizedBox(height: 16),
