@@ -76,7 +76,7 @@ class _CustomerPageState extends State<CustomerPage> {
   }
 
   void _openSalesOrder(BuildContext context) {
-    Navigator.of(context).push(
+    Navigator.of(context, rootNavigator: true).push(
       MaterialPageRoute<void>(
         builder: (_) => BlocProvider(
           create: (_) => SalesOrderCubit(),
@@ -87,7 +87,7 @@ class _CustomerPageState extends State<CustomerPage> {
   }
 
   void _openInvoice(BuildContext context) {
-    Navigator.of(context).push(
+    Navigator.of(context, rootNavigator: true).push(
       MaterialPageRoute<void>(
         builder: (_) => BlocProvider(
           create: (_) => InvoiceCubit(),

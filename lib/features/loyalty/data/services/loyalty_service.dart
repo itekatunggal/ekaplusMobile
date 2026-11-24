@@ -39,6 +39,33 @@ class LoyaltyService {
     return rows.isEmpty ? null : LoyaltyLedger.fromJson(rows.first);
   }
 
+  Future<List<LoyaltyLedger>> getLedgerHistory(
+    int gpid, {
+    int limit = 12,
+  }) async {
+    final rows = await _getResource(
+      'loyalty_point_ledger',
+      QuerySpecBuilder()
+          .fields(const [
+            'calculation_id',
+            'calculation_name',
+            'earned_point',
+            'period_name',
+            'ready',
+            'expired',
+            'valid_from',
+            'valid_to',
+          ])
+          .where('gpid', '=', gpid)
+          .where('ready', '=', 1)
+          .orderBy('calculation_id', direction: 'desc')
+          .limit(limit)
+          .build(),
+      'Gagal memuat riwayat perolehan poin',
+    );
+    return rows.map(LoyaltyLedger.fromJson).toList(growable: false);
+  }
+
   Future<List<LoyaltyEarningDetail>> getCalculationDetails(
     int calculationId,
   ) async {

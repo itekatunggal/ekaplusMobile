@@ -108,7 +108,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _openOrders() {
-    Navigator.of(context).push(
+    Navigator.of(context, rootNavigator: true).push(
       MaterialPageRoute<void>(
         builder: (_) => BlocProvider(
           create: (_) => SalesOrderCubit(),
@@ -119,7 +119,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _openInvoices() {
-    Navigator.of(context).push(
+    Navigator.of(context, rootNavigator: true).push(
       MaterialPageRoute<void>(
         builder: (_) => BlocProvider(
           create: (_) => InvoiceCubit(),

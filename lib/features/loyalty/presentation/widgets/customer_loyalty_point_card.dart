@@ -1,7 +1,7 @@
-import 'package:ekaplus_ekatunggal/constant.dart';
-import 'package:ekaplus_ekatunggal/features/loyalty/presentation/cubit/customer_point_summary_cubit.dart';
-import 'package:ekaplus_ekatunggal/features/loyalty/presentation/widgets/loyalty_widgets.dart';
+import 'dart:math' as math;
+
 import 'package:ekaplus_ekatunggal/features/customer/presentation/widgets/customer_menu_section.dart';
+import 'package:ekaplus_ekatunggal/features/loyalty/presentation/cubit/customer_point_summary_cubit.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
@@ -21,103 +21,180 @@ class CustomerLoyaltyPointCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<CustomerPointSummaryCubit, CustomerPointSummaryState>(
-      builder: (context, state) => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const CustomerSectionTitle(title: 'EkaPoint & Hadiah'),
-          const SizedBox(height: 8),
-          Container(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const CustomerSectionTitle(title: 'EkaPoint & Hadiah'),
+        const SizedBox(height: 8),
+        BlocBuilder<CustomerPointSummaryCubit, CustomerPointSummaryState>(
+          builder: (context, state) => Container(
             width: double.infinity,
-            padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
+            constraints: const BoxConstraints(minHeight: 126),
+            padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 18),
             decoration: BoxDecoration(
               gradient: const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [Color(0xFFFFFCF2), Colors.white],
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+                transform: GradientRotation(82 * math.pi / 180),
+                colors: [Color(0xFFFDECC5), Color(0xFFFFFDF9)],
+                stops: [0.43, 0.76],
               ),
               borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: const Color(0xFFFDE7A9)),
-              boxShadow: const [
-                BoxShadow(
-                  color: Color(0x120F172A),
-                  blurRadius: 20,
-                  offset: Offset(0, 6),
-                ),
-              ],
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child: _content(state),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _content(CustomerPointSummaryState state) {
+    if (state.status == CustomerPointSummaryStatus.initial ||
+        state.status == CustomerPointSummaryStatus.loading) {
+      return const _LoyaltyShimmer();
+    }
+    if (state.status == CustomerPointSummaryStatus.failure) {
+      return _LoyaltyPrompt(
+        title: 'Poin belum dapat dimuat',
+        message: 'Periksa koneksi lalu coba kembali.',
+        label: 'Coba Lagi',
+        action: onRetry,
+      );
+    }
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Expanded(
+          child: Semantics(
+            button: onCatalogTap != null,
+            label: 'Buka katalog reward',
+            child: InkWell(
+              onTap: onCatalogTap,
+              borderRadius: BorderRadius.circular(10),
+              child: Row(
+                children: [
+                  Image.asset(
+                    'assets/icons/icon_medali.png',
+                    width: 61,
+                    fit: BoxFit.contain,
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('EKAPOINT', style: _loyaltyTitle),
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            NumberFormat.decimalPattern(
+                              'id_ID',
+                            ).format(state.availablePoint),
+                            maxLines: 1,
+                            style: const TextStyle(
+                              color: Colors.black,
+                              fontSize: 34,
+                              height: 1.05,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        const Text(
+                          'Poin Tersedia',
+                          style: TextStyle(
+                            color: Color(0xFF9E9E9E),
+                            fontSize: 9.5,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        InkWell(
+          onTap: onDetailTap,
+          borderRadius: BorderRadius.circular(10),
+          child: const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 2, vertical: 12),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                const _BrandRow(),
-                const SizedBox(height: 16),
-                _BalanceContent(state: state, onRetry: onRetry),
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 14),
-                  child: Divider(height: 1, color: Color(0xFFF1F5F9)),
+                Text(
+                  'Rincian Poin',
+                  style: TextStyle(
+                    color: Color(0xFFD43D45),
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
-                _RewardHint(state: state),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _LoyaltyActionButton(
-                        label: 'Tukar Poin',
-                        icon: Icons.card_giftcard_rounded,
-                        filled: true,
-                        onPressed: onCatalogTap,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: _LoyaltyActionButton(
-                        label: 'Rincian Poin',
-                        icon: Icons.list_alt_rounded,
-                        onPressed: onDetailTap,
-                      ),
-                    ),
-                  ],
+                SizedBox(width: 8),
+                Icon(
+                  Icons.arrow_forward_rounded,
+                  color: Color(0xFFD43D45),
+                  size: 16,
                 ),
               ],
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
 
-class _BrandRow extends StatelessWidget {
-  const _BrandRow();
+class _LoyaltyPrompt extends StatelessWidget {
+  const _LoyaltyPrompt({
+    required this.title,
+    required this.message,
+    required this.label,
+    required this.action,
+  });
+
+  final String title;
+  final String message;
+  final String label;
+  final VoidCallback action;
 
   @override
   Widget build(BuildContext context) => Row(
     children: [
-      Container(
-        width: 40,
-        height: 40,
-        decoration: BoxDecoration(
-          color: const Color(0xFFFFFBEB),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFFFDE68A)),
-        ),
-        child: const Icon(
-          Icons.workspace_premium_outlined,
-          color: Color(0xFFF59E0B),
-          size: 21,
-        ),
+      Image.asset(
+        'assets/icons/icon_medali.png',
+        width: 36,
+        fit: BoxFit.contain,
       ),
-      const SizedBox(width: 10),
-      const Expanded(
+      const SizedBox(width: 12),
+      Expanded(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Text(title, style: _loyaltyTitle),
             Text(
-              'EkaPoint',
-              style: TextStyle(
-                color: Color(0xFF1E293B),
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
+              message,
+              style: const TextStyle(color: Color(0xFF7A7A7A), fontSize: 9.5),
+            ),
+            const SizedBox(height: 10),
+            SizedBox(
+              height: 34,
+              child: FilledButton(
+                onPressed: action,
+                style: FilledButton.styleFrom(
+                  backgroundColor: _loyaltyRed,
+                  foregroundColor: Colors.white,
+                  textStyle: const TextStyle(
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                child: Text(label),
               ),
             ),
           ],
@@ -127,228 +204,67 @@ class _BrandRow extends StatelessWidget {
   );
 }
 
-class _BalanceContent extends StatelessWidget {
-  const _BalanceContent({required this.state, required this.onRetry});
-  final CustomerPointSummaryState state;
-  final VoidCallback onRetry;
+class _LoyaltyShimmer extends StatelessWidget {
+  const _LoyaltyShimmer();
 
   @override
-  Widget build(BuildContext context) {
-    if (state.status == CustomerPointSummaryStatus.initial ||
-        state.status == CustomerPointSummaryStatus.loading) {
-      return Shimmer.fromColors(
-        baseColor: Colors.grey[300]!,
-        highlightColor: Colors.grey[100]!,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 92,
-              height: 10,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(4),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Container(
-              width: 116,
-              height: 28,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(6),
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-    if (state.status == CustomerPointSummaryStatus.failure) {
-      return Row(
+  Widget build(BuildContext context) => Shimmer.fromColors(
+    baseColor: const Color(0xFFEADDBD),
+    highlightColor: const Color(0xFFFFF9EA),
+    child: SizedBox(
+      height: 90,
+      child: Row(
         children: [
+          Container(
+            width: 52,
+            height: 58,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+            ),
+          ),
+          const SizedBox(width: 14),
           const Expanded(
-            child: Text(
-              'Data poin belum dapat dimuat',
-              style: TextStyle(
-                color: Color(0xFF64748B),
-                fontSize: 10.5,
-                fontWeight: FontWeight.w500,
-              ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _LoyaltyShimmerBar(width: 78, height: 12),
+                SizedBox(height: 7),
+                _LoyaltyShimmerBar(width: 72, height: 30),
+                SizedBox(height: 6),
+                _LoyaltyShimmerBar(width: 62, height: 8),
+              ],
             ),
           ),
-          const SizedBox(width: 8),
-          OutlinedButton.icon(
-            onPressed: onRetry,
-            icon: const Icon(Icons.refresh_rounded, size: 15),
-            label: const Text('Coba Lagi'),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: AppColors.primaryColor,
-              side: const BorderSide(color: AppColors.primaryColor),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(9),
-              ),
-              textStyle: const TextStyle(
-                fontSize: 9.5,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
+          const SizedBox(width: 10),
+          const _LoyaltyShimmerBar(width: 76, height: 12),
         ],
-      );
-    }
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            const Expanded(
-              child: Text(
-                'Saldo Poin Anda',
-                style: TextStyle(color: Color(0xFF64748B), fontSize: 10),
-              ),
-            ),
-            if (state.ready)
-              const Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.check_circle_rounded,
-                    color: Color(0xFF059669),
-                    size: 13,
-                  ),
-                  SizedBox(width: 4),
-                  Text(
-                    'Siap digunakan',
-                    style: TextStyle(
-                      color: Color(0xFF059669),
-                      fontSize: 8.5,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-          ],
-        ),
-        const SizedBox(height: 3),
-        Wrap(
-          spacing: 5,
-          crossAxisAlignment: WrapCrossAlignment.end,
-          children: [
-            Text(
-              formatPointNumber(state.availablePoint),
-              style: const TextStyle(
-                color: Color(0xFF0F172A),
-                fontSize: 32,
-                height: 1.1,
-                fontWeight: FontWeight.w700,
-                letterSpacing: -.4,
-              ),
-            ),
-            const Padding(
-              padding: EdgeInsets.only(bottom: 2),
-              child: Text(
-                'Poin',
-                style: TextStyle(
-                  color: Color(0xFFD97706),
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-}
-
-class _RewardHint extends StatelessWidget {
-  const _RewardHint({required this.state});
-  final CustomerPointSummaryState state;
-
-  @override
-  Widget build(BuildContext context) {
-    final hasExpiry = state.nearestExpiry != null;
-    final message = hasExpiry
-        ? 'Berlaku sampai ${DateFormat('d MMMM y', 'id_ID').format(state.nearestExpiry!.toLocal())}'
-        : state.availablePoint == 0
-        ? 'Mulai kumpulkan poin dari setiap pembelian Anda'
-        : 'Gunakan poin untuk berbagai reward eksklusif';
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Icon(
-          Icons.auto_awesome_rounded,
-          color: Color(0xFFF59E0B),
-          size: 17,
-        ),
-        const SizedBox(width: 7),
-        Expanded(
-          child: Text(
-            message,
-            style: const TextStyle(
-              color: Color(0xFF64748B),
-              fontSize: 9.5,
-              height: 1.35,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _LoyaltyActionButton extends StatelessWidget {
-  const _LoyaltyActionButton({
-    required this.label,
-    required this.icon,
-    required this.onPressed,
-    this.filled = false,
-  });
-  final String label;
-  final IconData icon;
-  final VoidCallback? onPressed;
-  final bool filled;
-
-  @override
-  Widget build(BuildContext context) => SizedBox(
-    height: 48,
-    child: filled
-        ? FilledButton.icon(
-            onPressed: onPressed,
-            icon: Icon(icon, size: 17),
-            label: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
-            style: FilledButton.styleFrom(
-              backgroundColor: AppColors.secondaryColor,
-              foregroundColor: const Color(0xFF1A1A1A),
-              disabledBackgroundColor: const Color(0xFFF1F5F9),
-              disabledForegroundColor: const Color(0xFF94A3B8),
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              textStyle: const TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w700,
-              ),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-          )
-        : OutlinedButton.icon(
-            onPressed: onPressed,
-            icon: Icon(icon, size: 17),
-            label: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: const Color(0xFF475569),
-              side: const BorderSide(color: Color(0xFFE2E8F0)),
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              textStyle: const TextStyle(
-                fontSize: 9.5,
-                fontWeight: FontWeight.w600,
-              ),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-          ),
+      ),
+    ),
   );
 }
+
+class _LoyaltyShimmerBar extends StatelessWidget {
+  const _LoyaltyShimmerBar({required this.width, required this.height});
+
+  final double width;
+  final double height;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: width,
+    height: height,
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(6),
+    ),
+  );
+}
+
+const _loyaltyTitle = TextStyle(
+  color: _loyaltyRed,
+  fontSize: 15,
+  fontWeight: FontWeight.w700,
+);
+const _loyaltyRed = Color(0xFFB21E2B);

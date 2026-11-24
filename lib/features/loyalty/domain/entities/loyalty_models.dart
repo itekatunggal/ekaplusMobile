@@ -172,6 +172,26 @@ class LoyaltyLedger {
   );
 }
 
+enum LoyaltyPointActivityType { earned, used }
+
+class LoyaltyPointActivity {
+  const LoyaltyPointActivity({
+    required this.id,
+    required this.title,
+    required this.description,
+    required this.point,
+    required this.type,
+    this.occurredAt,
+  });
+
+  final String id;
+  final String title;
+  final String description;
+  final int point;
+  final LoyaltyPointActivityType type;
+  final DateTime? occurredAt;
+}
+
 class LoyaltyPurchaseSource {
   const LoyaltyPurchaseSource({
     required this.account,

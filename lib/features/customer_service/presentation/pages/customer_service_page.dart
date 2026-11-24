@@ -337,7 +337,7 @@ class _SupportCard extends StatelessWidget {
                       subtitle,
                       style: const TextStyle(
                         // color: AppColors.primaryColor,
-                        color: AppColors.blackColor,
+                        color: AppColors.grayColor,
                         fontSize: 9,
                         fontWeight: FontWeight.w400,
                       ),
