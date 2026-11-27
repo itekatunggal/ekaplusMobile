@@ -4,6 +4,7 @@ import 'package:ekaplus_ekatunggal/core/shared_widgets/custom_header.dart';
 import 'package:ekaplus_ekatunggal/features/branch/domain/entities/branch.dart';
 import 'package:ekaplus_ekatunggal/features/branch/presentation/cubit/selected_branch_cubit.dart';
 import 'package:ekaplus_ekatunggal/features/branch/presentation/cubit/selected_branch_state.dart';
+import 'package:ekaplus_ekatunggal/features/branch/presentation/utils/branch_image_url.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -117,7 +118,7 @@ class BranchDetailPage extends StatelessWidget {
               width: double.infinity,
               height: 190,
               child: CachedNetworkImage(
-                imageUrl: _photoUrl,
+                imageUrl: branchImageUrl(branch),
                 fit: BoxFit.cover,
                 placeholder: (_, _) =>
                     const _BranchPhotoFallback(showProgress: true),
@@ -152,6 +153,12 @@ class BranchDetailPage extends StatelessWidget {
                   label: 'Alamat',
                   value: (branch.address ?? '').trim(),
                 ),
+                const Divider(height: 24),
+                _InfoRow(
+                  icon: Icons.phone_outlined,
+                  label: 'Telepon',
+                  value: (branch.phone ?? '').trim(),
+                ),
               ],
             ),
           ),
@@ -176,21 +183,6 @@ class BranchDetailPage extends StatelessWidget {
     if (lat == null || lng == null) return null;
     if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return null;
     return (lat, lng);
-  }
-
-  String get _photoUrl {
-    final seedSource = branch.city?.trim().isNotEmpty == true
-        ? branch.city!
-        : branch.branchName;
-    final seed = seedSource.trim().toLowerCase().replaceAll(
-      RegExp(r'[^a-z0-9]+'),
-      '-',
-    );
-    return Uri.https(
-      'via.placeholder.com',
-      '/photo/office-building/800x450.webp',
-      {'seed': seed.isEmpty ? '${branch.id}' : '$seed-${branch.id}'},
-    ).toString();
   }
 }
 

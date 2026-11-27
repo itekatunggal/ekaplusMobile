@@ -53,7 +53,9 @@ void main() {
     expect(find.text('TANGGUH'), findsOneWidget);
     expect(find.text('HARGAI'), findsOneWidget);
     expect(find.text('TELITI'), findsOneWidget);
-    expect(find.text('IKUTI EKATUNGGAL'), findsOneWidget);
+    await tester.tap(find.text('Ikuti Ekatunggal'));
+    await tester.pumpAndSettle();
+    expect(find.text('MEDIA SOSIAL'), findsOneWidget);
     expect(find.text('INSTAGRAM'), findsOneWidget);
     expect(find.text('TIKTOK'), findsOneWidget);
   });

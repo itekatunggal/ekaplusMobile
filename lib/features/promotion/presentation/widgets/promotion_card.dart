@@ -1,6 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:ekaplus_ekatunggal/constant.dart';
-import 'package:ekaplus_ekatunggal/core/config/api_config.dart';
+import 'package:ekaplus_ekatunggal/core/utils/content_placeholder_image.dart';
 import 'package:ekaplus_ekatunggal/features/promotion/domain/entities/promotion.dart';
 import 'package:flutter/material.dart';
 
@@ -73,8 +73,7 @@ class _Cover extends StatelessWidget {
         size: 34,
       ),
     );
-    final imageUrl = ApiConfig.getImageUrl(promotion.coverImage);
-    if (imageUrl.isEmpty) return fallback;
+    final imageUrl = promotionPlaceholderImageUrl(promotion.id);
     return CachedNetworkImage(
       imageUrl: imageUrl,
       height: height,

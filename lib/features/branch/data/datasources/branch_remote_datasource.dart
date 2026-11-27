@@ -32,6 +32,8 @@ class BranchRemoteDatasourceImplementation extends BranchRemoteDatasource {
         "disabled",
         "lat",
         "lng",
+        "image",
+        "phone",
       ],
       "filters": [
         ["disabled", "=", "0"],
@@ -69,6 +71,8 @@ class BranchRemoteDatasourceImplementation extends BranchRemoteDatasource {
         "disabled",
         "lat",
         "lng",
+        "image",
+        "phone",
       ],
       "filters": [
         ["id", "=", "$id"],

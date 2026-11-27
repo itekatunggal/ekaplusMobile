@@ -1,7 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:ekaplus_ekatunggal/constant.dart';
-import 'package:ekaplus_ekatunggal/core/config/api_config.dart';
 import 'package:ekaplus_ekatunggal/core/shared_widgets/custom_header.dart';
+import 'package:ekaplus_ekatunggal/core/utils/content_placeholder_image.dart';
 import 'package:ekaplus_ekatunggal/features/article/domain/entities/article.dart';
 import 'package:ekaplus_ekatunggal/features/article/domain/repositories/article_repository.dart';
 import 'package:flutter/material.dart';
@@ -55,7 +55,7 @@ class ArticleDetailPage extends StatelessWidget {
     body: ListView(
       padding: const EdgeInsets.only(bottom: 28),
       children: [
-        _ArticleCover(image: article.coverImage),
+        _ArticleCover(id: article.id, category: article.category),
         const SizedBox(height: 14),
         Container(
           padding: const EdgeInsets.all(18),
@@ -123,9 +123,10 @@ class ArticleDetailPage extends StatelessWidget {
 }
 
 class _ArticleCover extends StatelessWidget {
-  const _ArticleCover({required this.image});
+  const _ArticleCover({required this.id, required this.category});
 
-  final String? image;
+  final String id;
+  final String category;
 
   @override
   Widget build(BuildContext context) {
@@ -139,20 +140,18 @@ class _ArticleCover extends StatelessWidget {
       alignment: Alignment.center,
       child: const Icon(Icons.article_outlined, color: Colors.white, size: 54),
     );
-    final imageUrl = ApiConfig.getImageUrl(image);
+    final imageUrl = articlePlaceholderImageUrl(id, category);
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(18),
-      child: imageUrl.isEmpty
-          ? fallback
-          : CachedNetworkImage(
-              imageUrl: imageUrl,
-              height: 190,
-              width: double.infinity,
-              fit: BoxFit.cover,
-              placeholder: (_, _) => fallback,
-              errorWidget: (_, _, _) => fallback,
-            ),
+      child: CachedNetworkImage(
+        imageUrl: imageUrl,
+        height: 190,
+        width: double.infinity,
+        fit: BoxFit.cover,
+        placeholder: (_, _) => fallback,
+        errorWidget: (_, _, _) => fallback,
+      ),
     );
   }
 }

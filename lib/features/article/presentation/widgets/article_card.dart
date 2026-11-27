@@ -1,6 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:ekaplus_ekatunggal/constant.dart';
-import 'package:ekaplus_ekatunggal/core/config/api_config.dart';
+import 'package:ekaplus_ekatunggal/core/utils/content_placeholder_image.dart';
 import 'package:ekaplus_ekatunggal/features/article/domain/entities/article.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -73,8 +73,7 @@ class _Cover extends StatelessWidget {
       alignment: Alignment.center,
       child: const Icon(Icons.article_outlined, color: Colors.white, size: 34),
     );
-    final imageUrl = ApiConfig.getImageUrl(article.coverImage);
-    if (imageUrl.isEmpty) return fallback;
+    final imageUrl = articlePlaceholderImageUrl(article.id, article.category);
     return CachedNetworkImage(
       imageUrl: imageUrl,
       height: height,

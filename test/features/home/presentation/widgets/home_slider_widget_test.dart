@@ -20,6 +20,7 @@ void main() {
                   disabled: false,
                   type: 'internal_route',
                   typeValue: 'about',
+                  showButton: true,
                 ),
               ],
             ),
@@ -66,5 +67,57 @@ void main() {
     await tester.pump();
 
     expect(find.text('Selengkapnya'), findsNothing);
+  });
+
+  testWidgets('menampilkan button_display sebagai teks CTA', (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: HomeSliderWidget(
+            banners: [
+              BannerSlider(
+                name: 'Promo',
+                img: 'assets/images/banner-tidak-ada.png',
+                disabled: false,
+                type: 'url',
+                typeValue: 'https://www.ekatunggal.com/',
+                showButton: true,
+                buttonDisplay: 'Lihat Promo',
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('Lihat Promo').hitTestable(), findsOneWidget);
+    expect(find.text('Selengkapnya'), findsNothing);
+  });
+
+  testWidgets('menampilkan CTA default saat show_button tidak aktif', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: HomeSliderWidget(
+            banners: [
+              BannerSlider(
+                name: 'Promo',
+                img: 'assets/images/banner-tidak-ada.png',
+                disabled: false,
+                type: 'url',
+                typeValue: 'https://www.ekatunggal.com/',
+                showButton: false,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('Selengkapnya').hitTestable(), findsOneWidget);
   });
 }

@@ -4,6 +4,7 @@ import 'package:ekaplus_ekatunggal/core/shared_widgets/custom_header.dart';
 import 'package:ekaplus_ekatunggal/features/branch/domain/entities/branch.dart';
 import 'package:ekaplus_ekatunggal/features/branch/presentation/cubit/selected_branch_cubit.dart';
 import 'package:ekaplus_ekatunggal/features/branch/presentation/cubit/selected_branch_state.dart';
+import 'package:ekaplus_ekatunggal/features/branch/presentation/utils/branch_image_url.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -39,6 +40,7 @@ class _BranchDirectoryPageState extends State<BranchDirectoryPage> {
             branch.city ?? '',
             branch.area ?? '',
             branch.address ?? '',
+            branch.phone ?? '',
           ].join(' ').toLowerCase();
           return matchesCity && (query.isEmpty || searchable.contains(query));
         })
@@ -327,6 +329,28 @@ class _BranchCard extends StatelessWidget {
                       ),
                     ),
                   ],
+                  if ((branch.phone ?? '').trim().isNotEmpty) ...[
+                    const SizedBox(height: 5),
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.phone_outlined,
+                          size: 13,
+                          color: AppColors.primaryColor,
+                        ),
+                        const SizedBox(width: 5),
+                        Expanded(
+                          child: Text(
+                            branch.phone!.trim(),
+                            style: const TextStyle(
+                              color: Color(0xFF475569),
+                              fontSize: 10,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -339,7 +363,7 @@ class _BranchCard extends StatelessWidget {
             width: double.infinity,
             height: 155,
             child: CachedNetworkImage(
-              imageUrl: _photoUrl(branch),
+              imageUrl: branchImageUrl(branch),
               fit: BoxFit.cover,
               placeholder: (_, _) =>
                   const _BranchPhotoFallback(showProgress: true),
@@ -370,21 +394,6 @@ class _BranchCard extends StatelessWidget {
       ],
     ),
   );
-
-  static String _photoUrl(Branch branch) {
-    final seedSource = branch.city?.trim().isNotEmpty == true
-        ? branch.city!
-        : branch.branchName;
-    final seed = seedSource.trim().toLowerCase().replaceAll(
-      RegExp(r'[^a-z0-9]+'),
-      '-',
-    );
-    return Uri.https(
-      'via.placeholder.com',
-      '/photo/office-building/800x450.webp',
-      {'seed': seed.isEmpty ? '${branch.id}' : '$seed-${branch.id}'},
-    ).toString();
-  }
 }
 
 class _BranchPhotoFallback extends StatelessWidget {

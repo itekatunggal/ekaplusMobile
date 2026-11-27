@@ -16,10 +16,17 @@ class BranchModel {
       url: json['url']?.toString(),
       lat: json['lat']?.toString(),
       lng: json['lng']?.toString(),
+      image: _nullableText(json['image']),
+      phone: _nullableText(json['phone']),
     );
   }
 
   static List<Branch> fromJsonList(List<dynamic> list) {
     return list.map((e) => fromJson(e)).toList();
+  }
+
+  static String? _nullableText(dynamic value) {
+    final text = value?.toString().trim() ?? '';
+    return text.isEmpty ? null : text;
   }
 }

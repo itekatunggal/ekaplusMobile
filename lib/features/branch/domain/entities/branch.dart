@@ -12,6 +12,8 @@ class Branch extends Equatable {
   final String? url;
   final String? lat;
   final String? lng;
+  final String? image;
+  final String? phone;
 
   const Branch({
     required this.id,
@@ -25,6 +27,8 @@ class Branch extends Equatable {
     this.url,
     this.lat,
     this.lng,
+    this.image,
+    this.phone,
   });
 
   @override
@@ -40,5 +44,7 @@ class Branch extends Equatable {
     url,
     lat,
     lng,
+    image,
+    phone,
   ];
 }

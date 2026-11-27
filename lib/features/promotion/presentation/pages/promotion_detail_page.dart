@@ -1,7 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:ekaplus_ekatunggal/constant.dart';
-import 'package:ekaplus_ekatunggal/core/config/api_config.dart';
 import 'package:ekaplus_ekatunggal/core/shared_widgets/custom_header.dart';
+import 'package:ekaplus_ekatunggal/core/utils/content_placeholder_image.dart';
 import 'package:ekaplus_ekatunggal/features/promotion/domain/entities/promotion.dart';
 import 'package:ekaplus_ekatunggal/features/promotion/domain/repositories/promotion_repository.dart';
 import 'package:flutter/material.dart';
@@ -48,7 +48,7 @@ class PromotionDetailPage extends StatelessWidget {
     body: ListView(
       padding: const EdgeInsets.only(bottom: 28),
       children: [
-        _PromotionCover(image: promotion.coverImage),
+        _PromotionCover(id: promotion.id),
         const SizedBox(height: 14),
         Container(
           padding: const EdgeInsets.all(18),
@@ -100,9 +100,9 @@ class PromotionDetailPage extends StatelessWidget {
 }
 
 class _PromotionCover extends StatelessWidget {
-  const _PromotionCover({required this.image});
+  const _PromotionCover({required this.id});
 
-  final String? image;
+  final String id;
 
   @override
   Widget build(BuildContext context) {
@@ -120,20 +120,18 @@ class _PromotionCover extends StatelessWidget {
         size: 54,
       ),
     );
-    final imageUrl = ApiConfig.getImageUrl(image);
+    final imageUrl = promotionPlaceholderImageUrl(id);
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(18),
-      child: imageUrl.isEmpty
-          ? fallback
-          : CachedNetworkImage(
-              imageUrl: imageUrl,
-              height: 190,
-              width: double.infinity,
-              fit: BoxFit.cover,
-              placeholder: (_, _) => fallback,
-              errorWidget: (_, _, _) => fallback,
-            ),
+      child: CachedNetworkImage(
+        imageUrl: imageUrl,
+        height: 190,
+        width: double.infinity,
+        fit: BoxFit.cover,
+        placeholder: (_, _) => fallback,
+        errorWidget: (_, _, _) => fallback,
+      ),
     );
   }
 }

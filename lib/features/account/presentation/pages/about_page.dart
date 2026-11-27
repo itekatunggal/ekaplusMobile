@@ -4,7 +4,13 @@ import 'package:ekaplus_ekatunggal/constant.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-enum _AboutTab { profile, advantages, visionMission, workCulture }
+enum _AboutTab {
+  profile,
+  advantages,
+  visionMission,
+  workCulture,
+  followEkatunggal,
+}
 
 class AboutPage extends StatefulWidget {
   const AboutPage({super.key});
@@ -26,6 +32,7 @@ class _AboutPageState extends State<AboutPage> {
     (_AboutTab.advantages, 'Keunggulan'),
     (_AboutTab.visionMission, 'Visi & Misi'),
     (_AboutTab.workCulture, 'Budaya Kerja'),
+    (_AboutTab.followEkatunggal, 'Media Sosial'),
   ];
 
   _AboutTab _selectedTab = _AboutTab.profile;
@@ -57,7 +64,7 @@ class _AboutPageState extends State<AboutPage> {
 
     var activeTab = _AboutTab.profile;
     if (_scrollController.position.extentAfter <= 1) {
-      activeTab = _AboutTab.workCulture;
+      activeTab = _AboutTab.followEkatunggal;
     } else {
       final viewportBox = _scrollViewportKey.currentContext?.findRenderObject();
       if (viewportBox is! RenderBox || !viewportBox.hasSize) return;
@@ -228,14 +235,17 @@ class _AboutPageState extends State<AboutPage> {
                                 key: _sectionKeys[_AboutTab.workCulture],
                                 child: const _WorkCultureContent(),
                               ),
-                              const SizedBox(height: 24),
-                              _FollowEkatunggalSection(
-                                onInstagram: () => _openSocialMedia(
-                                  _instagramUri,
-                                  'Instagram',
+                              const SizedBox(height: 14),
+                              KeyedSubtree(
+                                key: _sectionKeys[_AboutTab.followEkatunggal],
+                                child: _FollowEkatunggalSection(
+                                  onInstagram: () => _openSocialMedia(
+                                    _instagramUri,
+                                    'Instagram',
+                                  ),
+                                  onTikTok: () =>
+                                      _openSocialMedia(_tiktokUri, 'TikTok'),
                                 ),
-                                onTikTok: () =>
-                                    _openSocialMedia(_tiktokUri, 'TikTok'),
                               ),
                             ],
                           ),
@@ -307,18 +317,18 @@ class _AboutTabBarState extends State<_AboutTabBar> {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final buttons = <Widget>[
-          for (var index = 0; index < widget.tabs.length; index++) ...[
-            if (index > 0) const SizedBox(width: 8),
-            _buildButton(index),
-          ],
-        ];
-
         if (constraints.maxWidth < 440) {
           return SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             physics: const BouncingScrollPhysics(),
-            child: Row(children: buttons),
+            child: Row(
+              children: [
+                for (var index = 0; index < widget.tabs.length; index++) ...[
+                  if (index > 0) const SizedBox(width: 8),
+                  _buildButton(index),
+                ],
+              ],
+            ),
           );
         }
 
@@ -915,7 +925,7 @@ class _FollowEkatunggalSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const _SectionTitle('IKUTI EKATUNGGAL'),
+        const _SectionTitle('MEDIA SOSIAL'),
         const SizedBox(height: 12),
         Row(
           children: [

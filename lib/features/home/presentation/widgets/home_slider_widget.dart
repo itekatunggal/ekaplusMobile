@@ -134,7 +134,7 @@ class HomeSliderWidget extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      'Selengkapnya',
+                      banner.buttonLabel,
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: isWide ? 13 : 10.5,
@@ -279,7 +279,7 @@ class HomeSliderWidget extends StatelessWidget {
                           ),
                         ),
                       ),
-                      if (banner.hasAction)
+                      if (banner.shouldShowButton)
                         _buildCta(
                           context: context,
                           banner: banner,

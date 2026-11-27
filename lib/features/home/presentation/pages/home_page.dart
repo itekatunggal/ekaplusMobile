@@ -9,6 +9,7 @@ import 'package:ekaplus_ekatunggal/features/banner/presentation/cubit/banner_sta
 import 'package:ekaplus_ekatunggal/features/branch/domain/entities/branch.dart';
 import 'package:ekaplus_ekatunggal/features/branch/presentation/cubit/selected_branch_cubit.dart';
 import 'package:ekaplus_ekatunggal/features/branch/presentation/cubit/selected_branch_state.dart';
+import 'package:ekaplus_ekatunggal/features/branch/presentation/utils/branch_image_url.dart';
 import 'package:ekaplus_ekatunggal/features/home/presentation/widgets/home_slider_widget.dart';
 import 'package:ekaplus_ekatunggal/features/invoice/presentation/cubit/invoice_cubit.dart';
 import 'package:ekaplus_ekatunggal/features/invoice/presentation/pages/invoice_page.dart';
@@ -704,7 +705,7 @@ class _SeeAllBranchesCard extends StatelessWidget {
             fit: StackFit.expand,
             children: [
               CachedNetworkImage(
-                imageUrl: _branchPhotoUrl(backgroundBranch),
+                imageUrl: branchImageUrl(backgroundBranch),
                 fit: BoxFit.cover,
                 placeholder: (_, _) => const _BranchPhotoFallback(),
                 errorWidget: (_, _, _) => const _BranchPhotoFallback(),
@@ -751,7 +752,7 @@ class _BranchPreviewCard extends StatelessWidget {
             fit: StackFit.expand,
             children: [
               CachedNetworkImage(
-                imageUrl: _branchPhotoUrl(branch),
+                imageUrl: branchImageUrl(branch),
                 fit: BoxFit.cover,
                 placeholder: (_, _) => const _BranchPhotoFallback(),
                 errorWidget: (_, _, _) => const _BranchPhotoFallback(),
@@ -820,21 +821,6 @@ class _BranchPhotoFallback extends StatelessWidget {
       ),
     ),
   );
-}
-
-String _branchPhotoUrl(Branch branch) {
-  final seedSource = branch.city?.trim().isNotEmpty == true
-      ? branch.city!
-      : branch.branchName;
-  final seed = seedSource.trim().toLowerCase().replaceAll(
-    RegExp(r'[^a-z0-9]+'),
-    '-',
-  );
-  return Uri.https(
-    'via.placeholder.com',
-    '/photo/office-building/800x450.webp',
-    {'seed': seed.isEmpty ? '${branch.id}' : '$seed-${branch.id}'},
-  ).toString();
 }
 
 class _PromotionSection extends StatelessWidget {
